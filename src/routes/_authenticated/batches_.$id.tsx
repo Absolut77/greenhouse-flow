@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil, Archive, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Archive, Download, Unlock, Trash2 } from "lucide-react";
 import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
 
 
@@ -45,11 +45,16 @@ function BatchDetailPage() {
   const navigate = useNavigate();
   const { roles } = useAuth();
   const canEdit = roles.some((r) => r === "admin" || r === "supervisor" || r === "operator");
+  const isAdmin = roles.includes("admin");
+  const isSupervisor = roles.includes("supervisor");
+  const canReopen = isAdmin || isSupervisor;
   const [batch, setBatch] = useState<Batch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [destructionRefresh, setDestructionRefresh] = useState(0);
 
   const load = async () => {
@@ -107,6 +112,39 @@ function BatchDetailPage() {
     }
     setBatch(data);
     toast.success("Batch archivée");
+  };
+
+  const reopen = async () => {
+    if (!batch) return;
+    setUpdating(true);
+    const { data, error } = await supabase
+      .from("batches")
+      .update({ status: "in_progress", closed_at: null })
+      .eq("id", batch.id)
+      .select()
+      .single();
+    setUpdating(false);
+    setReopenOpen(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setBatch(data);
+    toast.success("Batch rouverte");
+  };
+
+  const remove = async () => {
+    if (!batch) return;
+    setUpdating(true);
+    const { error } = await supabase.rpc("delete_batch_cascade", { _batch_id: batch.id });
+    setUpdating(false);
+    setDeleteOpen(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Batch supprimée");
+    navigate({ to: "/batches" });
   };
 
   if (error) {
@@ -217,9 +255,20 @@ function BatchDetailPage() {
           </Button>
           {batch.status !== "archived" && (
             <>
-              <Button onClick={toggleStatus} disabled={updating} variant="secondary">
-                {batch.status === "in_progress" ? "Fermer la batch" : "Rouvrir la batch"}
-              </Button>
+              {batch.status === "in_progress" && (
+                <Button onClick={toggleStatus} disabled={updating} variant="secondary">
+                  Fermer la batch
+                </Button>
+              )}
+              {batch.status === "closed" && canReopen && (
+                <Button
+                  onClick={() => setReopenOpen(true)}
+                  disabled={updating}
+                  variant="secondary"
+                >
+                  <Unlock className="mr-1 h-4 w-4" /> Rouvrir la batch
+                </Button>
+              )}
               <Button
                 onClick={() => setArchiveOpen(true)}
                 disabled={updating}
@@ -228,6 +277,15 @@ function BatchDetailPage() {
                 <Archive className="mr-1 h-4 w-4" /> Archiver
               </Button>
             </>
+          )}
+          {isAdmin && (
+            <Button
+              onClick={() => setDeleteOpen(true)}
+              disabled={updating}
+              variant="destructive"
+            >
+              <Trash2 className="mr-1 h-4 w-4" /> Supprimer
+            </Button>
           )}
 
         </div>
@@ -294,6 +352,46 @@ function BatchDetailPage() {
             <AlertDialogAction onClick={archive} disabled={updating}>
               {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rouvrir cette batch ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette Batch est fermée. La rouvrir permettra de modifier les données. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={reopen} disabled={updating}>
+              {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Rouvrir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette batch ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Supprimer cette Batch effacera toutes les données liées (étapes, destructions, conteneurs, sacs, lots d'inventaire créés…). Cette action est irréversible. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={remove}
+              disabled={updating}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Supprimer définitivement
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
