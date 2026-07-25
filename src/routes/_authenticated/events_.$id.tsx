@@ -855,114 +855,198 @@ function CloseEventDialog({
   };
 
 
+  const surplusReturns = sourceLots.filter((r) => (Number(r.return_grams) || 0) > 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Clôturer l'événement</DialogTitle>
+          <DialogTitle>
+            {step === "form" ? "Clôturer l'événement" : "Confirmer la clôture"}
+          </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-3 py-2">
-          <div className="grid gap-2">
-            <Label>Nom du lot produit *</Label>
-            <Input value={lotName} onChange={(e) => setLotName(e.target.value)} />
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Unités produites *</Label>
-              <Input type="number" min="0" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="Ex. 24" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Poids / unité (g) *</Label>
-              <Input type="number" step="0.01" min="0" value={unitWeight} onChange={(e) => setUnitWeight(e.target.value)} placeholder="Ex. 2.5" />
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Processing loss (g)</Label>
-              <Input type="number" step="0.01" min="0" value={processingLoss} onChange={(e) => setProcessingLoss(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Destruction dry (g)</Label>
-              <Input type="number" step="0.01" min="0" value={dryDestroyed} onChange={(e) => setDryDestroyed(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Date et heure de clôture</Label>
-            <Input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
-          </div>
 
-          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-            <div>Sortie totale (source) : <b>{sourceOut.toFixed(2)} g</b></div>
-            <div>Produit : <b>{produced.toFixed(2)} g</b> ({u} × {w} g)</div>
-            <div>Processing loss : <b>{loss.toFixed(2)} g</b></div>
-            <div>Destruction dry : <b>{dry.toFixed(2)} g</b></div>
-            <div className={invalid ? "text-destructive font-medium" : ""}>
-              Surplus à retourner : <b>{surplus.toFixed(2)} g</b>
+        {step === "form" && (
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-2">
+              <Label>Nom du lot produit *</Label>
+              <Input value={lotName} onChange={(e) => setLotName(e.target.value)} />
             </div>
-          </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Unités produites *</Label>
+                <Input type="number" min="0" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="Ex. 24" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Poids / unité (g) *</Label>
+                <Input type="number" step="0.01" min="0" value={unitWeight} onChange={(e) => setUnitWeight(e.target.value)} placeholder="Ex. 2.5" />
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Processing loss (g)</Label>
+                <Input type="number" step="0.01" min="0" value={processingLoss} onChange={(e) => setProcessingLoss(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Destruction dry (g)</Label>
+                <Input type="number" step="0.01" min="0" value={dryDestroyed} onChange={(e) => setDryDestroyed(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Date et heure de clôture</Label>
+              <Input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
+            </div>
 
-          {surplus > 0.001 && sourceLots.length > 0 && (
-            <div className="rounded-md border p-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-medium">Répartition du surplus par lot source</div>
-                <div className="flex gap-1">
-                  {sourceLots.length > 1 && (
-                    <Button type="button" size="sm" variant="outline" onClick={distributeProportional}>
-                      Proportionnel
+            <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+              <div>Sortie totale (source) : <b>{sourceOut.toFixed(2)} g</b></div>
+              <div>Produit : <b>{produced.toFixed(2)} g</b> ({u} × {w} g)</div>
+              <div>Processing loss : <b>{loss.toFixed(2)} g</b></div>
+              <div>Destruction dry : <b>{dry.toFixed(2)} g</b></div>
+              <div className={invalid ? "text-destructive font-medium" : ""}>
+                Surplus à retourner : <b>{surplus.toFixed(2)} g</b>
+              </div>
+            </div>
+
+            {surplus > 0.001 && sourceLots.length > 0 && (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-medium">Répartition du surplus par lot source</div>
+                  <div className="flex gap-1">
+                    {sourceLots.length > 1 && (
+                      <Button type="button" size="sm" variant="outline" onClick={distributeProportional}>
+                        Proportionnel
+                      </Button>
+                    )}
+                    <Button type="button" size="sm" variant="outline" onClick={distributeToFirst}>
+                      Tout sur le 1er
                     </Button>
-                  )}
-                  <Button type="button" size="sm" variant="outline" onClick={distributeToFirst}>
-                    Tout sur le 1er
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={clearReturns}>
-                    Vider
-                  </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={clearReturns}>
+                      Vider
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {sourceLots.map((r) => {
+                    const rg = Number(r.return_grams) || 0;
+                    const over = rg > r.out_grams + 1e-6;
+                    return (
+                      <div key={r.lot_id} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
+                        <div>
+                          <div className="text-sm font-medium">{r.lot_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Sorti : {r.out_grams.toFixed(2)} g
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground">Retour (g)</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={r.out_grams}
+                          value={r.return_grams}
+                          onChange={(e) => setReturn(r.lot_id, e.target.value)}
+                          className={over ? "border-destructive" : ""}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={`text-xs ${returnMismatch ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                  Total réparti : <b>{returnedTotal.toFixed(2)} g</b> / attendu <b>{surplus.toFixed(2)} g</b>
+                  {returnMismatch && ` (écart ${(returnedTotal - surplus).toFixed(2)} g)`}
+                </div>
+                {overReturn && (
+                  <div className="text-xs text-destructive">
+                    Un retour dépasse la quantité sortie du lot correspondant.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === "confirm" && (
+          <div className="grid gap-4 py-2">
+            <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Récapitulatif</div>
+              <div className="grid gap-2 text-sm">
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Sortie totale (source)</span>
+                  <span className="font-semibold tabular-nums">{sourceOut.toFixed(2)} g</span>
+                </div>
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Lot produit</span>
+                  <span className="font-semibold text-right">
+                    {lotName} — {u} × {w} g = <span className="tabular-nums">{produced.toFixed(2)} g</span>
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Processing loss</span>
+                  <span className="font-semibold tabular-nums">{loss.toFixed(2)} g</span>
+                </div>
+                <div className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="text-muted-foreground">Destruction dry</span>
+                  <span className="font-semibold tabular-nums">{dry.toFixed(2)} g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Surplus retourné</span>
+                  <span className="font-semibold tabular-nums">{surplus > 0.001 ? `${surplus.toFixed(2)} g` : "—"}</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                {sourceLots.map((r) => {
-                  const rg = Number(r.return_grams) || 0;
-                  const over = rg > r.out_grams + 1e-6;
-                  return (
-                    <div key={r.lot_id} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
-                      <div>
-                        <div className="text-sm font-medium">{r.lot_number}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Sorti : {r.out_grams.toFixed(2)} g
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground">Retour (g)</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={r.out_grams}
-                        value={r.return_grams}
-                        onChange={(e) => setReturn(r.lot_id, e.target.value)}
-                        className={over ? "border-destructive" : ""}
-                      />
+
+              {surplusReturns.length > 0 && (
+                <div className="mt-2 space-y-1 rounded border border-border/60 bg-background/40 p-2">
+                  <div className="text-xs text-muted-foreground">Répartition sur lots source</div>
+                  {surplusReturns.map((r) => (
+                    <div key={r.lot_id} className="flex justify-between text-xs">
+                      <span>{r.lot_number}</span>
+                      <span className="tabular-nums font-medium">
+                        +{(Number(r.return_grams) || 0).toFixed(2)} g
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className={`text-xs ${returnMismatch ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                Total réparti : <b>{returnedTotal.toFixed(2)} g</b> / attendu <b>{surplus.toFixed(2)} g</b>
-                {returnMismatch && ` (écart ${(returnedTotal - surplus).toFixed(2)} g)`}
-              </div>
-              {overReturn && (
-                <div className="text-xs text-destructive">
-                  Un retour dépasse la quantité sortie du lot correspondant.
+                  ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
+
+            <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                Cette action est <b>définitive</b> : elle crée le lot produit, ajuste les stocks source et clôture l'événement.
+                Vérifiez les quantités avant de confirmer.
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer rounded-md border p-3 hover:bg-muted/30">
+              <Checkbox
+                checked={confirmed}
+                onCheckedChange={(v) => setConfirmed(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">Je confirme que les quantités sont exactes.</span>
+            </label>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={submit} disabled={saving || invalid || returnMismatch || overReturn}>
-            {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Clôturer et créer le lot
-          </Button>
+          {step === "form" ? (
+            <>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
+              <Button onClick={goToConfirm} disabled={invalid || returnMismatch || overReturn}>
+                Continuer →
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setStep("form")} disabled={saving}>
+                ← Retour
+              </Button>
+              <Button onClick={submit} disabled={saving || !confirmed}>
+                {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                Confirmer et clôturer
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
