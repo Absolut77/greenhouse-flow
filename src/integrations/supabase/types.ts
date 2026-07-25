@@ -682,6 +682,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_count: { Args: never; Returns: number }
       apply_event_item_stock: {
         Args: {
           _direction: string
