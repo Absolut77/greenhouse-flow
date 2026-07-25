@@ -187,21 +187,21 @@ function Dashboard() {
           .in("product_type", ["flower", "trim"]),
         supabase
           .from("batches")
-          .select("id,batch_number,strain,harvest_date,status,updated_at,created_at")
+          .select("id,batch_number,strain,harvest_date,status,created_at")
           .eq("status", "in_progress")
-          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(20),
         supabase
           .from("events")
           .select(
-            "id,event_number,name,event_type,status,created_at,related_batch_id"
+            "id,event_number,event_type,status,created_at,related_batch_id"
           )
           .eq("status", "open")
           .order("created_at", { ascending: false })
           .limit(10),
         supabase
           .from("excise_reels")
-          .select("id,reel_number,original_quantity,spoiled_at_reception,status")
+          .select("id,serial_number,original_quantity,spoiled_at_reception,status")
           .eq("status", "available"),
         supabase
           .from("audit_logs")
@@ -360,7 +360,7 @@ function Dashboard() {
                     params={{ id: r.id }}
                     className="font-medium text-primary hover:underline"
                   >
-                    {r.reel_number}
+                    {r.serial_number}
                   </Link>{" "}
                   — balance faible
                 </span>
@@ -452,8 +452,8 @@ function Dashboard() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {b.updated_at
-                          ? formatDistanceToNow(new Date(b.updated_at), {
+                        {b.created_at
+                          ? formatDistanceToNow(new Date(b.created_at), {
                               locale: fr,
                               addSuffix: true,
                             })
@@ -516,7 +516,7 @@ function Dashboard() {
                           params={{ id: e.id }}
                           className="font-medium text-primary hover:underline"
                         >
-                          {e.event_number ?? e.name ?? "—"}
+                          {e.event_number ?? "—"}
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
