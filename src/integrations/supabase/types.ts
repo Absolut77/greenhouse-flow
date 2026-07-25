@@ -62,10 +62,12 @@ export type Database = {
           duration_minutes: number | null
           ended_at: string | null
           id: string
+          metadata: Json
           operators_count: number | null
           settings: Json | null
           stage_type: string
           started_at: string | null
+          status: string
         }
         Insert: {
           batch_id: string
@@ -75,10 +77,12 @@ export type Database = {
           duration_minutes?: number | null
           ended_at?: string | null
           id?: string
+          metadata?: Json
           operators_count?: number | null
           settings?: Json | null
           stage_type: string
           started_at?: string | null
+          status?: string
         }
         Update: {
           batch_id?: string
@@ -88,10 +92,12 @@ export type Database = {
           duration_minutes?: number | null
           ended_at?: string | null
           id?: string
+          metadata?: Json
           operators_count?: number | null
           settings?: Json | null
           stage_type?: string
           started_at?: string | null
+          status?: string
         }
         Relationships: [
           {
@@ -147,6 +153,69 @@ export type Database = {
           weight_per_plant?: number | null
         }
         Relationships: []
+      }
+      destructions: {
+        Row: {
+          batch_id: string
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          duration_minutes: number | null
+          id: string
+          person_count: number | null
+          photos: string[]
+          sanitation_products: string | null
+          stage_code: string | null
+          stage_id: string | null
+          updated_at: string
+          weight_grams: number
+        }
+        Insert: {
+          batch_id: string
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          person_count?: number | null
+          photos?: string[]
+          sanitation_products?: string | null
+          stage_code?: string | null
+          stage_id?: string | null
+          updated_at?: string
+          weight_grams?: number
+        }
+        Update: {
+          batch_id?: string
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          person_count?: number | null
+          photos?: string[]
+          sanitation_products?: string | null
+          stage_code?: string | null
+          stage_id?: string | null
+          updated_at?: string
+          weight_grams?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "destructions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "destructions_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "batch_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       drying_logs: {
         Row: {
