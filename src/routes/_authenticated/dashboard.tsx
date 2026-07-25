@@ -482,13 +482,17 @@ function Dashboard() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {b.created_at
-                          ? formatDistanceToNow(new Date(b.created_at), {
-                              locale: fr,
-                              addSuffix: true,
-                            })
-                          : "—"}
+                        {(() => {
+                          const ts = batchLastActivity[b.id] ?? b.created_at;
+                          return ts
+                            ? formatDistanceToNow(new Date(ts), {
+                                locale: fr,
+                                addSuffix: true,
+                              })
+                            : "—";
+                        })()}
                       </TableCell>
+
                       <TableCell>
                         <StatusBadge status={b.status} />
                       </TableCell>
