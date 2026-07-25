@@ -44,11 +44,13 @@ export function CuringStepContent({
   batchId,
   stageId,
   disabled,
+  refreshKey,
   onSampleCreated,
 }: {
   batchId: string;
   stageId: string | null;
   disabled: boolean;
+  refreshKey?: number;
   onSampleCreated?: () => void;
 }) {
   const [rows, setRows] = useState<Container[] | null>(null);
@@ -56,6 +58,7 @@ export function CuringStepContent({
   const [editing, setEditing] = useState<Container | null>(null);
   const [open, setOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
+  const [analysisFor, setAnalysisFor] = useState<CuringSample | null>(null);
 
   const loadContainers = async () => {
     const { data, error } = await (supabase as any)
@@ -70,7 +73,7 @@ export function CuringStepContent({
   const loadSamples = async () => {
     const { data } = await supabase
       .from("samples")
-      .select("id, sample_date, weight_grams, container_id, notes")
+      .select("*")
       .eq("batch_id", batchId)
       .eq("sample_type", "curing")
       .order("sample_date", { ascending: false });
@@ -81,7 +84,7 @@ export function CuringStepContent({
     loadContainers();
     loadSamples();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchId]);
+  }, [batchId, refreshKey]);
 
   const remove = async (id: string) => {
     if (!confirm("Supprimer ce conteneur ?")) return;
