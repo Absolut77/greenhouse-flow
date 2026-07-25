@@ -231,6 +231,8 @@ function LotDetailPage() {
         </CardContent>
       </Card>
 
+      {lot.batch_id && <PackagingBagsSection batchId={lot.batch_id} />}
+
       <EditLotDialog
         key={lot.id}
         lot={lot}
@@ -455,5 +457,71 @@ function EditLotDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PackagingBagsSection({ batchId }: { batchId: string }) {
+  const [bags, setBags] = useState<any[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("packaging_bags")
+        .select("*")
+        .eq("batch_id", batchId)
+        .order("created_at", { ascending: true });
+      setBags(data ?? []);
+    })();
+  }, [batchId]);
+
+  if (!bags) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Chargement des sacs...
+        </CardContent>
+      </Card>
+    );
+  }
+  if (bags.length === 0) return null;
+
+  const totalNet = bags.reduce((s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count), 0);
+  const totalBags = bags.reduce((s, b) => s + Number(b.bag_count), 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Détail des sacs ({totalBags} sacs — {totalNet.toFixed(2)} g)</CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+              <th className="py-2 pr-3">Type de fleur</th>
+              <th className="py-2 pr-3 text-right">Nb</th>
+              <th className="py-2 pr-3 text-right">Net / sac (g)</th>
+              <th className="py-2 pr-3 text-right">Brut / sac (g)</th>
+              <th className="py-2 pr-3 text-right">Total net (g)</th>
+              <th className="py-2 pr-3">Emplacement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bags.map((b) => (
+              <tr key={b.id} className="border-b last:border-0">
+                <td className="py-2 pr-3">{b.flower_type}</td>
+                <td className="py-2 pr-3 text-right">{b.bag_count}</td>
+                <td className="py-2 pr-3 text-right">{Number(b.net_weight_grams).toFixed(2)}</td>
+                <td className="py-2 pr-3 text-right">
+                  {b.gross_weight_grams != null ? Number(b.gross_weight_grams).toFixed(2) : "—"}
+                </td>
+                <td className="py-2 pr-3 text-right">
+                  {(Number(b.net_weight_grams) * Number(b.bag_count)).toFixed(2)}
+                </td>
+                <td className="py-2 pr-3">{b.location ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
   );
 }

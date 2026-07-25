@@ -75,6 +75,8 @@ function EventDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completedAtInput, setCompletedAtInput] = useState("");
 
   const load = async () => {
     setError(null);
@@ -155,8 +157,15 @@ function EventDetailPage() {
     navigate({ to: "/events" });
   };
 
-  const changeStatus = async (next: string) => {
+  const changeStatus = async (next: string, completedAtIso?: string) => {
     if (!event) return;
+    if (next === "completed" && !completedAtIso) {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setCompletedAtInput(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      setCompleteOpen(true);
+      return;
+    }
     setUpdating(true);
     const { data, error } = await supabase
       .from("events")
@@ -164,7 +173,7 @@ function EventDetailPage() {
         status: next,
         completed_at:
           next === "completed"
-            ? new Date().toISOString()
+            ? (completedAtIso ?? new Date().toISOString())
             : next === "open"
               ? null
               : event.completed_at,
@@ -360,6 +369,49 @@ function EventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Terminer l'événement</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label>Date et heure de fin</Label>
+            <Input
+              type="datetime-local"
+              value={completedAtInput}
+              min={event?.created_at ? (() => {
+                const d = new Date(event.created_at);
+                const p = (n: number) => String(n).padStart(2, "0");
+                return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+              })() : undefined}
+              onChange={(e) => setCompletedAtInput(e.target.value)}
+            />
+            {event?.created_at && (
+              <p className="text-xs text-muted-foreground">
+                Créé le {new Date(event.created_at).toLocaleString("fr-CA")}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCompleteOpen(false)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (!completedAtInput) return;
+                const iso = new Date(completedAtInput).toISOString();
+                if (event?.created_at && new Date(iso).getTime() < new Date(event.created_at).getTime()) {
+                  toast.error("La date de fin ne peut pas être antérieure à la date de création.");
+                  return;
+                }
+                setCompleteOpen(false);
+                changeStatus("completed", iso);
+              }}
+            >
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

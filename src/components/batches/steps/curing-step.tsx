@@ -387,19 +387,28 @@ export function CuringFinishDialog({
   open,
   onOpenChange,
   batchId,
+  startedAt,
   onDone,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   batchId: string;
-  onDone: () => void;
+  startedAt?: string | null;
+  onDone: (endedAtIso: string) => void;
 }) {
   const [rows, setRows] = useState<Container[] | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [endedAt, setEndedAt] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const toLocal = (d: Date) => {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
 
   useEffect(() => {
     if (!open) return;
+    setEndedAt(toLocal(new Date()));
     (async () => {
       const { data } = await (supabase as any)
         .from("curing_containers")
@@ -422,6 +431,10 @@ export function CuringFinishDialog({
         return toast.error(`Poids de sortie requis pour ${r.label}`);
       }
     }
+    const endedIso = endedAt ? new Date(endedAt).toISOString() : new Date().toISOString();
+    if (startedAt && new Date(endedIso).getTime() < new Date(startedAt).getTime()) {
+      return toast.error("La date de fin ne peut pas être antérieure à la date de début.");
+    }
     setSaving(true);
     for (const r of rows) {
       const { error } = await (supabase as any)
@@ -432,7 +445,7 @@ export function CuringFinishDialog({
     }
     setSaving(false);
     onOpenChange(false);
-    onDone();
+    onDone(endedIso);
   };
 
   return (
@@ -441,6 +454,15 @@ export function CuringFinishDialog({
         <DialogHeader>
           <DialogTitle>Poids de sortie des conteneurs</DialogTitle>
         </DialogHeader>
+        <div className="grid gap-2 py-2">
+          <Label>Date et heure de fin du curing</Label>
+          <Input
+            type="datetime-local"
+            value={endedAt}
+            min={startedAt ? toLocal(new Date(startedAt)) : undefined}
+            onChange={(e) => setEndedAt(e.target.value)}
+          />
+        </div>
         <div className="space-y-3 py-2 max-h-[50vh] overflow-y-auto">
           {!rows ? (
             <div className="text-sm text-muted-foreground">Chargement...</div>

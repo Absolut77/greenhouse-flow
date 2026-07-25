@@ -467,6 +467,7 @@ export type Database = {
           id: string
           location: string | null
           lot_number: string
+          notes: string | null
           parent_lot_id: string | null
           product_type: string | null
           quantity_grams: number | null
@@ -481,6 +482,7 @@ export type Database = {
           id?: string
           location?: string | null
           lot_number: string
+          notes?: string | null
           parent_lot_id?: string | null
           product_type?: string | null
           quantity_grams?: number | null
@@ -495,6 +497,7 @@ export type Database = {
           id?: string
           location?: string | null
           lot_number?: string
+          notes?: string | null
           parent_lot_id?: string | null
           product_type?: string | null
           quantity_grams?: number | null

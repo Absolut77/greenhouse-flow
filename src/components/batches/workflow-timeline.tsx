@@ -25,6 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   computeWorkflow,
@@ -66,6 +76,11 @@ function StatusPill({ status }: { status: WorkflowStep["status"] }) {
   );
 }
 
+export function toLocalDatetimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function WorkflowTimeline({
   batch,
   canEdit,
@@ -84,6 +99,7 @@ export function WorkflowTimeline({
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
+  const [finishEndedAt, setFinishEndedAt] = useState<string>("");
   const [confirmRevert, setConfirmRevert] = useState<WorkflowStep | null>(null);
   const [curingFinishOpen, setCuringFinishOpen] = useState(false);
   const [curingRefreshKey, setCuringRefreshKey] = useState(0);
@@ -190,32 +206,62 @@ export function WorkflowTimeline({
     }
 
     const prefix = `${batch.batch_number ?? batchId.slice(0, 6)} – ${batch.strain ?? "sans nom"}`;
+    // NOUVELLE RÈGLE : un seul lot d'inventaire par batch, regroupant tous les sacs.
     const pendingBags = list.filter((b) => !b.inventory_lot_id);
-    for (let i = 0; i < pendingBags.length; i++) {
-      const b = pendingBags[i];
-      const lotNumber = pendingBags.length > 1
-        ? `${prefix} (${String(i + 1).padStart(2, "0")})`
-        : prefix;
-      const totalGrams = Number(b.net_weight_grams) * Number(b.bag_count);
+    if (pendingBags.length === 0) return true;
+
+    const totalPending = pendingBags.reduce(
+      (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
+      0,
+    );
+    const totalUnits = pendingBags.reduce((s, b) => s + Number(b.bag_count), 0);
+    const flowerTypes = Array.from(new Set(pendingBags.map((b) => b.flower_type))).join(", ");
+
+    // Chercher un lot déjà existant pour cette batch (créé lors d'un packaging partiel précédent).
+    const { data: existingLot } = await supabase
+      .from("inventory_lots")
+      .select("*")
+      .eq("batch_id", batchId)
+      .eq("product_type", "packaged")
+      .maybeSingle();
+
+    let lotId: string;
+    if (existingLot) {
+      const { data: upd, error: updErr } = await supabase
+        .from("inventory_lots")
+        .update({
+          quantity_grams: Number(existingLot.quantity_grams ?? 0) + totalPending,
+          units: Number(existingLot.units ?? 0) + totalUnits,
+        } as any)
+        .eq("id", existingLot.id)
+        .select()
+        .single();
+      if (updErr) { toast.error(updErr.message); return false; }
+      lotId = upd.id;
+    } else {
       const { data: lot, error: lotErr } = await supabase
         .from("inventory_lots")
         .insert({
-          lot_number: lotNumber,
+          lot_number: prefix,
           batch_id: batchId,
           product_type: "packaged",
           format: "bulk",
-          flower_size: b.flower_type,
-          quantity_grams: totalGrams,
-          units: b.bag_count,
+          flower_size: flowerTypes || null,
+          quantity_grams: totalPending,
+          units: totalUnits,
           status: "available",
-          notes: b.location ? `Emplacement : ${b.location}` : null,
+          notes: "Détail des sacs disponible sur la fiche du lot.",
         } as any)
         .select()
         .single();
-      if (lotErr) { toast.error(`Lot ${lotNumber}: ${lotErr.message}`); return false; }
+      if (lotErr) { toast.error(`Lot ${prefix}: ${lotErr.message}`); return false; }
+      lotId = lot.id;
+    }
+
+    for (const b of pendingBags) {
       await (supabase as any)
         .from("packaging_bags")
-        .update({ inventory_lot_id: lot.id })
+        .update({ inventory_lot_id: lotId })
         .eq("id", b.id);
     }
 
@@ -244,42 +290,49 @@ export function WorkflowTimeline({
     return true;
   };
 
-  const startNext = async (currentCode: StageCode) => {
+  const startNext = async (currentCode: StageCode, startedAt: string) => {
     const idx = STAGE_ORDER.indexOf(currentCode);
     const nextCode = STAGE_ORDER[idx + 1];
     if (!nextCode) return;
     const nextRow = findStage(stages ?? [], nextCode);
     await upsertStage(nextCode, nextRow, {
       status: "in_progress",
-      started_at: nextRow?.started_at ?? new Date().toISOString(),
+      started_at: startedAt,
       ended_at: null,
     } as any);
   };
 
-  const finishStage = async (step: WorkflowStep) => {
+  const finishStage = async (step: WorkflowStep, endedAtIso?: string) => {
     setBusy(step.code);
+    const startedAt = step.row?.started_at ?? new Date().toISOString();
+    const endedAt = endedAtIso ?? new Date().toISOString();
+    if (new Date(endedAt).getTime() < new Date(startedAt).getTime()) {
+      toast.error("La date de fin ne peut pas être antérieure à la date de début.");
+      setBusy(null);
+      return;
+    }
     if (step.code === "bulk_packaging") {
       const ok = await finalizeBulkPackaging(step);
       if (!ok) { setBusy(null); return; }
     }
     const updated = await upsertStage(step.code, step.row, {
       status: "done",
-      started_at: step.row?.started_at ?? new Date().toISOString(),
-      ended_at: new Date().toISOString(),
+      started_at: startedAt,
+      ended_at: endedAt,
     } as any);
     if (!updated) { setBusy(null); return; }
 
     if (step.code === "bulk_packaging") {
       const { error } = await supabase
         .from("batches")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .update({ status: "closed", closed_at: endedAt })
         .eq("id", batchId);
       if (error) toast.error(error.message);
       else toast.success("Bulk Packaging validé — batch fermée.");
       onBatchClosed?.();
     } else {
       toast.success(`${step.label} terminée — étape suivante démarrée.`);
-      await startNext(step.code);
+      await startNext(step.code, endedAt);
     }
     setBusy(null);
     await load();
@@ -374,7 +427,10 @@ export function WorkflowTimeline({
               curingRefreshKey={curingRefreshKey}
               onFinishRequest={() => {
                 if (step.code === "curing") askFinishCuring();
-                else setConfirmFinish(step);
+                else {
+                  setFinishEndedAt(toLocalDatetimeInput(new Date()));
+                  setConfirmFinish(step);
+                }
               }}
               onRevertRequest={() => setConfirmRevert(step)}
               onDataChanged={() => {
@@ -386,30 +442,45 @@ export function WorkflowTimeline({
         ))}
       </ol>
 
-      <AlertDialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Terminer « {confirmFinish?.label} » ?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Terminer « {confirmFinish?.label} » ?</DialogTitle>
+            <DialogDescription>
               {confirmFinish?.code === "bulk_packaging"
-                ? "Les sacs seront convertis en lots d'inventaire (strictement liés à cette batch), les échantillons fixes créés, et la batch sera fermée."
+                ? "Les sacs seront convertis en un lot d'inventaire unique lié à cette batch, les échantillons fixes créés, et la batch sera fermée."
                 : "L'étape sera marquée comme terminée et l'étape suivante démarrera automatiquement."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label>Date et heure de fin</Label>
+            <Input
+              type="datetime-local"
+              value={finishEndedAt}
+              min={confirmFinish?.row?.started_at ? toLocalDatetimeInput(new Date(confirmFinish.row.started_at)) : undefined}
+              onChange={(e) => setFinishEndedAt(e.target.value)}
+            />
+            {confirmFinish?.row?.started_at && (
+              <p className="text-xs text-muted-foreground">
+                Démarrée le {new Date(confirmFinish.row.started_at).toLocaleString("fr-CA")}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmFinish(null)}>Annuler</Button>
+            <Button
               onClick={() => {
                 const step = confirmFinish;
+                const iso = finishEndedAt ? new Date(finishEndedAt).toISOString() : new Date().toISOString();
                 setConfirmFinish(null);
-                if (step) finishStage(step);
+                if (step) finishStage(step, iso);
               }}
             >
               Confirmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!confirmRevert} onOpenChange={(o) => !o && setConfirmRevert(null)}>
         <AlertDialogContent>
@@ -434,11 +505,12 @@ export function WorkflowTimeline({
         open={curingFinishOpen}
         onOpenChange={setCuringFinishOpen}
         batchId={batchId}
-        onDone={async () => {
+        startedAt={workflow.find((s) => s.code === "curing")?.row?.started_at ?? null}
+        onDone={async (endedAtIso) => {
           setCuringRefreshKey((n) => n + 1);
           const curingStep = workflow.find((s) => s.code === "curing");
           if (!curingStep) return;
-          await finishStage(curingStep);
+          await finishStage(curingStep, endedAtIso);
         }}
       />
     </>
