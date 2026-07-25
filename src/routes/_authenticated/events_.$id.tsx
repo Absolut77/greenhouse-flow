@@ -27,6 +27,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { EventStatusBadge, EVENT_TYPES } from "./events";
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
+import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
 
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
@@ -226,7 +227,10 @@ function EventDetailPage() {
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       {event.event_type === "packaging" && (
-        <EventStampsSection eventId={event.id} eventStatus={event.status} />
+        <>
+          <PackagedLotsSection eventId={event.id} eventStatus={event.status} />
+          <EventStampsSection eventId={event.id} eventStatus={event.status} />
+        </>
       )}
 
       <EditEventDialog
