@@ -389,9 +389,13 @@ export type Database = {
           event_number: string
           event_type: string | null
           id: string
+          linked_shipment_event_id: string | null
           notes: string | null
+          reception_kind: string | null
+          reference_number: string | null
           related_batch_id: string | null
           status: string | null
+          supplier: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -400,9 +404,13 @@ export type Database = {
           event_number: string
           event_type?: string | null
           id?: string
+          linked_shipment_event_id?: string | null
           notes?: string | null
+          reception_kind?: string | null
+          reference_number?: string | null
           related_batch_id?: string | null
           status?: string | null
+          supplier?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -411,11 +419,22 @@ export type Database = {
           event_number?: string
           event_type?: string | null
           id?: string
+          linked_shipment_event_id?: string | null
           notes?: string | null
+          reception_kind?: string | null
+          reference_number?: string | null
           related_batch_id?: string | null
           status?: string | null
+          supplier?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "events_linked_shipment_event_id_fkey"
+            columns: ["linked_shipment_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_related_batch_id_fkey"
             columns: ["related_batch_id"]
@@ -517,6 +536,50 @@ export type Database = {
             columns: ["parent_lot_id"]
             isOneToOne: false
             referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      non_cannabis_receptions: {
+        Row: {
+          category: string | null
+          created_at: string
+          event_id: string
+          id: string
+          item_name: string
+          location: string | null
+          notes: string | null
+          quantity: number | null
+          unit: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          item_name: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          item_name?: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "non_cannabis_receptions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]

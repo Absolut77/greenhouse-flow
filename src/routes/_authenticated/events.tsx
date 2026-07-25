@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Download } from "lucide-react";
+import { Plus, Download, PackagePlus } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { exportXlsx, fmtDateTime } from "@/lib/export-xlsx";
 
@@ -29,12 +31,19 @@ import type { Tables } from "@/integrations/supabase/types";
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
 
+const searchSchema = z.object({
+  status: fallback(z.string(), "all").default("all"),
+  type: fallback(z.string(), "all").default("all"),
+});
+
 export const Route = createFileRoute("/_authenticated/events")({
   head: () => ({ meta: [{ title: "Événements — ONO Cannabis" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: EventsPage,
 });
 
 export const EVENT_TYPES = [
+  { value: "reception", label: "Réception" },
   { value: "packaging", label: "Packaging" },
   { value: "shipment", label: "Expédition" },
   { value: "b2b", label: "B2B" },
@@ -43,6 +52,13 @@ export const EVENT_TYPES = [
   { value: "destruction", label: "Destruction" },
   { value: "rework", label: "Rework" },
   { value: "transfer", label: "Transfert" },
+];
+
+export const RECEPTION_KINDS = [
+  { value: "cannabis_bulk", label: "Cannabis bulk" },
+  { value: "cannabis_batch", label: "Nouvelle batch cannabis" },
+  { value: "non_cannabis", label: "Non-cannabis" },
+  { value: "transformation_return", label: "Retour de transformation" },
 ];
 
 export const EVENT_STATUS_VARIANTS: Record<
@@ -78,6 +94,7 @@ export function EventStatusBadge({ status }: { status: string | null }) {
 
 function EventsPage() {
   const navigate = useNavigate();
+  const { status: statusFilter, type: typeFilter } = Route.useSearch();
   const { roles } = useAuth();
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [events, setEvents] = useState<Event[] | null>(null);
@@ -86,8 +103,11 @@ function EventsPage() {
     Record<string, { full_name: string | null; email: string | null }>
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const setStatusFilter = (v: string) =>
+    navigate({ to: "/events", search: { status: v, type: typeFilter } });
+  const setTypeFilter = (v: string) =>
+    navigate({ to: "/events", search: { status: statusFilter, type: v } });
 
   useEffect(() => {
     let cancelled = false;
@@ -146,7 +166,7 @@ function EventsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Événements</h1>
           <p className="text-sm text-muted-foreground">
-            Packaging, expéditions, retours, destructions et transferts.
+            Réceptions, packaging, expéditions, retours, destructions et transferts.
           </p>
         </div>
         <div className="flex gap-2">
@@ -219,9 +239,14 @@ function EventsPage() {
             <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
           {!isViewerOnly && (
-            <Button onClick={() => navigate({ to: "/events/new" })}>
-              <Plus className="mr-1 h-4 w-4" /> Nouvel événement
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => navigate({ to: "/receptions/new" })}>
+                <PackagePlus className="mr-1 h-4 w-4" /> Nouvelle réception
+              </Button>
+              <Button onClick={() => navigate({ to: "/events/new" })}>
+                <Plus className="mr-1 h-4 w-4" /> Nouvel événement
+              </Button>
+            </>
           )}
         </div>
 
