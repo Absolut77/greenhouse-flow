@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil, Archive, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Archive, Download, Unlock, Trash2 } from "lucide-react";
 import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
 
 
