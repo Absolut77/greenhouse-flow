@@ -517,7 +517,7 @@ export function SampleDialog({
   );
 }
 
-function AnalysisDialog({
+export function AnalysisDialog({
   sample,
   open,
   onOpenChange,
