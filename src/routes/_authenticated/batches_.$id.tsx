@@ -29,10 +29,12 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
-import { StagesSection } from "@/components/batches/stages-section";
 import { DryingLogsSection } from "@/components/batches/drying-logs-section";
 import { SamplesSection } from "@/components/batches/samples-section";
 import { WeightsSection } from "@/components/batches/weights-section";
+import { WorkflowTimeline } from "@/components/batches/workflow-timeline";
+import { DestructionsSection } from "@/components/batches/destructions-section";
+import { useAuth } from "@/hooks/use-auth";
 
 type Batch = Tables<"batches">;
 
