@@ -51,7 +51,7 @@ export function DestructionFormDialog({
   const [duration, setDuration] = useState("");
   const [comments, setComments] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [newPhoto, setNewPhoto] = useState("");
+  
   const [saving, setSaving] = useState(false);
 
   const isSanitationLog = mode === "sanitation";
@@ -59,19 +59,13 @@ export function DestructionFormDialog({
 
   const reset = () => {
     setWeight(""); setPersons(""); setSanitationType(""); setProducts("");
-    setDuration(""); setComments(""); setPhotos([]); setNewPhoto("");
+    setDuration(""); setComments(""); setPhotos([]);
   };
 
   useEffect(() => {
     if (!open) reset();
   }, [open]);
 
-  const addPhoto = () => {
-    const v = newPhoto.trim();
-    if (!v) return;
-    setPhotos((p) => [...p, v]);
-    setNewPhoto("");
-  };
 
   const submit = async () => {
     if (!isSanitationLog && (!weight || Number(weight) <= 0)) {
@@ -161,35 +155,15 @@ export function DestructionFormDialog({
             <Textarea rows={3} value={comments} onChange={(e) => setComments(e.target.value)} />
           </div>
           <div className="grid gap-2">
-            <Label>Photos (URLs)</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newPhoto}
-                onChange={(e) => setNewPhoto(e.target.value)}
-                placeholder="https://..."
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPhoto(); } }}
-              />
-              <Button type="button" variant="outline" onClick={addPhoto}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {photos.length > 0 && (
-              <ul className="mt-1 space-y-1">
-                {photos.map((p, i) => (
-                  <li key={i} className="flex items-center justify-between gap-2 rounded bg-muted/40 px-2 py-1 text-xs">
-                    <span className="truncate">{p}</span>
-                    <Button
-                      type="button" size="icon" variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => setPhotos((all) => all.filter((_, idx) => idx !== i))}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <Label>Photos</Label>
+            <PhotoUploader
+              batchId={batchId}
+              value={photos}
+              onChange={setPhotos}
+              folder={isSanitationLog ? "sanitations" : "destructions"}
+            />
           </div>
+
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>

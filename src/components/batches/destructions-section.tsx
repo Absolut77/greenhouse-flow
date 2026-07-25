@@ -320,17 +320,9 @@ function GroupBlock({
                   {!isSanitation && <TableCell className="max-w-[180px] truncate">{r.sanitation_products ?? "—"}</TableCell>}
                   <TableCell className="max-w-[220px] truncate">{r.comments ?? "—"}</TableCell>
                   <TableCell>
-                    {r.photos && r.photos.length > 0 ? (
-                      <div className="flex gap-1">
-                        {r.photos.slice(0, 3).map((p, i) => (
-                          <a key={i} href={p} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-                            #{i + 1}
-                          </a>
-                        ))}
-                        {r.photos.length > 3 && <span className="text-xs">+{r.photos.length - 3}</span>}
-                      </div>
-                    ) : "—"}
+                    <PhotoThumbs paths={r.photos ?? []} />
                   </TableCell>
+
                   <TableCell>
                     <Button size="icon" variant="ghost" onClick={() => onRemove(r.id)}>
                       <Trash2 className="h-4 w-4" />
