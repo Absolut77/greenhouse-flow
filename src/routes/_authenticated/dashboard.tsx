@@ -209,13 +209,15 @@ function Dashboard() {
           .from("excise_reels")
           .select("id,serial_number,original_quantity,spoiled_at_reception,status")
           .eq("status", "available"),
-        supabase
-          .from("audit_logs")
-          .select(
-            "id,user_name,user_initials,action,entity_type,entity_label,created_at"
-          )
-          .order("created_at", { ascending: false })
-          .limit(10),
+        canSeeActivity
+          ? supabase
+              .from("audit_logs")
+              .select(
+                "id,user_name,user_initials,action,entity_type,entity_label,created_at"
+              )
+              .order("created_at", { ascending: false })
+              .limit(10)
+          : Promise.resolve({ data: [] as LogRow[] }),
       ]);
 
       if (cancelled) return;
@@ -265,6 +267,27 @@ function Dashboard() {
         }
       }
 
+      // Fetch last activity for the visible batches (from audit_logs).
+      // Readable by all authenticated roles via RLS? audit_logs SELECT is
+      // restricted to admin/supervisor, so only query when allowed.
+      if (canSeeActivity && batchList.length) {
+        const ids = batchList.map((b) => b.id);
+        const { data: acts } = await supabase
+          .from("audit_logs")
+          .select("entity_id,created_at")
+          .eq("entity_type", "batches")
+          .in("entity_id", ids)
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (!cancelled && acts) {
+          const map: Record<string, string> = {};
+          for (const a of acts as { entity_id: string | null; created_at: string }[]) {
+            if (a.entity_id && !map[a.entity_id]) map[a.entity_id] = a.created_at;
+          }
+          setBatchLastActivity(map);
+        }
+      }
+
       // Low balance reels
       const reels = (reelsRes.data ?? []) as ReelRow[];
       const withBal = reels
@@ -278,6 +301,7 @@ function Dashboard() {
     })();
     return () => {
       cancelled = true;
+
     };
   }, []);
 
