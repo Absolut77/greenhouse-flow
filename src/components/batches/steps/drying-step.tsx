@@ -161,40 +161,34 @@ export function DryingStepContent({
                   <TableHead>Date</TableHead>
                   <TableHead>Poids (g)</TableHead>
                   <TableHead>Notes</TableHead>
-                  <TableHead>Analyse</TableHead>
+                  <TableHead>Résultats d'analyse</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {samples.map((s) => {
-                  const analysis = (s.analysis_data as any) ?? null;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
-                      <TableCell>{s.weight_grams ?? "—"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{s.notes ?? "—"}</TableCell>
-                      <TableCell>
-                        {analysis ? (
-                          <span className="text-xs text-emerald-400">
-                            {Object.keys(analysis).length} résultat(s)
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" disabled={disabled} onClick={() => setAnalysisFor(s)}>
-                            <FlaskConical className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" disabled={disabled} onClick={() => removeSample(s)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {samples.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    onDoubleClick={() => !disabled && setAnalysisFor(s)}
+                    className="cursor-pointer"
+                    title="Double-cliquez pour saisir/modifier les résultats"
+                  >
+                    <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
+                    <TableCell>{s.weight_grams ?? "—"}</TableCell>
+                    <TableCell className="max-w-[180px] truncate">{s.notes ?? "—"}</TableCell>
+                    <TableCell className="max-w-[260px]"><AnalysisCell sample={s} /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" disabled={disabled} onClick={() => setAnalysisFor(s)}>
+                          <FlaskConical className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" disabled={disabled} onClick={() => removeSample(s)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
