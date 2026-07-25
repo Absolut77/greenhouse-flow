@@ -371,6 +371,7 @@ export function WorkflowTimeline({
               canRevert={canRevert}
               busy={busy === step.code}
               availableGramsForPackaging={availableGramsForPackaging}
+              curingRefreshKey={curingRefreshKey}
               onFinishRequest={() => {
                 if (step.code === "curing") askFinishCuring();
                 else setConfirmFinish(step);
