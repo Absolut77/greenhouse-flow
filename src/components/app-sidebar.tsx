@@ -36,6 +36,7 @@ const items = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const { roles } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +56,9 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {items
+                .filter((item) => !item.roles || item.roles.some((r) => roles.includes(r)))
+                .map((item) => {
                 const active = pathname === item.url || pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -75,3 +78,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
