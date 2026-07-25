@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +44,7 @@ import { EventStatusBadge, EVENT_TYPES } from "./events";
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
+import { useAuth } from "@/hooks/use-auth";
 
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
@@ -41,15 +58,21 @@ export const Route = createFileRoute("/_authenticated/events_/$id")({
 
 function EventDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const { roles } = useAuth();
+  const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [event, setEvent] = useState<Event | null>(null);
   const [batch, setBatch] = useState<Batch | null>(null);
   const [creator, setCreator] = useState<{
     full_name: string | null;
     email: string | null;
   } | null>(null);
+  const [itemCount, setItemCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
@@ -83,12 +106,40 @@ function EventDetailPage() {
         .maybeSingle();
       setCreator(p);
     } else setCreator(null);
+    const { count } = await supabase
+      .from("event_items")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", id);
+    setItemCount(count ?? 0);
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!event) return;
+    setDeleting(true);
+    const { error } = await supabase.from("events").delete().eq("id", event.id);
+    setDeleting(false);
+    if (error) {
+      if (error.code === "23001" || /mouvements de stock/i.test(error.message)) {
+        toast.error(
+          "Impossible de supprimer cet événement car il contient des mouvements de stock. Utilisez un événement de type destruction ou expédition.",
+        );
+      } else {
+        toast.error(error.message);
+      }
+      // Refresh count in case it changed
+      load();
+      setConfirmDelete(false);
+      return;
+    }
+    toast.success("Événement supprimé");
+    setConfirmDelete(false);
+    navigate({ to: "/events" });
+  };
 
   const changeStatus = async (next: string) => {
     if (!event) return;
@@ -181,6 +232,31 @@ function EventDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="mr-1 h-4 w-4" /> Modifier
           </Button>
+          {!isViewerOnly && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={itemCount === null || itemCount > 0}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" /> Supprimer
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {itemCount !== null && itemCount > 0 && (
+                  <TooltipContent>
+                    Impossible : cet événement contient {itemCount} mouvement
+                    {itemCount > 1 ? "s" : ""} de stock.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 
@@ -240,6 +316,25 @@ function EventDetailPage() {
         onOpenChange={setEditOpen}
         onSaved={load}
       />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet événement ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est définitive. Elle n'est possible que si
+              l'événement ne contient aucun mouvement de stock.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

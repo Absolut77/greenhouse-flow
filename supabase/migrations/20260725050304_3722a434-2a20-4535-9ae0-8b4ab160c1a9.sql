@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.prevent_event_delete_with_items() FROM PUBLIC, anon, authenticated;
