@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Download, PackagePlus } from "lucide-react";
+import { Plus, Download, PackagePlus, Truck } from "lucide-react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,12 @@ export const RECEPTION_KINDS = [
   { value: "cannabis_batch", label: "Nouvelle batch cannabis" },
   { value: "non_cannabis", label: "Non-cannabis" },
   { value: "transformation_return", label: "Retour de transformation" },
+];
+
+export const SHIPMENT_KINDS = [
+  { value: "out_of_facility", label: "Out of facility (Bulk → revendeur)" },
+  { value: "lab_samples", label: "Envoi laboratoire (échantillons)" },
+  { value: "external_transformation", label: "Transformation externe" },
 ];
 
 export const EVENT_STATUS_VARIANTS: Record<
@@ -242,6 +248,9 @@ function EventsPage() {
             <>
               <Button variant="secondary" onClick={() => navigate({ to: "/receptions/new" })}>
                 <PackagePlus className="mr-1 h-4 w-4" /> Nouvelle réception
+              </Button>
+              <Button variant="secondary" onClick={() => navigate({ to: "/shipments/new" })}>
+                <Truck className="mr-1 h-4 w-4" /> Nouvelle expédition
               </Button>
               <Button onClick={() => navigate({ to: "/events/new" })}>
                 <Plus className="mr-1 h-4 w-4" /> Nouvel événement
