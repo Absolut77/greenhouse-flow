@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +44,7 @@ import { EventStatusBadge, EVENT_TYPES } from "./events";
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
+import { useAuth } from "@/hooks/use-auth";
 
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
