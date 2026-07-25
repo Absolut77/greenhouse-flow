@@ -1,11 +1,29 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Archive } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
@@ -26,6 +44,8 @@ function BatchDetailPage() {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -65,6 +85,25 @@ function BatchDetailPage() {
     toast.success(`Statut : ${next}`);
   };
 
+  const archive = async () => {
+    if (!batch) return;
+    setUpdating(true);
+    const { data, error } = await supabase
+      .from("batches")
+      .update({ status: "archived" })
+      .eq("id", batch.id)
+      .select()
+      .single();
+    setUpdating(false);
+    setArchiveOpen(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setBatch(data);
+    toast.success("Batch archivée");
+  };
+
   if (error) {
     return (
       <div className="space-y-4">
@@ -96,16 +135,32 @@ function BatchDetailPage() {
           <span className="text-muted-foreground">— {batch.strain ?? "—"}</span>
           <StatusBadge status={batch.status} />
         </div>
-        {batch.status !== "archived" && (
-          <Button onClick={toggleStatus} disabled={updating} variant="secondary">
-            {batch.status === "in_progress" ? "Fermer la batch" : "Rouvrir la batch"}
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {batch.status !== "archived" && (
+            <>
+              <Button onClick={toggleStatus} disabled={updating} variant="secondary">
+                {batch.status === "in_progress" ? "Fermer la batch" : "Rouvrir la batch"}
+              </Button>
+              <Button
+                onClick={() => setArchiveOpen(true)}
+                disabled={updating}
+                variant="outline"
+              >
+                <Archive className="mr-1 h-4 w-4" /> Archiver
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Informations générales</CardTitle>
+          {batch.status !== "archived" && (
+            <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1 h-4 w-4" /> Modifier
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Info label="Numéro" value={batch.batch_number} />
@@ -130,9 +185,34 @@ function BatchDetailPage() {
 
       <StagesSection batchId={batch.id} />
       <DryingLogsSection batchId={batch.id} />
-      <Section title="Pesées" description="Historique des pesées." />
-      <Section title="Pesées" description="Historique des pesées." />
       <SamplesSection batchId={batch.id} />
+
+      <EditBatchDialog
+        key={batch.id + batch.strain}
+        batch={batch}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={(b) => setBatch(b)}
+      />
+
+      <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver cette batch ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La batch passera au statut « Archivée ». Vous pourrez toujours la
+              consulter mais plus la modifier.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={archive} disabled={updating}>
+              {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -148,19 +228,123 @@ function Info({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function Section({ title, description }: { title: string; description: string }) {
+function EditBatchDialog({
+  batch,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  batch: Batch;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onSaved: (b: Batch) => void;
+}) {
+  const [strain, setStrain] = useState(batch.strain ?? "");
+  const [plantCount, setPlantCount] = useState(batch.plant_count?.toString() ?? "");
+  const [weightPerPlant, setWeightPerPlant] = useState(
+    batch.weight_per_plant?.toString() ?? "",
+  );
+  const [harvestDate, setHarvestDate] = useState(batch.harvest_date ?? "");
+  const [harvestRoom, setHarvestRoom] = useState(batch.harvest_room ?? "");
+  const [dryingLocation, setDryingLocation] = useState(batch.drying_location ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!strain.trim()) {
+      toast.error("Le strain est obligatoire");
+      return;
+    }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("batches")
+      .update({
+        strain: strain.trim(),
+        plant_count: plantCount ? Number(plantCount) : null,
+        weight_per_plant: weightPerPlant ? Number(weightPerPlant) : null,
+        harvest_date: harvestDate || null,
+        harvest_room: harvestRoom.trim() || null,
+        drying_location: dryingLocation.trim() || null,
+      })
+      .eq("id", batch.id)
+      .select()
+      .single();
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Batch mise à jour");
+    onSaved(data);
+    onOpenChange(false);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        <Separator className="my-4" />
-        <p className="text-sm text-muted-foreground italic">
-          Aucune donnée pour le moment.
-        </p>
-      </CardContent>
-    </Card>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Modifier la batch</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="grid gap-2">
+            <Label>Strain *</Label>
+            <Input value={strain} onChange={(e) => setStrain(e.target.value)} />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Nombre de plants</Label>
+              <Input
+                type="number"
+                min="0"
+                value={plantCount}
+                onChange={(e) => setPlantCount(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Poids par plant (g)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weightPerPlant}
+                onChange={(e) => setWeightPerPlant(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Date de récolte</Label>
+              <Input
+                type="date"
+                value={harvestDate}
+                onChange={(e) => setHarvestDate(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Salle de récolte</Label>
+              <Input
+                value={harvestRoom}
+                onChange={(e) => setHarvestRoom(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Emplacement de séchage</Label>
+            <Input
+              value={dryingLocation}
+              onChange={(e) => setDryingLocation(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+            Enregistrer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
