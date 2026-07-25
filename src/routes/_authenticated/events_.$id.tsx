@@ -106,12 +106,40 @@ function EventDetailPage() {
         .maybeSingle();
       setCreator(p);
     } else setCreator(null);
+    const { count } = await supabase
+      .from("event_items")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", id);
+    setItemCount(count ?? 0);
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!event) return;
+    setDeleting(true);
+    const { error } = await supabase.from("events").delete().eq("id", event.id);
+    setDeleting(false);
+    if (error) {
+      if (error.code === "23001" || /mouvements de stock/i.test(error.message)) {
+        toast.error(
+          "Impossible de supprimer cet événement car il contient des mouvements de stock. Utilisez un événement de type destruction ou expédition.",
+        );
+      } else {
+        toast.error(error.message);
+      }
+      // Refresh count in case it changed
+      load();
+      setConfirmDelete(false);
+      return;
+    }
+    toast.success("Événement supprimé");
+    setConfirmDelete(false);
+    navigate({ to: "/events" });
+  };
 
   const changeStatus = async (next: string) => {
     if (!event) return;
