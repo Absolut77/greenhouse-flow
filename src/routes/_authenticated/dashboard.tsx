@@ -241,8 +241,14 @@ function Dashboard() {
         packagedLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
       const packagedUnits =
         packagedLotsRes.data?.reduce((a, l) => a + (Number(l.units) || 0), 0) ?? 0;
-      const sampleGrams =
-        sampleLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
+      const sampleRetentionRows = ((sampleLotsRes.data ?? []) as any[]);
+      const sampleGrams = sampleRetentionRows
+        .filter((l) => l.lot_kind === "sample")
+        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const retentionGrams = sampleRetentionRows
+        .filter((l) => l.lot_kind === "retention")
+        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const totalAvailableGrams = bulkGrams + packagedGrams + sampleGrams + retentionGrams;
 
       // Compute stamps available: sum of balances across available reels
       const reelsAll = (reelsFullRes.data ?? []) as ReelRow[];
