@@ -529,6 +529,7 @@ export type Database = {
           gross_weight_grams: number | null
           id: string
           inventory_lot_id: string | null
+          location: string | null
           net_weight_grams: number
           notes: string | null
           stage_id: string | null
@@ -544,6 +545,7 @@ export type Database = {
           gross_weight_grams?: number | null
           id?: string
           inventory_lot_id?: string | null
+          location?: string | null
           net_weight_grams: number
           notes?: string | null
           stage_id?: string | null
@@ -559,6 +561,7 @@ export type Database = {
           gross_weight_grams?: number | null
           id?: string
           inventory_lot_id?: string | null
+          location?: string | null
           net_weight_grams?: number
           notes?: string | null
           stage_id?: string | null
@@ -638,7 +641,10 @@ export type Database = {
       }
       samples: {
         Row: {
+          analysis_data: Json | null
+          analysis_weight_grams: number | null
           batch_id: string
+          container_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -650,7 +656,10 @@ export type Database = {
           weight_grams: number | null
         }
         Insert: {
+          analysis_data?: Json | null
+          analysis_weight_grams?: number | null
           batch_id: string
+          container_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -662,7 +671,10 @@ export type Database = {
           weight_grams?: number | null
         }
         Update: {
+          analysis_data?: Json | null
+          analysis_weight_grams?: number | null
           batch_id?: string
+          container_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -679,6 +691,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samples_container_id_fkey"
+            columns: ["container_id"]
+            isOneToOne: false
+            referencedRelation: "curing_containers"
             referencedColumns: ["id"]
           },
           {
