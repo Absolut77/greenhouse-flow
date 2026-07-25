@@ -46,11 +46,14 @@ export const Route = createFileRoute("/_authenticated/batches_/$id")({
 function BatchDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  const canEdit = roles.some((r) => r === "admin" || r === "supervisor" || r === "operator");
   const [batch, setBatch] = useState<Batch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [destructionRefresh, setDestructionRefresh] = useState(0);
 
   const load = async () => {
     const { data, error } = await supabase
