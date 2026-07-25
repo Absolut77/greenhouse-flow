@@ -149,11 +149,83 @@ function EventsPage() {
             Packaging, expéditions, retours, destructions et transferts.
           </p>
         </div>
-        {!isViewerOnly && (
-          <Button onClick={() => navigate({ to: "/events/new" })}>
-            <Plus className="mr-1 h-4 w-4" /> Nouvel événement
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={!events || events.length === 0}
+            onClick={async () => {
+              if (!events) return;
+              const ids = events.map((e) => e.id);
+              const { data: items } = await supabase
+                .from("event_items")
+                .select("*")
+                .in("event_id", ids);
+              const { data: lots } = await supabase
+                .from("inventory_lots")
+                .select("id, lot_number")
+                .in(
+                  "id",
+                  Array.from(new Set((items ?? []).map((i) => i.lot_id).filter(Boolean))) as string[],
+                );
+              const lotMap = new Map((lots ?? []).map((l) => [l.id, l.lot_number]));
+              const itemsByEvent = new Map<string, typeof items>();
+              (items ?? []).forEach((i) => {
+                const arr = itemsByEvent.get(i.event_id) ?? [];
+                arr.push(i);
+                itemsByEvent.set(i.event_id, arr);
+              });
+              exportXlsx("evenements", [
+                {
+                  name: "Événements",
+                  rows: events.map((e) => {
+                    const its = itemsByEvent.get(e.id) ?? [];
+                    const gIn = its.filter((i) => i.direction === "in").reduce((s, i) => s + (Number(i.quantity_grams) || 0), 0);
+                    const gOut = its.filter((i) => i.direction === "out").reduce((s, i) => s + (Number(i.quantity_grams) || 0), 0);
+                    return {
+                      Numéro: e.event_number,
+                      Type: typeLabel(e.event_type),
+                      Statut: e.status ?? "",
+                      Batch: e.related_batch_id ? batches[e.related_batch_id]?.batch_number ?? "" : "",
+                      "Créé le": fmtDateTime(e.created_at),
+                      "Complété le": fmtDateTime(e.completed_at),
+                      "Créé par":
+                        e.created_by
+                          ? creators[e.created_by]?.full_name ?? creators[e.created_by]?.email ?? ""
+                          : "",
+                      "Nb items": its.length,
+                      "Total entrée (g)": gIn || "",
+                      "Total sortie (g)": gOut || "",
+                    };
+                  }),
+                },
+                {
+                  name: "Items",
+                  rows: (items ?? []).map((i) => {
+                    const ev = events.find((e) => e.id === i.event_id);
+                    return {
+                      Événement: ev?.event_number ?? "",
+                      "Type événement": typeLabel(ev?.event_type ?? null),
+                      Direction: i.direction,
+                      Lot: i.lot_id ? lotMap.get(i.lot_id) ?? "" : "",
+                      "Quantité (g)": i.quantity_grams ?? "",
+                      Unités: i.units ?? "",
+                      Note: i.note ?? "",
+                      "Date": fmtDate(i.created_at),
+                    };
+                  }),
+                },
+              ]);
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
-        )}
+          {!isViewerOnly && (
+            <Button onClick={() => navigate({ to: "/events/new" })}>
+              <Plus className="mr-1 h-4 w-4" /> Nouvel événement
+            </Button>
+          )}
+        </div>
+
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
