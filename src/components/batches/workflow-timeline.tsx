@@ -100,6 +100,7 @@ export function WorkflowTimeline({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
   const [finishEndedAt, setFinishEndedAt] = useState<string>("");
+  const [finishConfirmed, setFinishConfirmed] = useState(false);
   const [confirmRevert, setConfirmRevert] = useState<WorkflowStep | null>(null);
   const [curingFinishOpen, setCuringFinishOpen] = useState(false);
   const [curingRefreshKey, setCuringRefreshKey] = useState(0);
