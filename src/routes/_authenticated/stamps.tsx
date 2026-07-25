@@ -197,105 +197,184 @@ function StampsPage() {
         </div>
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numéro de série</TableHead>
-                <TableHead>Province</TableHead>
-                <TableHead>Box ID</TableHead>
-                <TableHead className="text-right">Original</TableHead>
-                <TableHead className="text-right">Spoiled</TableHead>
-                <TableHead className="text-right">Utilisés</TableHead>
-                <TableHead className="text-right">Détruits</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Reçu le</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {error && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-destructive">
-                    {error}
-                  </TableCell>
-                </TableRow>
-              )}
-              {!error && reels === null && (
-                <>
-                  {[...Array(3)].map((_, i) => (
-                    <TableRow key={i}>
-                      {[...Array(10)].map((_, j) => (
-                        <TableCell key={j}>
-                          <Skeleton className="h-4 w-full" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </>
-              )}
-              {reels && reels.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={10}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    Aucun rouleau pour le moment.
-                  </TableCell>
-                </TableRow>
-              )}
-              {reels?.map((r) => {
-                const { used, destroyed, balance } = computeBalance(
-                  r,
-                  movementsByReel[r.id] ?? [],
-                );
-                return (
-                  <TableRow
-                    key={r.id}
-                    className="cursor-pointer"
-                    onClick={() =>
-                      navigate({ to: "/stamps/$id", params: { id: r.id } })
-                    }
-                  >
-                    <TableCell className="font-medium">
-                      <Link
-                        to="/stamps/$id"
-                        params={{ id: r.id }}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {r.serial_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{r.province ?? "—"}</TableCell>
-                    <TableCell>{r.box_id ?? "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {r.original_quantity ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {r.spoiled_at_reception ?? 0}
-                    </TableCell>
-                    <TableCell className="text-right">{used}</TableCell>
-                    <TableCell className="text-right">{destroyed}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {balance}
-                    </TableCell>
-                    <TableCell>
-                      <ReelStatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell>
-                      {r.received_at
-                        ? new Date(r.received_at).toLocaleDateString("fr-CA")
-                        : "—"}
-                    </TableCell>
+      <Tabs defaultValue="stock" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="stock">Stock réel (rouleaux)</TabsTrigger>
+          <TabsTrigger value="runs">Packaging Runs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stock">
+          <Card>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Numéro de série</TableHead>
+                    <TableHead>Province</TableHead>
+                    <TableHead>Box ID</TableHead>
+                    <TableHead className="text-right">Original</TableHead>
+                    <TableHead className="text-right">Spoiled</TableHead>
+                    <TableHead className="text-right">Utilisés</TableHead>
+                    <TableHead className="text-right">Détruits</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Reçu le</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {error && (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-destructive">
+                        {error}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!error && reels === null && (
+                    <>
+                      {[...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                          {[...Array(10)].map((_, j) => (
+                            <TableCell key={j}>
+                              <Skeleton className="h-4 w-full" />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
+                  {reels && reels.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                        Aucun rouleau pour le moment.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {reels?.map((r) => {
+                    const { used, destroyed, balance } = computeBalance(r, movementsByReel[r.id] ?? []);
+                    return (
+                      <TableRow
+                        key={r.id}
+                        className="cursor-pointer"
+                        onClick={() => navigate({ to: "/stamps/$id", params: { id: r.id } })}
+                      >
+                        <TableCell className="font-medium">
+                          <Link
+                            to="/stamps/$id"
+                            params={{ id: r.id }}
+                            className="hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {r.serial_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{r.province ?? "—"}</TableCell>
+                        <TableCell>{r.box_id ?? "—"}</TableCell>
+                        <TableCell className="text-right">{r.original_quantity ?? "—"}</TableCell>
+                        <TableCell className="text-right">{r.spoiled_at_reception ?? 0}</TableCell>
+                        <TableCell className="text-right">{used}</TableCell>
+                        <TableCell className="text-right">{destroyed}</TableCell>
+                        <TableCell className="text-right font-medium">{balance}</TableCell>
+                        <TableCell>
+                          <ReelStatusBadge status={r.status} />
+                        </TableCell>
+                        <TableCell>
+                          {r.received_at ? new Date(r.received_at).toLocaleDateString("fr-CA") : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="runs">
+          <PackagingRunsTable />
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+function PackagingRunsTable() {
+  const [rows, setRows] = useState<any[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data: mv } = await (supabase as any)
+        .from("stamp_movements")
+        .select("id, quantity, movement_type, created_at, event_id, reel_id")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const list = (mv ?? []) as any[];
+      const eventIds = Array.from(new Set(list.map((r) => r.event_id).filter(Boolean)));
+      const reelIds = Array.from(new Set(list.map((r) => r.reel_id).filter(Boolean)));
+      const [{ data: evs }, { data: rls }] = await Promise.all([
+        eventIds.length
+          ? (supabase as any).from("events").select("id,event_number,event_type,status").in("id", eventIds)
+          : Promise.resolve({ data: [] as any[] }),
+        reelIds.length
+          ? (supabase as any).from("excise_reels").select("id,serial_number,province").in("id", reelIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const em: Record<string, any> = {};
+      (evs ?? []).forEach((e: any) => (em[e.id] = e));
+      const rm: Record<string, any> = {};
+      (rls ?? []).forEach((r: any) => (rm[r.id] = r));
+      setRows(list.map((r) => ({ ...r, event: em[r.event_id], reel: rm[r.reel_id] })));
+    })();
+  }, []);
+
+  return (
+    <Card>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Événement</TableHead>
+              <TableHead>Rouleau</TableHead>
+              <TableHead>Province</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Quantité</TableHead>
+              <TableHead>Statut événement</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows === null && (
+              <TableRow><TableCell colSpan={7}><Skeleton className="h-4 w-full" /></TableCell></TableRow>
+            )}
+            {rows && rows.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun mouvement.</TableCell></TableRow>
+            )}
+            {rows?.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell>{new Date(r.created_at).toLocaleDateString("fr-CA")}</TableCell>
+                <TableCell>
+                  {r.event ? (
+                    <Link to="/events/$id" params={{ id: r.event.id }} className="hover:underline">
+                      {r.event.event_number}
+                    </Link>
+                  ) : "—"}
+                </TableCell>
+                <TableCell>
+                  {r.reel ? (
+                    <Link to="/stamps/$id" params={{ id: r.reel.id }} className="hover:underline">
+                      {r.reel.serial_number}
+                    </Link>
+                  ) : "—"}
+                </TableCell>
+                <TableCell>{r.reel?.province ?? "—"}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{r.movement_type}</Badge>
+                </TableCell>
+                <TableCell className="text-right font-medium">{r.quantity}</TableCell>
+                <TableCell>{r.event?.status ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
   );
 }
