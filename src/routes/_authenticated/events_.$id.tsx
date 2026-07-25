@@ -58,15 +58,21 @@ export const Route = createFileRoute("/_authenticated/events_/$id")({
 
 function EventDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const { roles } = useAuth();
+  const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [event, setEvent] = useState<Event | null>(null);
   const [batch, setBatch] = useState<Batch | null>(null);
   const [creator, setCreator] = useState<{
     full_name: string | null;
     email: string | null;
   } | null>(null);
+  const [itemCount, setItemCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
