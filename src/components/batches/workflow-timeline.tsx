@@ -295,22 +295,33 @@ export function WorkflowTimeline({
         </CardContent>
       </Card>
 
-      <DestructionPromptDialog
-        open={prompt.open}
-        onOpenChange={(o) => !o && setPrompt({ open: false, step: null })}
-        stageLabel={prompt.step?.label ?? ""}
-        onAnswer={handlePromptAnswer}
+      <YesNoDialog
+        open={destructionPrompt.open}
+        onOpenChange={(o) => !o && setDestructionPrompt({ open: false, step: null })}
+        title={`Destruction durant « ${destructionPrompt.step?.label ?? ""} » ?`}
+        description="Y a-t-il eu de la destruction durant cette étape ?"
+        onAnswer={handleDestructionAnswer}
+      />
+
+      <YesNoDialog
+        open={sanitationPrompt.open}
+        onOpenChange={(o) => !o && setSanitationPrompt({ open: false, step: null })}
+        title={`Log de sanitation pour « ${sanitationPrompt.step?.label ?? ""} » ?`}
+        description="Veux-tu ajouter un log de sanitation pour cette étape ?"
+        onAnswer={handleSanitationAnswer}
       />
 
       <DestructionFormDialog
-        open={destruction.open}
-        onOpenChange={(o) => setDestruction((d) => ({ ...d, open: o }))}
+        open={formDlg.open}
+        onOpenChange={(o) => { if (!o) handleFormClosed(); }}
         batchId={batchId}
-        stageId={destruction.stageId}
-        stageCode={destruction.code}
-        stageLabel={destruction.label}
-        onSaved={onDestructionSaved}
+        stageId={formDlg.stageId}
+        stageCode={formDlg.code}
+        stageLabel={formDlg.label}
+        mode={formDlg.mode}
+        onSaved={() => { onDestructionSaved?.(); }}
       />
+
 
       {metaEdit && (
         <StageMetadataDialog
