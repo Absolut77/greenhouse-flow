@@ -22,7 +22,6 @@ export const STAGE_LABELS: Record<StageCode, string> = {
 
 export const STAGE_ORDER: StageCode[] = ["drying", "debudding", "curing", "bulk_packaging"];
 
-// Map legacy stage rows to new codes.
 const LEGACY_MAP: Record<string, StageCode> = {
   debudding_manual: "debudding",
   mobius: "debudding",
@@ -60,4 +59,24 @@ export function computeWorkflow(stages: Stage[]): WorkflowStep[] {
     previousDone = status === "done";
   }
   return steps;
+}
+
+export function formatDuration(fromIso?: string | null, toIso?: string | null): string {
+  if (!fromIso) return "—";
+  const from = new Date(fromIso).getTime();
+  const to = toIso ? new Date(toIso).getTime() : Date.now();
+  let ms = Math.max(0, to - from);
+  const days = Math.floor(ms / 86400000);
+  ms -= days * 86400000;
+  const hours = Math.floor(ms / 3600000);
+  ms -= hours * 3600000;
+  const mins = Math.floor(ms / 60000);
+  if (days > 0) return `${days} j, ${hours} h ${mins} min`;
+  if (hours > 0) return `${hours} h ${mins} min`;
+  return `${mins} min`;
+}
+
+export function isFreshStage(code: StageCode | string | null | undefined): boolean {
+  // Toutes destructions AVANT bulk_packaging = Fresh destruction
+  return code !== "bulk_packaging";
 }

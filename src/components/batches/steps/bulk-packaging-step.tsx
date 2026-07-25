@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Loader2, Pencil } from "lucide-react";
+import { Plus, Trash2, Loader2, Pencil, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,16 +27,25 @@ export type PackagingBag = {
   batch_id: string;
   stage_id: string | null;
   flower_type: string;
-  bag_type: "bulk" | "sample";
+  bag_type: string;
   bag_count: number;
   net_weight_grams: number;
   gross_weight_grams: number | null;
+  location: string | null;
   notes: string | null;
   inventory_lot_id: string | null;
   created_at: string;
 };
 
-const FLOWER_TYPES = ["Hand Trim", "Flower Big", "Flower Medium", "Flower Small", "Trim"];
+const FLOWER_TYPES = [
+  "Flower Big",
+  "Flower Medium",
+  "Flower Small",
+  "Hand Trim",
+  "Trim",
+  "Échantillon",
+  "Rétention",
+];
 
 export function BulkPackagingStepContent({
   batchId,
@@ -71,9 +80,7 @@ export function BulkPackagingStepContent({
   }, [batchId]);
 
   const remove = async (b: PackagingBag) => {
-    if (b.inventory_lot_id) {
-      return toast.error("Sac déjà lié à l'inventaire — impossible de supprimer.");
-    }
+    if (b.inventory_lot_id) return toast.error("Sac déjà lié à l'inventaire — impossible de supprimer.");
     if (!confirm("Supprimer cette ligne de sac ?")) return;
     const { error } = await (supabase as any).from("packaging_bags").delete().eq("id", b.id);
     if (error) return toast.error(error.message);
@@ -85,20 +92,23 @@ export function BulkPackagingStepContent({
     (s, r) => s + Number(r.net_weight_grams) * Number(r.bag_count),
     0,
   );
-  const overLimit =
-    availableGrams != null && totalPackaged > availableGrams + 1e-6;
+  const overLimit = availableGrams != null && totalPackaged > availableGrams + 1e-6;
+  const missingLocation = (rows ?? []).some((r) => !r.location || !r.location.trim());
 
   return (
     <div className="space-y-4">
+      <div className="rounded-md border bg-muted/30 p-3 text-xs">
+        <span className="text-muted-foreground">
+          La quantité totale à packager est basée sur les <b>poids de sortie du curing</b> (pas le poids frais).
+        </span>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-medium">Liste des sacs</h4>
         <Button
           size="sm"
           disabled={disabled}
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
+          onClick={() => { setEditing(null); setOpen(true); }}
         >
           <Plus className="mr-1 h-4 w-4" /> Ajouter une ligne
         </Button>
@@ -118,11 +128,11 @@ export function BulkPackagingStepContent({
             <TableHeader>
               <TableRow>
                 <TableHead>Type de fleur</TableHead>
-                <TableHead>Type de sac</TableHead>
                 <TableHead className="text-right">Nb</TableHead>
-                <TableHead className="text-right">Net (g)</TableHead>
-                <TableHead className="text-right">Brut (g)</TableHead>
+                <TableHead className="text-right">Net / sac (g)</TableHead>
+                <TableHead className="text-right">Brut / sac (g)</TableHead>
                 <TableHead className="text-right">Total net (g)</TableHead>
+                <TableHead>Emplacement</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead />
               </TableRow>
@@ -131,11 +141,6 @@ export function BulkPackagingStepContent({
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.flower_type}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-transparent bg-secondary">
-                      {r.bag_type === "bulk" ? "Bulk (1 kg)" : "Sample"}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-right">{r.bag_count}</TableCell>
                   <TableCell className="text-right">{Number(r.net_weight_grams).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
@@ -145,33 +150,27 @@ export function BulkPackagingStepContent({
                     {(Number(r.net_weight_grams) * Number(r.bag_count)).toFixed(2)}
                   </TableCell>
                   <TableCell>
+                    {r.location ? (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <MapPin className="h-3 w-3" /> {r.location}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-500">à définir</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {r.inventory_lot_id ? (
-                      <Badge className="border-transparent bg-emerald-500/20 text-emerald-400">
-                        Inventaire
-                      </Badge>
+                      <Badge className="border-transparent bg-emerald-500/20 text-emerald-400">Inventaire</Badge>
                     ) : (
                       <Badge variant="outline">Brouillon</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={disabled || !!r.inventory_lot_id}
-                        onClick={() => {
-                          setEditing(r);
-                          setOpen(true);
-                        }}
-                      >
+                      <Button size="icon" variant="ghost" disabled={disabled || !!r.inventory_lot_id} onClick={() => { setEditing(r); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={disabled || !!r.inventory_lot_id}
-                        onClick={() => remove(r)}
-                      >
+                      <Button size="icon" variant="ghost" disabled={disabled || !!r.inventory_lot_id} onClick={() => remove(r)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -186,21 +185,24 @@ export function BulkPackagingStepContent({
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Total à packager" value={`${totalPackaged.toFixed(2)} g`} />
         <StatCard
-          label="Disponible"
+          label="Disponible (sortie curing)"
           value={availableGrams != null ? `${availableGrams.toFixed(2)} g` : "—"}
         />
         <StatCard
           label="Écart"
-          value={
-            availableGrams != null ? `${(availableGrams - totalPackaged).toFixed(2)} g` : "—"
-          }
+          value={availableGrams != null ? `${(availableGrams - totalPackaged).toFixed(2)} g` : "—"}
           tone={overLimit ? "err" : undefined}
         />
       </div>
 
       {overLimit && (
         <p className="text-sm text-destructive">
-          Le poids total packagé dépasse le poids disponible après destructions.
+          Le poids total packagé dépasse le poids disponible (sortie curing).
+        </p>
+      )}
+      {missingLocation && rows && rows.length > 0 && (
+        <p className="text-sm text-amber-500">
+          Chaque sac doit avoir un emplacement avant de terminer le bulk packaging.
         </p>
       )}
 
@@ -210,14 +212,8 @@ export function BulkPackagingStepContent({
         stageId={stageId}
         bag={editing}
         open={open}
-        onOpenChange={(o) => {
-          setOpen(o);
-          if (!o) setEditing(null);
-        }}
-        onSaved={() => {
-          load();
-          onChanged?.();
-        }}
+        onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}
+        onSaved={() => { load(); onChanged?.(); }}
       />
     </div>
   );
@@ -248,10 +244,10 @@ function BagDialog({
   onSaved: () => void;
 }) {
   const [flowerType, setFlowerType] = useState(bag?.flower_type ?? FLOWER_TYPES[0]);
-  const [bagType, setBagType] = useState<"bulk" | "sample">(bag?.bag_type ?? "bulk");
   const [count, setCount] = useState(bag?.bag_count?.toString() ?? "1");
-  const [net, setNet] = useState(bag?.net_weight_grams?.toString() ?? (bag?.bag_type === "sample" ? "" : "1000"));
+  const [net, setNet] = useState(bag?.net_weight_grams?.toString() ?? "");
   const [gross, setGross] = useState(bag?.gross_weight_grams?.toString() ?? "");
+  const [location, setLocation] = useState(bag?.location ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
@@ -262,17 +258,15 @@ function BagDialog({
     setSaving(true);
     const payload: any = {
       flower_type: flowerType,
-      bag_type: bagType,
+      bag_type: "bulk",
       bag_count: c,
       net_weight_grams: n,
       gross_weight_grams: gross.trim() === "" ? null : Number(gross),
+      location: location.trim() || null,
     };
     let error;
     if (bag) {
-      ({ error } = await (supabase as any)
-        .from("packaging_bags")
-        .update(payload)
-        .eq("id", bag.id));
+      ({ error } = await (supabase as any).from("packaging_bags").update(payload).eq("id", bag.id));
     } else {
       const { data: u } = await supabase.auth.getUser();
       ({ error } = await (supabase as any).from("packaging_bags").insert({
@@ -303,34 +297,8 @@ function BagDialog({
               onChange={(e) => setFlowerType(e.target.value)}
               className="h-10 rounded-md border bg-background px-3 text-sm"
             >
-              {FLOWER_TYPES.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
+              {FLOWER_TYPES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Type de sac *</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={bagType === "bulk" ? "default" : "outline"}
-                onClick={() => {
-                  setBagType("bulk");
-                  if (!net) setNet("1000");
-                }}
-              >
-                Bulk (1 kg)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={bagType === "sample" ? "default" : "outline"}
-                onClick={() => setBagType("sample")}
-              >
-                Sample
-              </Button>
-            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="grid gap-2">
@@ -345,6 +313,10 @@ function BagDialog({
               <Label>Brut / sac (g)</Label>
               <Input type="number" step="0.01" min="0" value={gross} onChange={(e) => setGross(e.target.value)} />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Emplacement *</Label>
+            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ex. Coffre-fort A / Étagère 3" />
           </div>
         </div>
         <DialogFooter>
