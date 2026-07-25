@@ -40,6 +40,13 @@ import {
   computeBalance,
 } from "./stamps";
 import { StampMovementsSection } from "@/components/stamps/movements-section";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 type Reel = Tables<"excise_reels">;
 type Movement = Tables<"stamp_movements">;
