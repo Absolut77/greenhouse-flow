@@ -239,7 +239,8 @@ function InventoryPage() {
               <SelectItem value="all">Tous les lots</SelectItem>
               <SelectItem value="bulk">Bulk (flower + trim)</SelectItem>
               <SelectItem value="packaged">Packagé avec timbres</SelectItem>
-              <SelectItem value="sample">Échantillons / Rétention</SelectItem>
+              <SelectItem value="sample">Échantillons</SelectItem>
+              <SelectItem value="retention">Rétention 🔒</SelectItem>
             </SelectContent>
           </Select>
         </div>
