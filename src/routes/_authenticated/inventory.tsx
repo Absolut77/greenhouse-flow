@@ -96,8 +96,21 @@ const VIEW_LABEL: Record<string, string> = {
   all: "Tous les lots",
   bulk: "Bulk (flower + trim, disponibles)",
   packaged: "Packagé avec timbres (en stock)",
-  sample: "Échantillons / Rétention",
+  sample: "Échantillons (par batch)",
+  retention: "Rétention (bloqués — destruction après 3 ans)",
 };
+
+export const LOT_KIND_VARIANTS: Record<string, { label: string; className: string }> = {
+  bulk: { label: "Bulk", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  packaged: { label: "Packagé", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  sample: { label: "Échantillon", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  retention: { label: "Rétention 🔒", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+};
+
+export function LotKindBadge({ kind }: { kind: string | null }) {
+  const v = LOT_KIND_VARIANTS[kind ?? ""] ?? { label: kind ?? "—", className: "bg-muted text-muted-foreground" };
+  return <Badge variant="outline" className={v.className}>{v.label}</Badge>;
+}
 
 function InventoryPage() {
   const navigate = useNavigate();
