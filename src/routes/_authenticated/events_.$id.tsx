@@ -134,13 +134,17 @@ function EventDetailPage() {
     const { error } = await supabase.from("events").delete().eq("id", event.id);
     setDeleting(false);
     if (error) {
-      if (error.code === "23001" || /mouvements de stock/i.test(error.message)) {
+      if (
+        error.code === "23001" ||
+        /mouvements de stock|mouvements de timbres/i.test(error.message)
+      ) {
         toast.error(
-          "Impossible de supprimer cet événement car il contient des mouvements de stock. Utilisez un événement de type destruction ou expédition.",
+          "Impossible de supprimer cet événement car il contient des mouvements de stock ou de timbres. Utilisez un événement de type destruction ou expédition.",
         );
       } else {
         toast.error(error.message);
       }
+
       // Refresh count in case it changed
       load();
       setConfirmDelete(false);
