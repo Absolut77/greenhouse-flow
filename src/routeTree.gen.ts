@@ -22,6 +22,7 @@ import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
 import { Route as AuthenticatedStampsNewRouteImport } from './routes/_authenticated/stamps_.new'
 import { Route as AuthenticatedStampsIdRouteImport } from './routes/_authenticated/stamps_.$id'
+import { Route as AuthenticatedShipmentsNewRouteImport } from './routes/_authenticated/shipments_.new'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as AuthenticatedReceptionsNewRouteImport } from './routes/_authenticated/receptions_.new'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory_.new'
@@ -95,6 +96,12 @@ const AuthenticatedStampsIdRoute = AuthenticatedStampsIdRouteImport.update({
   path: '/stamps/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedShipmentsNewRoute =
+  AuthenticatedShipmentsNewRouteImport.update({
+    id: '/shipments_/new',
+    path: '/shipments/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsUsersRoute =
   AuthenticatedSettingsUsersRouteImport.update({
     id: '/users',
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
 }
@@ -181,6 +189,7 @@ export interface FileRoutesByTo {
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
 }
@@ -205,6 +214,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory_/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/receptions_/new': typeof AuthenticatedReceptionsNewRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/_authenticated/shipments_/new': typeof AuthenticatedShipmentsNewRoute
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
 }
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/inventory/new'
     | '/receptions/new'
     | '/settings/users'
+    | '/shipments/new'
     | '/stamps/$id'
     | '/stamps/new'
   fileRoutesByTo: FileRoutesByTo
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/inventory/new'
     | '/receptions/new'
     | '/settings/users'
+    | '/shipments/new'
     | '/stamps/$id'
     | '/stamps/new'
   id:
@@ -274,6 +286,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory_/new'
     | '/_authenticated/receptions_/new'
     | '/_authenticated/settings/users'
+    | '/_authenticated/shipments_/new'
     | '/_authenticated/stamps_/$id'
     | '/_authenticated/stamps_/new'
   fileRoutesById: FileRoutesById
@@ -378,6 +391,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStampsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/shipments_/new': {
+      id: '/_authenticated/shipments_/new'
+      path: '/shipments/new'
+      fullPath: '/shipments/new'
+      preLoaderRoute: typeof AuthenticatedShipmentsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/users': {
       id: '/_authenticated/settings/users'
       path: '/users'
@@ -465,6 +485,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedReceptionsNewRoute: typeof AuthenticatedReceptionsNewRoute
+  AuthenticatedShipmentsNewRoute: typeof AuthenticatedShipmentsNewRoute
   AuthenticatedStampsIdRoute: typeof AuthenticatedStampsIdRoute
   AuthenticatedStampsNewRoute: typeof AuthenticatedStampsNewRoute
 }
@@ -484,6 +505,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedReceptionsNewRoute: AuthenticatedReceptionsNewRoute,
+  AuthenticatedShipmentsNewRoute: AuthenticatedShipmentsNewRoute,
   AuthenticatedStampsIdRoute: AuthenticatedStampsIdRoute,
   AuthenticatedStampsNewRoute: AuthenticatedStampsNewRoute,
 }
