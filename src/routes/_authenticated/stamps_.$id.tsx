@@ -285,9 +285,10 @@ function ReelDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce rouleau ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera le rouleau et ses mouvements associés.
-              Elle est irréversible.
+              Cette action est définitive. Elle n'est possible que si le
+              rouleau ne contient aucun mouvement de timbres.
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
