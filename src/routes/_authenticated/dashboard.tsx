@@ -64,6 +64,8 @@ type Metrics = {
   packagedUnits: number;
   packagedGrams: number;
   sampleGrams: number;
+  retentionGrams: number;
+  totalAvailableGrams: number;
   stampsAvailable: number;
   reelsAvailable: number;
 };
