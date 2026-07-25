@@ -161,40 +161,34 @@ export function DryingStepContent({
                   <TableHead>Date</TableHead>
                   <TableHead>Poids (g)</TableHead>
                   <TableHead>Notes</TableHead>
-                  <TableHead>Analyse</TableHead>
+                  <TableHead>Résultats d'analyse</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {samples.map((s) => {
-                  const analysis = (s.analysis_data as any) ?? null;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
-                      <TableCell>{s.weight_grams ?? "—"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{s.notes ?? "—"}</TableCell>
-                      <TableCell>
-                        {analysis ? (
-                          <span className="text-xs text-emerald-400">
-                            {Object.keys(analysis).length} résultat(s)
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" disabled={disabled} onClick={() => setAnalysisFor(s)}>
-                            <FlaskConical className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" disabled={disabled} onClick={() => removeSample(s)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {samples.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    onDoubleClick={() => !disabled && setAnalysisFor(s)}
+                    className="cursor-pointer"
+                    title="Double-cliquez pour saisir/modifier les résultats"
+                  >
+                    <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
+                    <TableCell>{s.weight_grams ?? "—"}</TableCell>
+                    <TableCell className="max-w-[180px] truncate">{s.notes ?? "—"}</TableCell>
+                    <TableCell className="max-w-[260px]"><AnalysisCell sample={s} /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" disabled={disabled} onClick={() => setAnalysisFor(s)}>
+                          <FlaskConical className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" disabled={disabled} onClick={() => removeSample(s)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
@@ -240,6 +234,31 @@ function Loading() {
 }
 function Empty({ text }: { text: string }) {
   return <p className="p-3 text-sm italic text-muted-foreground">{text}</p>;
+}
+
+export function AnalysisCell({ sample }: { sample: { analysis_data: any; analysis_weight_grams?: number | null } }) {
+  const data = (sample?.analysis_data as any) ?? null;
+  if (!data || Object.keys(data).length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {Object.entries(data).map(([k, v]) => (
+        <span
+          key={k}
+          className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400"
+        >
+          <span className="font-medium">{k}</span>
+          <span className="text-emerald-300">{String(v)}</span>
+        </span>
+      ))}
+      {sample.analysis_weight_grams != null && (
+        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          {Number(sample.analysis_weight_grams).toFixed(2)} g utilisés
+        </span>
+      )}
+    </div>
+  );
 }
 
 function DryingLogDialog({
@@ -498,7 +517,7 @@ export function SampleDialog({
   );
 }
 
-function AnalysisDialog({
+export function AnalysisDialog({
   sample,
   open,
   onOpenChange,

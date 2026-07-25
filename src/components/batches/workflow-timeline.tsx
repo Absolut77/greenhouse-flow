@@ -86,6 +86,7 @@ export function WorkflowTimeline({
   const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
   const [confirmRevert, setConfirmRevert] = useState<WorkflowStep | null>(null);
   const [curingFinishOpen, setCuringFinishOpen] = useState(false);
+  const [curingRefreshKey, setCuringRefreshKey] = useState(0);
   const [availableGramsForPackaging, setAvailable] = useState<number | null>(null);
 
   const load = async () => {
@@ -370,6 +371,7 @@ export function WorkflowTimeline({
               canRevert={canRevert}
               busy={busy === step.code}
               availableGramsForPackaging={availableGramsForPackaging}
+              curingRefreshKey={curingRefreshKey}
               onFinishRequest={() => {
                 if (step.code === "curing") askFinishCuring();
                 else setConfirmFinish(step);
@@ -433,6 +435,7 @@ export function WorkflowTimeline({
         onOpenChange={setCuringFinishOpen}
         batchId={batchId}
         onDone={async () => {
+          setCuringRefreshKey((n) => n + 1);
           const curingStep = workflow.find((s) => s.code === "curing");
           if (!curingStep) return;
           await finishStage(curingStep);
@@ -449,6 +452,7 @@ function StepCard({
   canRevert,
   busy,
   availableGramsForPackaging,
+  curingRefreshKey,
   onFinishRequest,
   onRevertRequest,
   onDataChanged,
@@ -459,6 +463,7 @@ function StepCard({
   canRevert: boolean;
   busy: boolean;
   availableGramsForPackaging: number | null;
+  curingRefreshKey: number;
   onFinishRequest: () => void;
   onRevertRequest: () => void;
   onDataChanged: () => void;
@@ -519,6 +524,7 @@ function StepCard({
               batchId={batch.id}
               stageId={stageId}
               disabled={!canEdit || done}
+              refreshKey={curingRefreshKey}
               onSampleCreated={onDataChanged}
             />
           )}
