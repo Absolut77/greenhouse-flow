@@ -519,6 +519,7 @@ function StepCard({
               batchId={batch.id}
               stageId={stageId}
               disabled={!canEdit || done}
+              refreshKey={curingRefreshKey}
               onSampleCreated={onDataChanged}
             />
           )}
