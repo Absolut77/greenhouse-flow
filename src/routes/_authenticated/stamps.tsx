@@ -178,8 +178,8 @@ function StampsPage() {
                   "Reçu le": r.received_at ?? "",
                 };
               });
-              exportXlsx(`stamps-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-                { sheet: "Rouleaux", rows },
+              exportXlsx(`stamps-${new Date().toISOString().slice(0, 10)}`, [
+                { name: "Rouleaux", rows },
               ]);
             }}
           >
