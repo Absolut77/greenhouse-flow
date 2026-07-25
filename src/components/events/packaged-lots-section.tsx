@@ -249,8 +249,21 @@ export function PackagedLotsSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce lot fini ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Le lot d'inventaire sera supprimé. Le stock du lot source n'est
-              pas restitué automatiquement — ajuste l'item bulk si nécessaire.
+              {toDelete && (
+                <>
+                  Supprimer ce lot va restituer{" "}
+                  <span className="font-medium text-foreground">
+                    {toDelete.quantity_grams ?? 0} g
+                  </span>{" "}
+                  au lot source{" "}
+                  <span className="font-medium text-foreground">
+                    {toDelete.parent_lot_id
+                      ? sourceLots[toDelete.parent_lot_id]?.lot_number ?? "—"
+                      : "—"}
+                  </span>
+                  . Continuer ?
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -262,6 +275,7 @@ export function PackagedLotsSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </Card>
   );
 }
