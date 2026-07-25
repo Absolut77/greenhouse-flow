@@ -454,6 +454,15 @@ export function CuringFinishDialog({
         <DialogHeader>
           <DialogTitle>Poids de sortie des conteneurs</DialogTitle>
         </DialogHeader>
+        <div className="grid gap-2 py-2">
+          <Label>Date et heure de fin du curing</Label>
+          <Input
+            type="datetime-local"
+            value={endedAt}
+            min={startedAt ? toLocal(new Date(startedAt)) : undefined}
+            onChange={(e) => setEndedAt(e.target.value)}
+          />
+        </div>
         <div className="space-y-3 py-2 max-h-[50vh] overflow-y-auto">
           {!rows ? (
             <div className="text-sm text-muted-foreground">Chargement...</div>
