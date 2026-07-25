@@ -106,7 +106,10 @@ function NewBatchPage() {
           <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label htmlFor="batch_number">Numéro de batch *</Label>
-              <Input id="batch_number" value={form.batch_number} onChange={update("batch_number")} maxLength={64} />
+              <div className="flex gap-2">
+                <Input id="batch_number" value={form.batch_number} onChange={update("batch_number")} maxLength={64} />
+                <AutoNumberButton kind="batch" onGenerated={(v) => setForm((f) => ({ ...f, batch_number: v }))} />
+              </div>
               {errors.batch_number && <p className="mt-1 text-xs text-destructive">{errors.batch_number}</p>}
             </div>
             <div className="sm:col-span-2">

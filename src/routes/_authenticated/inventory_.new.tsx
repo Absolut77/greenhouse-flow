@@ -115,11 +115,14 @@ function NewLotPage() {
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
             <Label>Numéro de lot *</Label>
-            <Input
-              value={lotNumber}
-              onChange={(e) => setLotNumber(e.target.value)}
-              placeholder="LOT-2026-001"
-            />
+            <div className="flex gap-2">
+              <Input
+                value={lotNumber}
+                onChange={(e) => setLotNumber(e.target.value)}
+                placeholder="LOT-2026-0001"
+              />
+              <AutoNumberButton kind="lot" onGenerated={setLotNumber} />
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">

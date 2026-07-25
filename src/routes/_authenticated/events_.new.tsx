@@ -99,11 +99,14 @@ function NewEventPage() {
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
             <Label>Numéro d'événement *</Label>
-            <Input
-              value={eventNumber}
-              onChange={(e) => setEventNumber(e.target.value)}
-              placeholder="EVT-2026-001"
-            />
+            <div className="flex gap-2">
+              <Input
+                value={eventNumber}
+                onChange={(e) => setEventNumber(e.target.value)}
+                placeholder="EVT-2026-0001"
+              />
+              <AutoNumberButton kind="event" onGenerated={setEventNumber} />
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
