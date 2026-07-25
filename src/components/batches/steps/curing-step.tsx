@@ -202,7 +202,10 @@ export function CuringStepContent({
 
       {/* Suivi jour par jour des prises */}
       <div className="rounded-md border">
-        <div className="border-b px-3 py-2 text-sm font-medium">Suivi des prises d'échantillons</div>
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="text-sm font-medium">Suivi des prises d'échantillons</div>
+          <div className="text-xs text-muted-foreground">Double-cliquez une ligne pour saisir les résultats</div>
+        </div>
         {!samples ? (
           <div className="p-3 text-sm text-muted-foreground">Chargement...</div>
         ) : samples.length === 0 ? (
@@ -215,15 +218,22 @@ export function CuringStepContent({
                 <TableHead>Conteneur</TableHead>
                 <TableHead className="text-right">Poids (g)</TableHead>
                 <TableHead>Notes</TableHead>
+                <TableHead>Résultats d'analyse</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {samples.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow
+                  key={s.id}
+                  onDoubleClick={() => !disabled && setAnalysisFor(s)}
+                  className="cursor-pointer"
+                  title="Double-cliquez pour saisir/modifier les résultats"
+                >
                   <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
                   <TableCell>{containerLabel(s.container_id)}</TableCell>
                   <TableCell className="text-right">{s.weight_grams ?? "—"}</TableCell>
-                  <TableCell className="max-w-[300px] truncate">{s.notes ?? "—"}</TableCell>
+                  <TableCell className="max-w-[220px] truncate">{s.notes ?? "—"}</TableCell>
+                  <TableCell className="max-w-[260px]"><AnalysisCell sample={s as any} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -249,6 +259,15 @@ export function CuringStepContent({
         stageCode="curing"
         containers={(rows ?? []).map((c) => ({ id: c.id, label: c.label, content: c.content }))}
         onSaved={() => { loadContainers(); loadSamples(); onSampleCreated?.(); }}
+      />
+
+      <AnalysisDialog
+        key={analysisFor?.id ?? "no-analysis-curing"}
+        sample={analysisFor as any}
+        open={!!analysisFor}
+        onOpenChange={(o) => { if (!o) setAnalysisFor(null); }}
+        onSaved={loadSamples}
+        disabled={disabled}
       />
     </div>
   );
