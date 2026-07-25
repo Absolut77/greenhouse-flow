@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
+import { StagesSection } from "@/components/batches/stages-section";
+import { DryingLogsSection } from "@/components/batches/drying-logs-section";
 
 type Batch = Tables<"batches">;
 
@@ -125,8 +127,8 @@ function BatchDetailPage() {
         </CardContent>
       </Card>
 
-      <Section title="Étapes" description="Suivi des étapes de production." />
-      <Section title="Logs de séchage" description="Température, humidité, notes." />
+      <StagesSection batchId={batch.id} />
+      <DryingLogsSection batchId={batch.id} />
       <Section title="Pesées" description="Historique des pesées." />
       <Section title="Échantillons" description="Prélèvements et destructions." />
     </div>
