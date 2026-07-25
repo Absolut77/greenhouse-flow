@@ -102,13 +102,14 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
       .eq("id", toDelete.id);
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(`Suppression impossible : ${error.message}`);
       return;
     }
-    toast.success("Item supprimé");
+    toast.success("Item supprimé, stock ajusté");
     setToDelete(null);
     load();
   };
+
 
   return (
     <Card>
