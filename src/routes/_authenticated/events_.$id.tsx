@@ -232,6 +232,31 @@ function EventDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="mr-1 h-4 w-4" /> Modifier
           </Button>
+          {!isViewerOnly && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={itemCount === null || itemCount > 0}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" /> Supprimer
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {itemCount !== null && itemCount > 0 && (
+                  <TooltipContent>
+                    Impossible : cet événement contient {itemCount} mouvement
+                    {itemCount > 1 ? "s" : ""} de stock.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 
