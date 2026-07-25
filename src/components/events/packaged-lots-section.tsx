@@ -470,14 +470,36 @@ function PackagedLotDialog({
               </SelectContent>
             </Select>
             {selectedSourceLot && (
-              <p className="text-xs text-muted-foreground">
-                Sorti : <span className="font-medium">{totalOutForSource} g</span>{" "}
-                • Déjà packagé :{" "}
-                <span className="font-medium">{alreadyPackaged} g</span> •
-                Restant :{" "}
-                <span className="font-medium">{remaining} g</span>
-              </p>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>
+                    Sorti :{" "}
+                    <span className="font-medium text-foreground">
+                      {totalOutForSource} g
+                    </span>
+                  </span>
+                  <span>
+                    Déjà packagé :{" "}
+                    <span className="font-medium text-foreground">
+                      {alreadyPackaged} g
+                    </span>
+                  </span>
+                  <span>
+                    Restant packagable :{" "}
+                    <span
+                      className={
+                        remaining > 0
+                          ? "font-semibold text-primary"
+                          : "font-semibold text-destructive"
+                      }
+                    >
+                      {remaining} g
+                    </span>
+                  </span>
+                </div>
+              </div>
             )}
+
           </div>
           <div className="grid gap-2">
             <Label>Format *</Label>
