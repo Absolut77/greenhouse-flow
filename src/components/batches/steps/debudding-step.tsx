@@ -6,12 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import type { Stage } from "@/lib/batch-workflow";
+import { formatDuration, type Stage } from "@/lib/batch-workflow";
 
 type DebuddingMeta = {
   hand_trim?: boolean;
-  hand_trim_persons?: number | null;
-  hand_trim_minutes?: number | null;
+  operators_count?: number | null;
   mobius_inclination?: number | null;
   mobius_tumbler?: number | null;
   mobius_blades?: number | null;
@@ -30,26 +29,32 @@ export function DebuddingStepContent({
 }) {
   const initial: DebuddingMeta = (stage?.metadata as any) ?? {};
   const [handTrim, setHandTrim] = useState<boolean>(!!initial.hand_trim);
-  const [persons, setPersons] = useState<string>(initial.hand_trim_persons?.toString() ?? "");
-  const [minutes, setMinutes] = useState<string>(initial.hand_trim_minutes?.toString() ?? "");
+  const [persons, setPersons] = useState<string>(initial.operators_count?.toString() ?? "");
   const [incl, setIncl] = useState<string>(initial.mobius_inclination?.toString() ?? "");
   const [tumbler, setTumbler] = useState<string>(initial.mobius_tumbler?.toString() ?? "");
   const [blades, setBlades] = useState<string>(initial.mobius_blades?.toString() ?? "");
   const [suction, setSuction] = useState<string>(initial.mobius_suction?.toString() ?? "");
   const [comments, setComments] = useState<string>(initial.comments ?? "");
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     const m: DebuddingMeta = (stage?.metadata as any) ?? {};
     setHandTrim(!!m.hand_trim);
-    setPersons(m.hand_trim_persons?.toString() ?? "");
-    setMinutes(m.hand_trim_minutes?.toString() ?? "");
+    setPersons(m.operators_count?.toString() ?? "");
     setIncl(m.mobius_inclination?.toString() ?? "");
     setTumbler(m.mobius_tumbler?.toString() ?? "");
     setBlades(m.mobius_blades?.toString() ?? "");
     setSuction(m.mobius_suction?.toString() ?? "");
     setComments(m.comments ?? "");
   }, [stage?.id]);
+
+  // Live duration ticker while in progress
+  useEffect(() => {
+    if (!stage?.started_at || stage?.ended_at) return;
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, [stage?.started_at, stage?.ended_at]);
 
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
@@ -73,8 +78,7 @@ export function DebuddingStepContent({
     setSaving(true);
     const meta: DebuddingMeta = {
       hand_trim: handTrim,
-      hand_trim_persons: handTrim ? num(persons) : null,
-      hand_trim_minutes: handTrim ? num(minutes) : null,
+      operators_count: num(persons),
       mobius_inclination: inclN,
       mobius_tumbler: tumbN,
       mobius_blades: bladN,
@@ -83,7 +87,7 @@ export function DebuddingStepContent({
     };
     const { error } = await supabase
       .from("batch_stages")
-      .update({ metadata: meta as any })
+      .update({ metadata: meta as any, operators_count: num(persons) })
       .eq("id", stage.id);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -91,8 +95,22 @@ export function DebuddingStepContent({
     onSaved?.();
   };
 
+  const durationLabel = formatDuration(stage?.started_at, stage?.ended_at);
+  void now; // ensure re-render for ticker
+
   return (
     <div className="space-y-5">
+      <div className="rounded-md border p-3 flex items-center justify-between">
+        <div>
+          <div className="text-xs uppercase text-muted-foreground">Temps de debudage (calcul auto)</div>
+          <div className="text-base font-medium">{durationLabel}</div>
+        </div>
+        <div className="text-xs text-muted-foreground text-right">
+          <div>Début : {stage?.started_at ? new Date(stage.started_at).toLocaleString("fr-CA") : "—"}</div>
+          <div>Fin : {stage?.ended_at ? new Date(stage.ended_at).toLocaleString("fr-CA") : "en cours"}</div>
+        </div>
+      </div>
+
       <div className="rounded-md border p-4 space-y-3">
         <div className="flex items-center gap-3">
           <input
@@ -105,18 +123,10 @@ export function DebuddingStepContent({
           />
           <Label htmlFor="hand-trim" className="cursor-pointer">Hand Trim effectué ?</Label>
         </div>
-        {handTrim && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Nombre de personnes</Label>
-              <Input type="number" min="0" value={persons} disabled={disabled} onChange={(e) => setPersons(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Temps (minutes)</Label>
-              <Input type="number" min="0" value={minutes} disabled={disabled} onChange={(e) => setMinutes(e.target.value)} />
-            </div>
-          </div>
-        )}
+        <div className="grid gap-2 sm:max-w-xs">
+          <Label>Nombre de personnes</Label>
+          <Input type="number" min="0" value={persons} disabled={disabled} onChange={(e) => setPersons(e.target.value)} />
+        </div>
       </div>
 
       <div className="rounded-md border p-4 space-y-3">

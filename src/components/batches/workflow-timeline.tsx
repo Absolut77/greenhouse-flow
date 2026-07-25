@@ -10,6 +10,7 @@ import {
   Scissors,
   Package,
   Boxes,
+  Undo2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -27,13 +28,17 @@ import {
 import { toast } from "sonner";
 import {
   computeWorkflow,
+  formatDuration,
+  STAGE_ORDER,
+  findStage,
   type Stage,
   type StageCode,
   type WorkflowStep,
 } from "@/lib/batch-workflow";
+import { useAuth } from "@/hooks/use-auth";
 import { DryingStepContent } from "./steps/drying-step";
 import { DebuddingStepContent } from "./steps/debudding-step";
-import { CuringStepContent } from "./steps/curing-step";
+import { CuringStepContent, CuringFinishDialog } from "./steps/curing-step";
 import { BulkPackagingStepContent } from "./steps/bulk-packaging-step";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -74,10 +79,14 @@ export function WorkflowTimeline({
 }) {
   const batchId = batch.id;
   const isClosed = batch.status !== "in_progress";
+  const { roles } = useAuth();
+  const canRevert = roles.includes("admin") || roles.includes("supervisor");
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
-  const [availableGrams, setAvailableGrams] = useState<number | null>(null);
+  const [confirmRevert, setConfirmRevert] = useState<WorkflowStep | null>(null);
+  const [curingFinishOpen, setCuringFinishOpen] = useState(false);
+  const [availableGramsForPackaging, setAvailable] = useState<number | null>(null);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -89,17 +98,17 @@ export function WorkflowTimeline({
     else setStages(data ?? []);
   };
 
+  // available for bulk packaging = total weight_out des conteneurs curing
   const loadAvailable = async () => {
-    // available = weight_per_plant - sum(destructions)
-    const { data: destr } = await (supabase as any)
-      .from("destructions")
-      .select("weight_grams, is_sanitation_log")
+    const { data } = await (supabase as any)
+      .from("curing_containers")
+      .select("weight_out_grams")
       .eq("batch_id", batchId);
-    const totalDestroyed = (destr ?? [])
-      .filter((d: any) => !d.is_sanitation_log)
-      .reduce((s: number, d: any) => s + Number(d.weight_grams || 0), 0);
-    const base = batch.weight_per_plant != null ? Number(batch.weight_per_plant) : null;
-    setAvailableGrams(base != null ? base - totalDestroyed : null);
+    const total = (data ?? []).reduce(
+      (s: number, r: any) => s + (r.weight_out_grams != null ? Number(r.weight_out_grams) : 0),
+      0,
+    );
+    setAvailable(total);
   };
 
   useEffect(() => {
@@ -107,6 +116,25 @@ export function WorkflowTimeline({
     loadAvailable();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId]);
+
+  // Auto-start drying if missing (should already exist from creation form).
+  useEffect(() => {
+    if (!stages) return;
+    if (isClosed) return;
+    const drying = findStage(stages, "drying");
+    if (!drying) {
+      (async () => {
+        await supabase.from("batch_stages").insert({
+          batch_id: batchId,
+          stage_type: "drying",
+          status: "in_progress",
+          started_at: batch.created_at,
+        } as any);
+        load();
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages, isClosed]);
 
   const workflow = useMemo(() => computeWorkflow(stages ?? []), [stages]);
 
@@ -134,21 +162,7 @@ export function WorkflowTimeline({
     return data as Stage;
   };
 
-  const startStage = async (step: WorkflowStep) => {
-    setBusy(step.code);
-    // For drying, use batch creation date as the start (fixed).
-    const startedAt = step.code === "drying" ? batch.created_at : new Date().toISOString();
-    await upsertStage(step.code, step.row, {
-      status: "in_progress",
-      started_at: step.row?.started_at ?? startedAt,
-      ended_at: null,
-    } as any);
-    setBusy(null);
-    await load();
-  };
-
   const finalizeBulkPackaging = async (step: WorkflowStep): Promise<boolean> => {
-    // Load bags for this batch
     const { data: bags, error: bagsErr } = await (supabase as any)
       .from("packaging_bags")
       .select("*")
@@ -159,35 +173,42 @@ export function WorkflowTimeline({
       toast.error("Aucun sac défini pour le bulk packaging.");
       return false;
     }
+    if (list.some((b) => !b.location || !String(b.location).trim())) {
+      toast.error("Chaque sac doit avoir un emplacement défini.");
+      return false;
+    }
     const totalPackaged = list.reduce(
       (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
       0,
     );
-    if (availableGrams != null && totalPackaged > availableGrams + 1e-6) {
+    if (availableGramsForPackaging != null && totalPackaged > availableGramsForPackaging + 1e-6) {
       toast.error(
-        `Poids packagé (${totalPackaged.toFixed(2)} g) > disponible (${availableGrams.toFixed(2)} g).`,
+        `Poids packagé (${totalPackaged.toFixed(2)} g) > sortie curing (${availableGramsForPackaging.toFixed(2)} g).`,
       );
       return false;
     }
 
-    const prefix = batch.batch_number ?? batchId.slice(0, 6);
+    const prefix = `${batch.batch_number ?? batchId.slice(0, 6)} – ${batch.strain ?? "sans nom"}`;
     const pendingBags = list.filter((b) => !b.inventory_lot_id);
     for (let i = 0; i < pendingBags.length; i++) {
       const b = pendingBags[i];
-      const lotNumber = `${prefix}-${b.bag_type === "sample" ? "S" : "P"}-${String(i + 1).padStart(3, "0")}`;
+      const lotNumber = pendingBags.length > 1
+        ? `${prefix} (${String(i + 1).padStart(2, "0")})`
+        : prefix;
       const totalGrams = Number(b.net_weight_grams) * Number(b.bag_count);
       const { data: lot, error: lotErr } = await supabase
         .from("inventory_lots")
         .insert({
           lot_number: lotNumber,
           batch_id: batchId,
-          product_type: b.bag_type === "sample" ? "packaged_sample" : "packaged",
-          format: b.bag_type === "sample" ? "sample" : "bulk_1kg",
+          product_type: "packaged",
+          format: "bulk",
           flower_size: b.flower_type,
           quantity_grams: totalGrams,
           units: b.bag_count,
           status: "available",
-        })
+          notes: b.location ? `Emplacement : ${b.location}` : null,
+        } as any)
         .select()
         .single();
       if (lotErr) { toast.error(`Lot ${lotNumber}: ${lotErr.message}`); return false; }
@@ -197,7 +218,7 @@ export function WorkflowTimeline({
         .eq("id", b.id);
     }
 
-    // Create the 3 fixed samples: Laboratoire, Interne, Rétention
+    // Créer les 3 échantillons fixes s'ils n'existent pas déjà
     const { data: existingSamples } = await supabase
       .from("samples")
       .select("sample_type")
@@ -212,12 +233,26 @@ export function WorkflowTimeline({
         sample_type: t,
         weight_grams: null,
         is_destruction: false,
-        notes: "Créé automatiquement à la fin du bulk packaging",
+        notes: t === "Rétention"
+          ? "Créé automatiquement — à conserver 3 ans"
+          : "Créé automatiquement à la fin du bulk packaging",
       }));
     if (toInsert.length > 0) {
       await supabase.from("samples").insert(toInsert as any);
     }
     return true;
+  };
+
+  const startNext = async (currentCode: StageCode) => {
+    const idx = STAGE_ORDER.indexOf(currentCode);
+    const nextCode = STAGE_ORDER[idx + 1];
+    if (!nextCode) return;
+    const nextRow = findStage(stages ?? [], nextCode);
+    await upsertStage(nextCode, nextRow, {
+      status: "in_progress",
+      started_at: nextRow?.started_at ?? new Date().toISOString(),
+      ended_at: null,
+    } as any);
   };
 
   const finishStage = async (step: WorkflowStep) => {
@@ -242,12 +277,45 @@ export function WorkflowTimeline({
       else toast.success("Bulk Packaging validé — batch fermée.");
       onBatchClosed?.();
     } else {
-      toast.success(`${step.label} terminée.`);
+      toast.success(`${step.label} terminée — étape suivante démarrée.`);
+      await startNext(step.code);
     }
     setBusy(null);
     await load();
     await loadAvailable();
     onDestructionSaved?.();
+  };
+
+  // Curing: on click "Terminer", first ask for weight_out per container.
+  const askFinishCuring = () => setCuringFinishOpen(true);
+
+  const revertStage = async (step: WorkflowStep) => {
+    setBusy(step.code);
+    // Reset current stage to available (delete row) and reset any subsequent done rows
+    const codes = STAGE_ORDER.slice(STAGE_ORDER.indexOf(step.code));
+    for (const code of codes) {
+      const row = findStage(stages ?? [], code);
+      if (row) {
+        await supabase
+          .from("batch_stages")
+          .update({
+            status: code === step.code ? "in_progress" : "locked",
+            ended_at: null,
+            started_at: code === step.code ? (row.started_at ?? new Date().toISOString()) : null,
+          } as any)
+          .eq("id", row.id);
+      }
+    }
+    // If batch was closed, reopen it
+    if (batch.status === "closed") {
+      await supabase.from("batches").update({ status: "in_progress", closed_at: null }).eq("id", batchId);
+      onBatchClosed?.();
+    }
+    setBusy(null);
+    setConfirmRevert(null);
+    await load();
+    await loadAvailable();
+    toast.success(`Retour à l'étape « ${step.label} »`);
   };
 
   if (!stages) {
@@ -272,7 +340,7 @@ export function WorkflowTimeline({
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Batch initialisée le {new Date(batch.created_at).toLocaleString("fr-CA")} —
-              séchage démarré à cette date.
+              séchage démarré automatiquement à cette date.
             </p>
           </div>
         </li>
@@ -299,10 +367,14 @@ export function WorkflowTimeline({
               batch={batch}
               step={step}
               canEdit={canEdit && !isClosed}
+              canRevert={canRevert}
               busy={busy === step.code}
-              availableGrams={availableGrams}
-              onStart={() => startStage(step)}
-              onFinishRequest={() => setConfirmFinish(step)}
+              availableGramsForPackaging={availableGramsForPackaging}
+              onFinishRequest={() => {
+                if (step.code === "curing") askFinishCuring();
+                else setConfirmFinish(step);
+              }}
+              onRevertRequest={() => setConfirmRevert(step)}
               onDataChanged={() => {
                 loadAvailable();
                 onDestructionSaved?.();
@@ -318,8 +390,8 @@ export function WorkflowTimeline({
             <AlertDialogTitle>Terminer « {confirmFinish?.label} » ?</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmFinish?.code === "bulk_packaging"
-                ? "Les sacs seront convertis en inventaire, les échantillons fixes créés, et la batch sera fermée. Cette action est définitive."
-                : "L'étape sera marquée comme terminée et l'étape suivante sera débloquée."}
+                ? "Les sacs seront convertis en lots d'inventaire (strictement liés à cette batch), les échantillons fixes créés, et la batch sera fermée."
+                : "L'étape sera marquée comme terminée et l'étape suivante démarrera automatiquement."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -336,6 +408,36 @@ export function WorkflowTimeline({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!confirmRevert} onOpenChange={(o) => !o && setConfirmRevert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revenir à « {confirmRevert?.label} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'étape actuelle et toutes les étapes ultérieures seront réouvertes. Les données saisies restent enregistrées.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmRevert && revertStage(confirmRevert)}
+            >
+              Revenir en arrière
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <CuringFinishDialog
+        open={curingFinishOpen}
+        onOpenChange={setCuringFinishOpen}
+        batchId={batchId}
+        onDone={async () => {
+          const curingStep = workflow.find((s) => s.code === "curing");
+          if (!curingStep) return;
+          await finishStage(curingStep);
+        }}
+      />
     </>
   );
 }
@@ -344,19 +446,21 @@ function StepCard({
   batch,
   step,
   canEdit,
+  canRevert,
   busy,
-  availableGrams,
-  onStart,
+  availableGramsForPackaging,
   onFinishRequest,
+  onRevertRequest,
   onDataChanged,
 }: {
   batch: Batch;
   step: WorkflowStep;
   canEdit: boolean;
+  canRevert: boolean;
   busy: boolean;
-  availableGrams: number | null;
-  onStart: () => void;
+  availableGramsForPackaging: number | null;
   onFinishRequest: () => void;
+  onRevertRequest: () => void;
   onDataChanged: () => void;
 }) {
   const locked = step.status === "locked";
@@ -373,24 +477,24 @@ function StepCard({
           <StatusPill status={step.status} />
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEdit && step.status === "available" && (
-            <Button size="sm" onClick={onStart} disabled={busy}>
-              {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Démarrer {step.label.toLowerCase()}
-            </Button>
-          )}
           {canEdit && active && (
             <Button size="sm" variant="secondary" onClick={onFinishRequest} disabled={busy}>
               {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               Terminer {step.label.toLowerCase()}
             </Button>
           )}
+          {canRevert && (active || done) && step.row && (
+            <Button size="sm" variant="ghost" onClick={onRevertRequest} disabled={busy}>
+              <Undo2 className="mr-1 h-4 w-4" /> Revenir en arrière
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="mt-1 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+      <div className="mt-1 grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
         <span>Début : {fmt(step.row?.started_at)}</span>
         <span>Fin : {fmt(step.row?.ended_at)}</span>
+        <span>Durée : {formatDuration(step.row?.started_at, step.row?.ended_at)}</span>
       </div>
 
       {(active || done) && (
@@ -423,7 +527,7 @@ function StepCard({
               batchId={batch.id}
               stageId={stageId}
               disabled={!canEdit || done}
-              availableGrams={availableGrams}
+              availableGrams={availableGramsForPackaging}
               onChanged={onDataChanged}
             />
           )}
