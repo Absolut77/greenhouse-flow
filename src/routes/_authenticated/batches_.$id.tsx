@@ -30,6 +30,7 @@ import { StatusBadge } from "./batches";
 import { StagesSection } from "@/components/batches/stages-section";
 import { DryingLogsSection } from "@/components/batches/drying-logs-section";
 import { SamplesSection } from "@/components/batches/samples-section";
+import { WeightsSection } from "@/components/batches/weights-section";
 
 type Batch = Tables<"batches">;
 
@@ -186,6 +187,7 @@ function BatchDetailPage() {
       <StagesSection batchId={batch.id} />
       <DryingLogsSection batchId={batch.id} />
       <SamplesSection batchId={batch.id} />
+      <WeightsSection batchId={batch.id} />
 
       <EditBatchDialog
         key={batch.id + batch.strain}
