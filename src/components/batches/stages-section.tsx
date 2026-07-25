@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +63,9 @@ export function StagesSection({ batchId }: { batchId: string }) {
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Stage | null>(null);
+  const [toDelete, setToDelete] = useState<Stage | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
@@ -71,11 +84,34 @@ export function StagesSection({ batchId }: { batchId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId]);
 
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("batch_stages")
+      .delete()
+      .eq("id", toDelete.id);
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Étape supprimée");
+    setToDelete(null);
+    load();
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Étapes</CardTitle>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
           <Plus className="mr-1 h-4 w-4" /> Ajouter une étape
         </Button>
       </CardHeader>
@@ -101,6 +137,7 @@ export function StagesSection({ batchId }: { batchId: string }) {
                 <TableHead>Opérateurs</TableHead>
                 <TableHead>Durée (min)</TableHead>
                 <TableHead>Commentaires</TableHead>
+                <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,6 +161,27 @@ export function StagesSection({ batchId }: { batchId: string }) {
                   <TableCell className="max-w-xs truncate">
                     {s.comments ?? "—"}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditing(s);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setToDelete(s)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -132,44 +190,70 @@ export function StagesSection({ batchId }: { batchId: string }) {
       </CardContent>
 
       <StageDialog
+        key={editing?.id ?? "new"}
         batchId={batchId}
+        stage={editing}
         open={open}
-        onOpenChange={setOpen}
-        onCreated={load}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) setEditing(null);
+        }}
+        onSaved={load}
       />
+
+      <AlertDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette étape ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
 
 function StageDialog({
   batchId,
+  stage,
   open,
   onOpenChange,
-  onCreated,
+  onSaved,
 }: {
   batchId: string;
+  stage: Stage | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [stageType, setStageType] = useState("drying");
-  const [startedAt, setStartedAt] = useState("");
-  const [endedAt, setEndedAt] = useState("");
-  const [operators, setOperators] = useState("");
-  const [duration, setDuration] = useState("");
-  const [comments, setComments] = useState("");
-  const [settings, setSettings] = useState("");
+  const [stageType, setStageType] = useState(stage?.stage_type ?? "drying");
+  const [startedAt, setStartedAt] = useState(toLocalInput(stage?.started_at ?? null));
+  const [endedAt, setEndedAt] = useState(toLocalInput(stage?.ended_at ?? null));
+  const [operators, setOperators] = useState(
+    stage?.operators_count?.toString() ?? "",
+  );
+  const [duration, setDuration] = useState(
+    stage?.duration_minutes?.toString() ?? "",
+  );
+  const [comments, setComments] = useState(stage?.comments ?? "");
+  const [settings, setSettings] = useState(
+    stage?.settings ? JSON.stringify(stage.settings, null, 2) : "",
+  );
   const [saving, setSaving] = useState(false);
 
-  const reset = () => {
-    setStageType("drying");
-    setStartedAt("");
-    setEndedAt("");
-    setOperators("");
-    setDuration("");
-    setComments("");
-    setSettings("");
-  };
+  const isEdit = !!stage;
 
   const submit = async () => {
     let parsedSettings: unknown = null;
@@ -181,35 +265,62 @@ function StageDialog({
         return;
       }
     }
+
+    const startIso = startedAt ? new Date(startedAt).toISOString() : null;
+    const endIso = endedAt ? new Date(endedAt).toISOString() : null;
+
+    if (startIso && endIso && new Date(endIso) < new Date(startIso)) {
+      toast.error("La date de fin ne peut pas être antérieure au début");
+      return;
+    }
+
+    let computedDuration: number | null = duration ? Number(duration) : null;
+    if (startIso && endIso) {
+      computedDuration = Math.round(
+        (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000,
+      );
+    }
+
     setSaving(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from("batch_stages").insert({
-      batch_id: batchId,
+    const payload = {
       stage_type: stageType,
-      started_at: startedAt ? new Date(startedAt).toISOString() : null,
-      ended_at: endedAt ? new Date(endedAt).toISOString() : null,
+      started_at: startIso,
+      ended_at: endIso,
       operators_count: operators ? Number(operators) : null,
-      duration_minutes: duration ? Number(duration) : null,
+      duration_minutes: computedDuration,
       comments: comments.trim() || null,
       settings: parsedSettings as never,
-      created_by: userData.user?.id ?? null,
-    });
+    };
+
+    let error;
+    if (isEdit && stage) {
+      ({ error } = await supabase
+        .from("batch_stages")
+        .update(payload)
+        .eq("id", stage.id));
+    } else {
+      const { data: userData } = await supabase.auth.getUser();
+      ({ error } = await supabase.from("batch_stages").insert({
+        ...payload,
+        batch_id: batchId,
+        created_by: userData.user?.id ?? null,
+      }));
+    }
     setSaving(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Étape ajoutée");
-    reset();
+    toast.success(isEdit ? "Étape mise à jour" : "Étape ajoutée");
     onOpenChange(false);
-    onCreated();
+    onSaved();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouvelle étape</DialogTitle>
+          <DialogTitle>{isEdit ? "Modifier l'étape" : "Nouvelle étape"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
@@ -262,7 +373,14 @@ function StageDialog({
                 min={0}
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
+                placeholder={startedAt && endedAt ? "Auto" : ""}
+                disabled={!!(startedAt && endedAt)}
               />
+              {startedAt && endedAt && (
+                <p className="text-xs text-muted-foreground">
+                  Calculée automatiquement à partir du début et de la fin.
+                </p>
+              )}
             </div>
           </div>
           <div className="grid gap-2">
@@ -290,7 +408,7 @@ function StageDialog({
           </Button>
           <Button onClick={submit} disabled={saving}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Créer
+            {isEdit ? "Enregistrer" : "Créer"}
           </Button>
         </DialogFooter>
       </DialogContent>
