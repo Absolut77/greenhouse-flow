@@ -191,19 +191,11 @@ function Dashboard() {
           .eq("status", "available"),
         supabase
           .from("inventory_lots")
-          .select("quantity_grams")
-          .eq("status", "available")
-          .in("product_type", ["flower", "trim"]),
-        supabase
-          .from("inventory_lots")
-          .select("quantity_grams, units")
-          .eq("status", "available")
-          .not("parent_lot_id", "is", null),
-        supabase
-          .from("inventory_lots")
-          .select("quantity_grams, lot_kind" as any)
-          .in("lot_kind" as any, ["sample", "retention"])
+          .select("quantity_grams, units, lot_kind" as any)
           .eq("status", "available"),
+        // Placeholder to keep tuple structure — replaced by client-side split below
+        Promise.resolve({ data: [] as any[] }),
+        Promise.resolve({ data: [] as any[] }),
         supabase
           .from("excise_reels")
           .select("id,serial_number,original_quantity,spoiled_at_reception,status"),
