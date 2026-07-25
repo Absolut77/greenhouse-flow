@@ -1,92 +1,96 @@
+# Plan — P1 Dashboard fonctionnel + P2 Module Réception
 
-# Workflow progressif de la fiche Batch
+## P1 — Dashboard réellement fonctionnel
 
-Transformer `/batches/:id` en un parcours guidé étape par étape avec déblocage strict, question de destruction entre chaque étape, et clôture automatique à la fin.
+### Cartes indicateurs (remplacement)
+Grille passe de 5 à 6-7 cartes, toutes cliquables vers la vue filtrée correspondante :
 
-## Modèle de données
+- **Batches en cours** → `/batches?status=in_progress`
+- **Bulk (flower + trim)** en g → `/inventory?type=bulk` (somme `inventory_lots.quantity_grams` où `status=available` et `product_type ∈ {flower, trim}`)
+- **Packagé en stock (avec timbres)** en unités + grammes → `/inventory?type=packaged` (lots `product_type=preroll` OU `parent_lot_id NOT NULL`, `status=available`)
+- **Samples / Rétention** en g → `/inventory?type=sample` (lots `product_type=sample` + table `samples` non détruits, agrégé)
+- **Événements ouverts** → `/events?status=open`
+- **Timbres disponibles** (somme balances des rouleaux `available`) → `/stamps?status=available`
 
-### Réutilisation de `batch_stages`
-Les étapes du workflow sont matérialisées comme des lignes `batch_stages` avec `stage_type` normalisé :
-- `drying` → Séchage
-- `debudding_manual` → Debudage manuel (nouveau code)
-- `mobius` → Mobius
-- `sanitation` → Sanitation (indépendante)
-- `sorting_weighing` → Tri & Pesée principale (nouveau code)
-- `curing` → Curing
-- `bulk_packaging` → Bulk Packaging
+Chaque carte : valeur dynamique via `Promise.all` d’agrégats Supabase, skeleton pendant chargement, `Link` qui pousse la searchParam appropriée.
 
-Ajout de colonnes sur `batch_stages` :
-- `status` text (`locked` | `in_progress` | `on_hold` | `done`), défaut `locked`
-- `metadata` jsonb (paramètres spécifiques : type debudage, nb personnes, temps, réglages Mobius inclinaison/tumbler/lames/aspiration, commentaires)
+### Filtres URL sur les pages cibles
+Ajouter `validateSearch` sur `/inventory` et `/stamps` pour lire `type`/`status` depuis l’URL (déjà présent sur `/batches` via state — on branche state initial sur `Route.useSearch`). Sur `/inventory`, ajouter un mode `type=bulk|packaged|sample` qui applique les mêmes filtres que le calcul dashboard, pour que la carte et la page listent la même chose.
 
-### Nouvelle table `destructions`
+### Alertes
+Conserver : timbres bas (<500), batches ouvertes depuis >14 jours. Ajouter : événements `open` depuis >7 jours.
+
+### Activité récente
+Inchangé (déjà filtrée par rôle admin/supervisor).
+
+### Fichiers touchés
+- `src/routes/_authenticated/dashboard.tsx` — refonte requêtes + cartes + liens
+- `src/routes/_authenticated/inventory.tsx` — `validateSearch`, groupe `type` bulk/packaged/sample, initial filters depuis URL
+- `src/routes/_authenticated/stamps.tsx` — `validateSearch` sur `status`
+- `src/routes/_authenticated/batches.tsx` — `validateSearch` sur `status`
+- `src/routes/_authenticated/events.tsx` — `validateSearch` sur `status`
+
+## P2 — Module Réception
+
+### Modèle de données
+Nouveau type d’événement `reception` (déjà supportable via `events.event_type`, on ajoute la valeur dans `EVENT_TYPES`). Pour couvrir les 3 sous-cas de manière propre, migration ajoutant à `events` :
+
+- `reception_kind text` — `cannabis_bulk | cannabis_batch | non_cannabis | transformation_return`
+- `supplier text` — producteur d’origine / fournisseur / transformateur (Nuance, etc.)
+- `reference_number text` — bordereau, PO, manifest
+- `linked_shipment_event_id uuid REFERENCES events(id)` — pour les retours de transformation (permet le calcul d’écart envoyé vs reçu)
+
+Nouvelle table `non_cannabis_receptions` (léger, produits/matériel non-cannabis qui ne rentrent pas dans `inventory_lots`) :
 ```
-id uuid PK
-batch_id uuid FK batches
-stage_id uuid FK batch_stages (nullable pour Curing)
-weight_grams numeric
-person_count int
-sanitation_products text
-duration_minutes int
-comments text
-photos text[] (URLs — bucket optionnel plus tard)
-created_at, updated_at, created_by
+id, event_id (FK events), item_name, category, quantity, unit, location, notes, created_at
 ```
-RLS : lecture pour tous les rôles authentifiés, écriture bloquée pour `viewer`. Trigger d'audit branché.
+Avec GRANT + RLS (authenticated read/write, service_role all).
 
-## Logique de progression
+Pas de nouvelle table pour cannabis : on réutilise `inventory_lots` (création ou append) avec `direction='in'` dans `event_items`. Les triggers existants `event_items_stock_trigger` gèrent déjà l’ajustement de stock automatiquement.
 
-Helper `computeWorkflow(stages)` côté client qui, à partir des rows `batch_stages`, calcule pour chaque étape du workflow son état :
-- `locked` (prérequis pas `done`)
-- `available` (prérequis OK, pas encore démarrée)
-- `in_progress` / `on_hold` / `done` (depuis la ligne)
+### UI
 
-Règles de déblocage :
-- Création → Séchage disponible
-- Séchage `done` → Debudage (Manuel + Mobius) disponibles en parallèle
-- Debudage manuel `done` ET Mobius `done` → Tri & Pesée disponible
-- Tri & Pesée `done` → Curing disponible
-- Curing `done` → Bulk Packaging disponible
-- Bulk Packaging `done` → `UPDATE batches SET status = 'closed', closed_at = now()`
-- Sanitation : toujours disponible dès la création, ne bloque rien
+**Page liste** — les réceptions apparaissent naturellement dans `/events` filtré `event_type=reception`. Un bouton “Nouvelle réception” sur `/events` pointe directement vers le formulaire dédié.
 
-Actions : « Démarrer », « Terminer cette étape », « Mettre en standby » (Sanitation uniquement).
+**Nouvelle route** `src/routes/_authenticated/receptions_.new.tsx` : formulaire multi-étapes simple :
 
-Après un « Terminer » (sauf Curing et Sanitation) → ouverture du `DestructionPromptDialog` : « Y a-t-il eu de la destruction durant cette étape ? Oui / Non ». Oui → `DestructionFormDialog` pré-rempli avec `stage_id`.
+1. **Type** : Cannabis bulk / Cannabis batch entière / Non-cannabis / Retour de transformation
+2. **Infos communes** : date, fournisseur, référence, notes
+3. Selon type :
+   - **Cannabis bulk** : batch existante (dropdown) OU créer nouveau lot → produit, format, grammes, unités, emplacement
+   - **Cannabis batch** : crée une nouvelle batch (numéro auto) + lot associé
+   - **Non-cannabis** : liste d’items (nom, catégorie, quantité, unité, emplacement)
+   - **Retour de transformation** : sélection de l’événement `shipment` d’origine (filtré `event_type ∈ {shipment, transfer}`) → affiche quantités envoyées → saisie quantités reçues → calcul écart affiché en temps réel, création `event_items` `direction='in'` sur les mêmes lots (ou nouveaux si transformé)
 
-## UI
+Submit : crée l’`event` (status=`completed` si tout est là, `open` sinon), les `event_items` associés, et éventuellement le/les `inventory_lots` ou lignes `non_cannabis_receptions`.
 
-Remplacer `StagesSection` actuel par un composant `WorkflowTimeline` :
-- Timeline verticale (barre + puces) dans l'ordre listé
-- Chaque étape : icône d'état (🔒 gris, 🟡 ambre, ✅ vert), titre, dates début/fin, bouton d'action contextuel
-- Debudage rendu comme carte contenant deux sous-cartes côte à côte (Manuel / Mobius), chacune avec son propre formulaire de démarrage/fin et ses champs spécifiques
-- Sanitation affichée dans un encart séparé « Étape indépendante » avec bouton Standby
-- Bloc « Destructions » listant toutes les destructions groupées par étape, avec bouton d'ajout manuel
+**Fiche réception** — réutilise `events_.$id.tsx` avec section conditionnelle affichant :
+- Détails réception (fournisseur, kind, référence)
+- Section non-cannabis items (si applicable)
+- Section écart envoyé/reçu (si `linked_shipment_event_id`)
 
-Conservation des sections existantes `DryingLogsSection`, `SamplesSection`, `WeightsSection` : elles restent affichées sous la timeline (elles alimentent séchage / pesées).
+### Fichiers touchés
+- `supabase/migrations` — nouvelle migration `events` colonnes + `non_cannabis_receptions`
+- `src/routes/_authenticated/events.tsx` — ajouter `reception` dans `EVENT_TYPES` + bouton “Nouvelle réception”
+- `src/routes/_authenticated/receptions_.new.tsx` — nouveau formulaire dédié
+- `src/routes/_authenticated/events_.$id.tsx` — sections conditionnelles réception + écart
+- `src/components/events/reception-details-section.tsx` — nouveau composant
+- `src/components/events/shipment-variance-section.tsx` — nouveau composant
 
-Nouveaux fichiers :
-- `src/components/batches/workflow-timeline.tsx`
-- `src/components/batches/workflow-step-card.tsx`
-- `src/components/batches/debudding-section.tsx` (Manuel + Mobius)
-- `src/components/batches/destruction-prompt-dialog.tsx`
-- `src/components/batches/destruction-form-dialog.tsx`
-- `src/components/batches/destructions-section.tsx`
-- `src/lib/batch-workflow.ts` (helper de calcul d'état)
+## Détails techniques
 
-`batches_.$id.tsx` : remplacer `<StagesSection />` par `<WorkflowTimeline />` + `<DestructionsSection />` ; garder les autres sections.
+- Les cartes dashboard font 6 requêtes agrégées en parallèle (`Promise.all`) ; pas de N+1.
+- `validateSearch` avec Zod pour typer proprement les filtres URL.
+- Réception cannabis : réutilise 100% le pipeline stock existant (`event_items` direction=`in` → trigger SQL ajuste `inventory_lots`), donc aucun risque de désync.
+- Retour de transformation : on charge les `event_items` `direction='out'` de l’événement lié pour pré-remplir le formulaire et calculer les écarts côté client (pas de calcul en base — juste affichage).
+- Numérotation événement réception : suit le pattern existant `EV-YYYY-####` géré côté formulaire.
+- Design : composants shadcn existants, thème sombre respecté.
 
-## Migration SQL (une seule)
-1. `ALTER TABLE public.batch_stages ADD COLUMN status text NOT NULL DEFAULT 'locked'`, `ADD COLUMN metadata jsonb NOT NULL DEFAULT '{}'::jsonb`
-2. `CREATE TABLE public.destructions (...)` + GRANT authenticated/service_role + ENABLE RLS + policies (SELECT auth ; INSERT/UPDATE/DELETE si role != viewer via `has_any_role`)
-3. Trigger `update_updated_at` sur `destructions`
-4. Trigger `write_audit_log` sur `destructions`
+## Ordre d’exécution
+1. Migration SQL (ajout colonnes events + table non_cannabis_receptions + GRANT/RLS)
+2. Refonte dashboard + filtres URL sur inventory/stamps/batches/events
+3. Route + formulaire `receptions_.new.tsx`
+4. Sections réception dans `events_.$id.tsx`
+5. Vérif typecheck + smoke test navigation
 
-## Rétro-compatibilité
-- Les anciennes lignes `batch_stages` avec `stage_type = 'debudding'` restent lisibles ; le helper les traite comme équivalent `debudding_manual` en lecture seule.
-- Pas de suppression de colonnes existantes.
-
-## Points d'attention
-- Types Supabase régénérés après migration → code qui lit `status`/`metadata` doit venir après.
-- Le stockage photos n'est pas activé (pas de bucket) — champ `photos` gardé pour plus tard, UI upload désactivée dans un premier temps (juste champ URL/note).
-- L'audit trigger existant sur `batch_stages` continue de logger les changements de statut.
+Rapport final structuré fourni à la fin.
