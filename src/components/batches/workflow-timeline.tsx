@@ -72,9 +72,10 @@ export function WorkflowTimeline({
 }) {
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
-  const [destruction, setDestruction] = useState<{ open: boolean; stageId: string | null; code: StageCode | null; label: string }>({
-    open: false, stageId: null, code: null, label: "",
+  const [destructionPrompt, setDestructionPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
+  const [sanitationPrompt, setSanitationPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
+  const [formDlg, setFormDlg] = useState<{ open: boolean; stageId: string | null; code: StageCode | null; label: string; mode: DestructionFormMode; nextStep: WorkflowStep | null }>({
+    open: false, stageId: null, code: null, label: "", mode: "destruction", nextStep: null,
   });
   const [metaEdit, setMetaEdit] = useState<WorkflowStep | null>(null);
 
