@@ -144,10 +144,11 @@ export function PackagedLotsSection({
         {locked && (
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
             <Lock className="h-4 w-4" />
-            Événement verrouillé — les lots finis ne peuvent plus être créés
-            ou supprimés.
+            L'événement doit être « Ouvert » pour créer ou supprimer des lots
+            finis.
           </div>
         )}
+
         {!locked && sourceItems.length === 0 && (
           <p className="text-sm italic text-muted-foreground">
             Ajoute d'abord un item bulk en sortie (direction « Sortie ») pour
