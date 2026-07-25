@@ -33,9 +33,7 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
-type Sample = Tables<"samples"> & {
-  profiles?: { full_name: string | null; email: string | null } | null;
-};
+type Sample = Tables<"samples">;
 type Stage = Tables<"batch_stages">;
 
 const SAMPLE_TYPES = [
@@ -62,6 +60,9 @@ const NONE = "__none__";
 export function SamplesSection({ batchId }: { batchId: string }) {
   const [samples, setSamples] = useState<Sample[] | null>(null);
   const [stages, setStages] = useState<Stage[]>([]);
+  const [creators, setCreators] = useState<
+    Record<string, { full_name: string | null; email: string | null }>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -70,7 +71,7 @@ export function SamplesSection({ batchId }: { batchId: string }) {
     const [{ data: sData, error: sErr }, { data: stData }] = await Promise.all([
       supabase
         .from("samples")
-        .select("*, profiles(full_name, email)")
+        .select("*")
         .eq("batch_id", batchId)
         .order("created_at", { ascending: false }),
       supabase
@@ -80,9 +81,30 @@ export function SamplesSection({ batchId }: { batchId: string }) {
         .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
     ]);
-    if (sErr) setError(sErr.message);
-    else setSamples((sData as Sample[]) ?? []);
+    if (sErr) {
+      setError(sErr.message);
+      return;
+    }
+    const rows = sData ?? [];
+    setSamples(rows);
     setStages(stData ?? []);
+
+    const ids = Array.from(
+      new Set(rows.map((r) => r.created_by).filter((x): x is string => !!x)),
+    );
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", ids);
+      const map: Record<string, { full_name: string | null; email: string | null }> = {};
+      (profs ?? []).forEach((p) => {
+        map[p.id] = { full_name: p.full_name, email: p.email };
+      });
+      setCreators(map);
+    } else {
+      setCreators({});
+    }
   };
 
   useEffect(() => {

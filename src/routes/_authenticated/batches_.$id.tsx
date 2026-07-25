@@ -11,6 +11,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
 import { StagesSection } from "@/components/batches/stages-section";
 import { DryingLogsSection } from "@/components/batches/drying-logs-section";
+import { SamplesSection } from "@/components/batches/samples-section";
 
 type Batch = Tables<"batches">;
 
@@ -130,7 +131,8 @@ function BatchDetailPage() {
       <StagesSection batchId={batch.id} />
       <DryingLogsSection batchId={batch.id} />
       <Section title="Pesées" description="Historique des pesées." />
-      <Section title="Échantillons" description="Prélèvements et destructions." />
+      <Section title="Pesées" description="Historique des pesées." />
+      <SamplesSection batchId={batch.id} />
     </div>
   );
 }
