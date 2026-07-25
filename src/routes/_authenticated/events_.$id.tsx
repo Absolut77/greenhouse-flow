@@ -338,6 +338,10 @@ function EventDetailPage() {
         <ReceptionDetailsSection event={event} />
       )}
 
+      {event.event_type === "shipment" && (
+        <ShipmentDetailsSection event={event} />
+      )}
+
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       {event.event_type === "packaging" && (
