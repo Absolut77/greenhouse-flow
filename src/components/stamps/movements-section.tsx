@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2, Pencil } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Movement = Tables<"stamp_movements">;
 type Lot = Tables<"inventory_lots">;
-type Event = Tables<"events">;
+type EventRow = Tables<"events">;
 
 const NONE = "__none__";
 
@@ -81,8 +81,9 @@ export function StampMovementsSection({
   readOnly?: boolean;
 }) {
   const [lotMap, setLotMap] = useState<Record<string, Lot>>({});
-  const [eventMap, setEventMap] = useState<Record<string, Event>>({});
+  const [eventMap, setEventMap] = useState<Record<string, EventRow>>({});
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Movement | null>(null);
   const [toDelete, setToDelete] = useState<Movement | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -108,7 +109,7 @@ export function StampMovementsSection({
           .from("events")
           .select("*")
           .in("id", evIds);
-        const m: Record<string, Event> = {};
+        const m: Record<string, EventRow> = {};
         (data ?? []).forEach((e) => (m[e.id] = e));
         setEventMap(m);
       } else setEventMap({});
@@ -138,8 +139,7 @@ export function StampMovementsSection({
 
   const typeBadge = (t: string | null) => {
     const v = MOVEMENT_TYPES.find((x) => x.value === t);
-    if (!v)
-      return <span className="text-muted-foreground">{t ?? "—"}</span>;
+    if (!v) return <span className="text-muted-foreground">{t ?? "—"}</span>;
     return (
       <Badge variant="outline" className={v.className}>
         {v.label}
@@ -175,7 +175,7 @@ export function StampMovementsSection({
                   <TableHead>Événement</TableHead>
                   <TableHead>Commentaires</TableHead>
                   {!readOnly && (
-                    <TableHead className="w-16 text-right">Actions</TableHead>
+                    <TableHead className="w-24 text-right">Actions</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -226,6 +226,13 @@ export function StampMovementsSection({
                           <Button
                             size="icon"
                             variant="ghost"
+                            onClick={() => setEditing(m)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             onClick={() => setToDelete(m)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -245,7 +252,16 @@ export function StampMovementsSection({
         reelId={reelId}
         balance={balance}
         open={open}
+        editing={null}
         onOpenChange={setOpen}
+        onSaved={onChanged}
+      />
+      <MovementDialog
+        reelId={reelId}
+        balance={balance}
+        open={!!editing}
+        editing={editing}
+        onOpenChange={(o) => !o && setEditing(null)}
         onSaved={onChanged}
       />
 
@@ -274,12 +290,14 @@ function MovementDialog({
   reelId,
   balance,
   open,
+  editing,
   onOpenChange,
   onSaved,
 }: {
   reelId: string;
   balance: number;
   open: boolean;
+  editing: Movement | null;
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
@@ -289,16 +307,24 @@ function MovementDialog({
   const [eventId, setEventId] = useState<string>(NONE);
   const [comments, setComments] = useState("");
   const [lots, setLots] = useState<Lot[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setType("used");
-    setQuantity("");
-    setLotId(NONE);
-    setEventId(NONE);
-    setComments("");
+    if (editing) {
+      setType(editing.movement_type ?? "used");
+      setQuantity(editing.quantity?.toString() ?? "");
+      setLotId(editing.lot_id ?? NONE);
+      setEventId(editing.event_id ?? NONE);
+      setComments(editing.comments ?? "");
+    } else {
+      setType("used");
+      setQuantity("");
+      setLotId(NONE);
+      setEventId(NONE);
+      setComments("");
+    }
     (async () => {
       const [{ data: ls }, { data: es }] = await Promise.all([
         supabase
@@ -313,12 +339,24 @@ function MovementDialog({
       setLots(ls ?? []);
       setEvents(es ?? []);
     })();
-  }, [open]);
+  }, [open, editing]);
 
   const q = Number(quantity);
   const consumes = type === "used" || type === "destroyed";
+  // Baseline balance for edit: add back this row's previous effect on balance.
+  const baseline = (() => {
+    if (!editing) return balance;
+    const oldQ = editing.quantity ?? 0;
+    if (editing.movement_type === "used" || editing.movement_type === "destroyed") {
+      return balance + oldQ;
+    }
+    if (editing.movement_type === "returned") {
+      return balance - oldQ;
+    }
+    return balance;
+  })();
   const overBalance =
-    consumes && !Number.isNaN(q) && q > 0 && q > balance;
+    consumes && !Number.isNaN(q) && q > 0 && q > baseline;
 
   const submit = async () => {
     if (!type) {
@@ -331,25 +369,31 @@ function MovementDialog({
     }
     if (overBalance) {
       toast.error(
-        `Balance insuffisante : disponible ${balance}, demandé ${q}`,
+        `Balance insuffisante : disponible ${baseline}, demandé ${q}`,
       );
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("stamp_movements").insert({
+    const payload = {
       reel_id: reelId,
       movement_type: type,
       quantity: q,
       lot_id: lotId === NONE ? null : lotId,
       event_id: eventId === NONE ? null : eventId,
       comments: comments.trim() || null,
-    });
+    };
+    const { error } = editing
+      ? await supabase
+          .from("stamp_movements")
+          .update(payload)
+          .eq("id", editing.id)
+      : await supabase.from("stamp_movements").insert(payload);
     setSaving(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Mouvement ajouté");
+    toast.success(editing ? "Mouvement mis à jour" : "Mouvement ajouté");
     onOpenChange(false);
     onSaved();
   };
@@ -358,11 +402,14 @@ function MovementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouveau mouvement</DialogTitle>
+          <DialogTitle>
+            {editing ? "Modifier le mouvement" : "Nouveau mouvement"}
+          </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <p className="text-xs text-muted-foreground">
-            Balance actuelle : <span className="font-medium">{balance}</span>
+            Balance disponible :{" "}
+            <span className="font-medium">{baseline}</span>
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -444,7 +491,7 @@ function MovementDialog({
           </Button>
           <Button onClick={submit} disabled={saving || overBalance}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Ajouter
+            {editing ? "Enregistrer" : "Ajouter"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,7 +21,7 @@ function NewBatchPage() {
     batch_number: "",
     strain: "",
     plant_count: "",
-    weight_per_plant: "",
+    total_harvest_weight: "",
     harvest_date: "",
     harvest_room: "",
     drying_location: "",
@@ -47,8 +47,8 @@ function NewBatchPage() {
         batch_number: form.batch_number.trim(),
         strain: form.strain.trim(),
         plant_count: form.plant_count ? Number(form.plant_count) : null,
-        weight_per_plant: form.weight_per_plant
-          ? Number(form.weight_per_plant)
+        weight_per_plant: form.total_harvest_weight
+          ? Number(form.total_harvest_weight)
           : null,
         harvest_date: form.harvest_date || null,
         harvest_room: form.harvest_room.trim() || null,
@@ -127,14 +127,16 @@ function NewBatchPage() {
               />
             </div>
             <div>
-              <Label htmlFor="weight_per_plant">Poids par plant (g)</Label>
+              <Label htmlFor="total_harvest_weight">
+                Poids total de la récolte (g)
+              </Label>
               <Input
-                id="weight_per_plant"
+                id="total_harvest_weight"
                 type="number"
                 min="0"
                 step="0.01"
-                value={form.weight_per_plant}
-                onChange={update("weight_per_plant")}
+                value={form.total_harvest_weight}
+                onChange={update("total_harvest_weight")}
               />
             </div>
             <div>
