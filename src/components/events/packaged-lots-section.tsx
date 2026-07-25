@@ -110,19 +110,21 @@ export function PackagedLotsSection({
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
-    const { error } = await supabase
-      .from("inventory_lots")
-      .delete()
-      .eq("id", toDelete.id);
+    const { error } = await supabase.rpc("delete_packaged_lot", {
+      _lot_id: toDelete.id,
+    });
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(`Suppression bloquée : ${error.message}`);
       return;
     }
-    toast.success("Lot fini supprimé");
+    toast.success(
+      `Lot fini supprimé — ${toDelete.quantity_grams ?? 0} g restitué(s) au lot source`,
+    );
     setToDelete(null);
     load();
   };
+
 
   return (
     <Card>
