@@ -211,13 +211,30 @@ function ReelDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1 h-4 w-4" /> Modifier
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="mr-1 h-4 w-4 text-destructive" /> Supprimer
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={movements.length > 0}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4 text-destructive" />{" "}
+                      Supprimer
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {movements.length > 0 && (
+                  <TooltipContent>
+                    Impossible : ce rouleau contient {movements.length} mouvement
+                    {movements.length > 1 ? "s" : ""} de timbres.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+
           </div>
         )}
       </div>
