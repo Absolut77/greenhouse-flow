@@ -227,7 +227,10 @@ function EventDetailPage() {
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       {event.event_type === "packaging" && (
-        <EventStampsSection eventId={event.id} eventStatus={event.status} />
+        <>
+          <PackagedLotsSection eventId={event.id} eventStatus={event.status} />
+          <EventStampsSection eventId={event.id} eventStatus={event.status} />
+        </>
       )}
 
       <EditEventDialog
