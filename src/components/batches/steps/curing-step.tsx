@@ -21,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { SampleDialog } from "./drying-step";
+import { SampleDialog, AnalysisDialog, AnalysisCell } from "./drying-step";
+import type { Tables } from "@/integrations/supabase/types";
 
 type Container = {
   id: string;
