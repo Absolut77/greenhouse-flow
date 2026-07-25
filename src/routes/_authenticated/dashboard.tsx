@@ -191,19 +191,11 @@ function Dashboard() {
           .eq("status", "available"),
         supabase
           .from("inventory_lots")
-          .select("quantity_grams")
-          .eq("status", "available")
-          .in("product_type", ["flower", "trim"]),
-        supabase
-          .from("inventory_lots")
-          .select("quantity_grams, units")
-          .eq("status", "available")
-          .not("parent_lot_id", "is", null),
-        supabase
-          .from("inventory_lots")
-          .select("quantity_grams, lot_kind" as any)
-          .in("lot_kind" as any, ["sample", "retention"])
+          .select("quantity_grams, units, lot_kind" as any)
           .eq("status", "available"),
+        // Placeholder to keep tuple structure — replaced by client-side split below
+        Promise.resolve({ data: [] as any[] }),
+        Promise.resolve({ data: [] as any[] }),
         supabase
           .from("excise_reels")
           .select("id,serial_number,original_quantity,spoiled_at_reception,status"),
@@ -235,19 +227,24 @@ function Dashboard() {
 
       if (cancelled) return;
 
-      const bulkGrams =
-        bulkLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
-      const packagedGrams =
-        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
-      const packagedUnits =
-        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.units) || 0), 0) ?? 0;
-      const sampleRetentionRows = ((sampleLotsRes.data ?? []) as any[]);
-      const sampleGrams = sampleRetentionRows
-        .filter((l) => l.lot_kind === "sample")
-        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
-      const retentionGrams = sampleRetentionRows
-        .filter((l) => l.lot_kind === "retention")
-        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const allAvailable = ((bulkLotsRes as any).data ?? []) as Array<{
+        quantity_grams: number | null;
+        units: number | null;
+        lot_kind: string | null;
+      }>;
+      const sumG = (rows: typeof allAvailable) =>
+        rows.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const sumU = (rows: typeof allAvailable) =>
+        rows.reduce((a, l) => a + (Number(l.units) || 0), 0);
+      const bulkRows = allAvailable.filter((l) => (l.lot_kind ?? "bulk") === "bulk");
+      const packagedRows = allAvailable.filter((l) => l.lot_kind === "packaged");
+      const sampleRows = allAvailable.filter((l) => l.lot_kind === "sample");
+      const retentionRows = allAvailable.filter((l) => l.lot_kind === "retention");
+      const bulkGrams = sumG(bulkRows);
+      const packagedGrams = sumG(packagedRows);
+      const packagedUnits = sumU(packagedRows);
+      const sampleGrams = sumG(sampleRows);
+      const retentionGrams = sumG(retentionRows);
       const totalAvailableGrams = bulkGrams + packagedGrams + sampleGrams + retentionGrams;
 
       // Compute stamps available: sum of balances across available reels
@@ -367,7 +364,7 @@ function Dashboard() {
       search: { status: "in_progress" },
     },
     {
-      label: "Bulk (flower + trim)",
+      label: "Bulk (post-curing)",
       value: fmtG(metrics?.bulkGrams),
       icon: Package,
       to: "/inventory",

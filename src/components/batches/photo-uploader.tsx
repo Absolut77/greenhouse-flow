@@ -6,13 +6,22 @@ import { toast } from "sonner";
 
 const BUCKET = "batch-photos";
 
+function isHttpUrl(v: string) {
+  return /^https?:\/\//i.test(v);
+}
+
 async function signPaths(paths: string[]): Promise<Record<string, string>> {
   if (!paths.length) return {};
+  const out: Record<string, string> = {};
+  // Old records stored raw URLs — pass them through
+  const legacy = paths.filter(isHttpUrl);
+  legacy.forEach((p) => (out[p] = p));
+  const storagePaths = paths.filter((p) => !isHttpUrl(p));
+  if (!storagePaths.length) return out;
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrls(paths, 3600);
-  if (error || !data) return {};
-  const out: Record<string, string> = {};
+    .createSignedUrls(storagePaths, 3600);
+  if (error || !data) return out;
   data.forEach((d) => {
     if (d.path && d.signedUrl) out[d.path] = d.signedUrl;
   });
