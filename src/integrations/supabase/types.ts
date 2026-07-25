@@ -950,18 +950,32 @@ export type Database = {
         }
         Returns: undefined
       }
-      close_event: {
-        Args: {
-          _completed_at?: string
-          _dry_destroyed_g: number
-          _event_id: string
-          _lot_name: string
-          _unit_weight_g: number
-          _units: number
-          _used_g: number
-        }
-        Returns: string
-      }
+      close_event:
+        | {
+            Args: {
+              _completed_at?: string
+              _dry_destroyed_g: number
+              _event_id: string
+              _lot_name: string
+              _unit_weight_g: number
+              _units: number
+              _used_g: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _completed_at?: string
+              _dry_destroyed_g: number
+              _event_id: string
+              _lot_name: string
+              _surplus_returns?: Json
+              _unit_weight_g: number
+              _units: number
+              _used_g: number
+            }
+            Returns: string
+          }
       current_user_display: {
         Args: never
         Returns: {
