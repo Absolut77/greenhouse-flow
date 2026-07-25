@@ -121,12 +121,24 @@ function ReelDetailPage() {
       .eq("id", reel.id);
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      if (
+        error.code === "23001" ||
+        /mouvements de timbres/i.test(error.message)
+      ) {
+        toast.error(
+          "Impossible de supprimer ce rouleau car il contient des mouvements de timbres.",
+        );
+      } else {
+        toast.error(error.message);
+      }
+      loadMovements();
+      setConfirmDelete(false);
       return;
     }
     toast.success("Rouleau supprimé");
     navigate({ to: "/stamps" });
   };
+
 
   if (error) {
     return (
