@@ -29,10 +29,12 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
-import { StagesSection } from "@/components/batches/stages-section";
 import { DryingLogsSection } from "@/components/batches/drying-logs-section";
 import { SamplesSection } from "@/components/batches/samples-section";
 import { WeightsSection } from "@/components/batches/weights-section";
+import { WorkflowTimeline } from "@/components/batches/workflow-timeline";
+import { DestructionsSection } from "@/components/batches/destructions-section";
+import { useAuth } from "@/hooks/use-auth";
 
 type Batch = Tables<"batches">;
 
@@ -44,11 +46,14 @@ export const Route = createFileRoute("/_authenticated/batches_/$id")({
 function BatchDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  const canEdit = roles.some((r) => r === "admin" || r === "supervisor" || r === "operator");
   const [batch, setBatch] = useState<Batch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [destructionRefresh, setDestructionRefresh] = useState(0);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -261,7 +266,13 @@ function BatchDetailPage() {
         </CardContent>
       </Card>
 
-      <StagesSection batchId={batch.id} />
+      <WorkflowTimeline
+        batchId={batch.id}
+        canEdit={canEdit}
+        onBatchClosed={load}
+        onDestructionSaved={() => setDestructionRefresh((n) => n + 1)}
+      />
+      <DestructionsSection batchId={batch.id} refreshKey={destructionRefresh} />
       <DryingLogsSection batchId={batch.id} />
       <SamplesSection batchId={batch.id} />
       <WeightsSection batchId={batch.id} />
