@@ -812,16 +812,27 @@ function CloseEventDialog({
     setSourceLots((rows) => rows.map((r) => ({ ...r, return_grams: "0" })));
   };
 
+  const validate = (): boolean => {
+    if (!event) return false;
+    if (!lotName.trim()) { toast.error("Nom du lot obligatoire"); return false; }
+    if (u <= 0 || w <= 0) { toast.error("Unités et poids/unité > 0"); return false; }
+    if (invalid) { toast.error("Utilisé + destruction dépasse la sortie totale."); return false; }
+    if (overReturn) { toast.error("Un retour dépasse la quantité sortie du lot."); return false; }
+    if (returnMismatch) {
+      toast.error(`La répartition du surplus (${returnedTotal.toFixed(2)} g) doit égaler ${surplus.toFixed(2)} g.`);
+      return false;
+    }
+    return true;
+  };
+
+  const goToConfirm = () => {
+    if (!validate()) return;
+    setConfirmed(false);
+    setStep("confirm");
+  };
+
   const submit = async () => {
-    if (!event) return;
-    if (!lotName.trim()) return toast.error("Nom du lot obligatoire");
-    if (u <= 0 || w <= 0) return toast.error("Unités et poids/unité > 0");
-    if (invalid) return toast.error("Utilisé + destruction dépasse la sortie totale.");
-    if (overReturn) return toast.error("Un retour dépasse la quantité sortie du lot.");
-    if (returnMismatch)
-      return toast.error(
-        `La répartition du surplus (${returnedTotal.toFixed(2)} g) doit égaler ${surplus.toFixed(2)} g.`,
-      );
+    if (!event || !validate()) return;
     const returns = sourceLots
       .map((r) => ({ lot_id: r.lot_id, grams: Number(r.return_grams) || 0 }))
       .filter((r) => r.grams > 0);
@@ -842,6 +853,7 @@ function CloseEventDialog({
     onOpenChange(false);
     onClosed();
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
