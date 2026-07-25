@@ -334,6 +334,10 @@ function EventDetailPage() {
         </CardContent>
       </Card>
 
+      {event.event_type === "reception" && (
+        <ReceptionDetailsSection event={event} />
+      )}
+
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       {event.event_type === "packaging" && (
