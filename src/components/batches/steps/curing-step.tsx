@@ -36,13 +36,7 @@ type Container = {
   created_at: string;
 };
 
-type CuringSample = {
-  id: string;
-  sample_date: string;
-  weight_grams: number | null;
-  container_id: string | null;
-  notes: string | null;
-};
+type CuringSample = Tables<"samples">;
 
 const CONTENT_OPTIONS = ["Flower Big", "Flower Medium", "Flower Small", "Hand Trim", "Trim"];
 
