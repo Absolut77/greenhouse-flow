@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { EventStatusBadge, EVENT_TYPES } from "./events";
+import { EventStatusBadge, EVENT_TYPES, RECEPTION_KINDS } from "./events";
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
