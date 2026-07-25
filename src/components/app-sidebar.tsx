@@ -7,6 +7,7 @@ import {
   Stamp,
   Settings,
   Leaf,
+  ScrollText,
 } from "lucide-react";
 
 import {
@@ -20,18 +21,22 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/use-auth";
 
 const items = [
-  { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Batches", url: "/batches", icon: Boxes },
-  { title: "Inventaire", url: "/inventory", icon: Package },
-  { title: "Événements", url: "/events", icon: CalendarClock },
-  { title: "Timbres d'accise", url: "/stamps", icon: Stamp },
-  { title: "Paramètres", url: "/settings", icon: Settings },
+  { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard, roles: null },
+  { title: "Batches", url: "/batches", icon: Boxes, roles: null },
+  { title: "Inventaire", url: "/inventory", icon: Package, roles: null },
+  { title: "Événements", url: "/events", icon: CalendarClock, roles: null },
+  { title: "Timbres d'accise", url: "/stamps", icon: Stamp, roles: null },
+  { title: "Journal d'activité", url: "/activity", icon: ScrollText, roles: ["admin", "supervisor"] as const },
+  { title: "Paramètres", url: "/settings", icon: Settings, roles: null },
 ];
+
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const { roles } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -51,7 +56,9 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {items
+                .filter((item) => !item.roles || item.roles.some((r) => roles.includes(r)))
+                .map((item) => {
                 const active = pathname === item.url || pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -71,3 +78,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

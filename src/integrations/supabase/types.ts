@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string
+          id: string
+          user_id: string | null
+          user_initials: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type: string
+          id?: string
+          user_id?: string | null
+          user_initials?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+          user_initials?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       batch_stages: {
         Row: {
           batch_id: string
@@ -577,6 +616,14 @@ export type Database = {
           _units: number
         }
         Returns: undefined
+      }
+      current_user_display: {
+        Args: never
+        Returns: {
+          uid: string
+          uinitials: string
+          uname: string
+        }[]
       }
       delete_packaged_lot: { Args: { _lot_id: string }; Returns: undefined }
       has_any_role: {
