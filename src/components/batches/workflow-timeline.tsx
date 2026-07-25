@@ -86,6 +86,7 @@ export function WorkflowTimeline({
   const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
   const [confirmRevert, setConfirmRevert] = useState<WorkflowStep | null>(null);
   const [curingFinishOpen, setCuringFinishOpen] = useState(false);
+  const [curingRefreshKey, setCuringRefreshKey] = useState(0);
   const [availableGramsForPackaging, setAvailable] = useState<number | null>(null);
 
   const load = async () => {
