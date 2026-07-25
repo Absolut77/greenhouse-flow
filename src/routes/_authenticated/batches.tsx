@@ -100,12 +100,42 @@ function BatchesPage() {
             Gestion des batches de récolte, séchage et transformation.
           </p>
         </div>
-        {!isViewerOnly && (
-          <Button onClick={() => navigate({ to: "/batches/new" })}>
-            <Plus className="mr-1 h-4 w-4" />
-            Nouvelle Batch
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!batches) return;
+              exportXlsx("batches", [
+                {
+                  name: "Batches",
+                  rows: batches.map((b) => ({
+                    Numéro: b.batch_number,
+                    Strain: b.strain ?? "",
+                    "Nb plants": b.plant_count ?? "",
+                    "Poids récolte (g)": b.weight_per_plant ?? "",
+                    "Date récolte": fmtDate(b.harvest_date),
+                    "Salle récolte": b.harvest_room ?? "",
+                    "Séchage": b.drying_location ?? "",
+                    Statut: b.status,
+                    "Créée le": fmtDateTime(b.created_at),
+                    "Fermée le": fmtDateTime(b.closed_at),
+                  })),
+                },
+              ]);
+            }}
+            disabled={!batches || batches.length === 0}
+          >
+            <Download className="mr-1 h-4 w-4" />
+            Exporter Excel
           </Button>
-        )}
+          {!isViewerOnly && (
+            <Button onClick={() => navigate({ to: "/batches/new" })}>
+              <Plus className="mr-1 h-4 w-4" />
+              Nouvelle Batch
+            </Button>
+          )}
+        </div>
+
       </div>
 
       <div className="flex items-center gap-3">
