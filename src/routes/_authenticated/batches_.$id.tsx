@@ -168,7 +168,7 @@ function BatchDetailPage() {
           <Info label="Strain" value={batch.strain} />
           <Info label="Nombre de plants" value={batch.plant_count?.toString()} />
           <Info
-            label="Poids par plant (g)"
+            label="Poids total de la récolte (g)"
             value={batch.weight_per_plant?.toString()}
           />
           <Info
@@ -243,7 +243,7 @@ function EditBatchDialog({
 }) {
   const [strain, setStrain] = useState(batch.strain ?? "");
   const [plantCount, setPlantCount] = useState(batch.plant_count?.toString() ?? "");
-  const [weightPerPlant, setWeightPerPlant] = useState(
+  const [totalHarvestWeight, setTotalHarvestWeight] = useState(
     batch.weight_per_plant?.toString() ?? "",
   );
   const [harvestDate, setHarvestDate] = useState(batch.harvest_date ?? "");
@@ -262,7 +262,7 @@ function EditBatchDialog({
       .update({
         strain: strain.trim(),
         plant_count: plantCount ? Number(plantCount) : null,
-        weight_per_plant: weightPerPlant ? Number(weightPerPlant) : null,
+        weight_per_plant: totalHarvestWeight ? Number(totalHarvestWeight) : null,
         harvest_date: harvestDate || null,
         harvest_room: harvestRoom.trim() || null,
         drying_location: dryingLocation.trim() || null,
@@ -301,14 +301,14 @@ function EditBatchDialog({
                 onChange={(e) => setPlantCount(e.target.value)}
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Poids par plant (g)</Label>
+            <div>
+              <Label>Poids total de la récolte (g)</Label>
               <Input
                 type="number"
                 step="0.01"
                 min="0"
-                value={weightPerPlant}
-                onChange={(e) => setWeightPerPlant(e.target.value)}
+                value={totalHarvestWeight}
+                onChange={(e) => setTotalHarvestWeight(e.target.value)}
               />
             </div>
           </div>
