@@ -440,27 +440,45 @@ export function WorkflowTimeline({
       <AlertDialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Terminer « {confirmFinish?.label} » ?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Terminer « {confirmFinish?.label} » ?</DialogTitle>
+            <DialogDescription>
               {confirmFinish?.code === "bulk_packaging"
-                ? "Les sacs seront convertis en lots d'inventaire (strictement liés à cette batch), les échantillons fixes créés, et la batch sera fermée."
+                ? "Les sacs seront convertis en un lot d'inventaire unique lié à cette batch, les échantillons fixes créés, et la batch sera fermée."
                 : "L'étape sera marquée comme terminée et l'étape suivante démarrera automatiquement."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label>Date et heure de fin</Label>
+            <Input
+              type="datetime-local"
+              value={finishEndedAt}
+              min={confirmFinish?.row?.started_at ? toLocalDatetimeInput(new Date(confirmFinish.row.started_at)) : undefined}
+              onChange={(e) => setFinishEndedAt(e.target.value)}
+            />
+            {confirmFinish?.row?.started_at && (
+              <p className="text-xs text-muted-foreground">
+                Démarrée le {new Date(confirmFinish.row.started_at).toLocaleString("fr-CA")}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmFinish(null)}>Annuler</Button>
+            <Button
               onClick={() => {
                 const step = confirmFinish;
+                const iso = finishEndedAt ? new Date(finishEndedAt).toISOString() : new Date().toISOString();
                 setConfirmFinish(null);
-                if (step) finishStage(step);
+                if (step) finishStage(step, iso);
               }}
             >
               Confirmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!confirmRevert} onOpenChange={(o) => !o && setConfirmRevert(null)}>
         <AlertDialogContent>
