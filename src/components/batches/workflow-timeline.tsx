@@ -200,32 +200,62 @@ export function WorkflowTimeline({
     }
 
     const prefix = `${batch.batch_number ?? batchId.slice(0, 6)} – ${batch.strain ?? "sans nom"}`;
+    // NOUVELLE RÈGLE : un seul lot d'inventaire par batch, regroupant tous les sacs.
     const pendingBags = list.filter((b) => !b.inventory_lot_id);
-    for (let i = 0; i < pendingBags.length; i++) {
-      const b = pendingBags[i];
-      const lotNumber = pendingBags.length > 1
-        ? `${prefix} (${String(i + 1).padStart(2, "0")})`
-        : prefix;
-      const totalGrams = Number(b.net_weight_grams) * Number(b.bag_count);
+    if (pendingBags.length === 0) return true;
+
+    const totalPending = pendingBags.reduce(
+      (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
+      0,
+    );
+    const totalUnits = pendingBags.reduce((s, b) => s + Number(b.bag_count), 0);
+    const flowerTypes = Array.from(new Set(pendingBags.map((b) => b.flower_type))).join(", ");
+
+    // Chercher un lot déjà existant pour cette batch (créé lors d'un packaging partiel précédent).
+    const { data: existingLot } = await supabase
+      .from("inventory_lots")
+      .select("*")
+      .eq("batch_id", batchId)
+      .eq("product_type", "packaged")
+      .maybeSingle();
+
+    let lotId: string;
+    if (existingLot) {
+      const { data: upd, error: updErr } = await supabase
+        .from("inventory_lots")
+        .update({
+          quantity_grams: Number(existingLot.quantity_grams ?? 0) + totalPending,
+          units: Number(existingLot.units ?? 0) + totalUnits,
+        } as any)
+        .eq("id", existingLot.id)
+        .select()
+        .single();
+      if (updErr) { toast.error(updErr.message); return false; }
+      lotId = upd.id;
+    } else {
       const { data: lot, error: lotErr } = await supabase
         .from("inventory_lots")
         .insert({
-          lot_number: lotNumber,
+          lot_number: prefix,
           batch_id: batchId,
           product_type: "packaged",
           format: "bulk",
-          flower_size: b.flower_type,
-          quantity_grams: totalGrams,
-          units: b.bag_count,
+          flower_size: flowerTypes || null,
+          quantity_grams: totalPending,
+          units: totalUnits,
           status: "available",
-          notes: b.location ? `Emplacement : ${b.location}` : null,
+          notes: "Détail des sacs disponible sur la fiche du lot.",
         } as any)
         .select()
         .single();
-      if (lotErr) { toast.error(`Lot ${lotNumber}: ${lotErr.message}`); return false; }
+      if (lotErr) { toast.error(`Lot ${prefix}: ${lotErr.message}`); return false; }
+      lotId = lot.id;
+    }
+
+    for (const b of pendingBags) {
       await (supabase as any)
         .from("packaging_bags")
-        .update({ inventory_lot_id: lot.id })
+        .update({ inventory_lot_id: lotId })
         .eq("id", b.id);
     }
 
