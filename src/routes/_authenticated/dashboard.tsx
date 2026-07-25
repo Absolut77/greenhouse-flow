@@ -386,11 +386,26 @@ function Dashboard() {
       search: { view: "packaged" },
     },
     {
-      label: "Samples / Rétention",
+      label: "Échantillons",
       value: fmtG(metrics?.sampleGrams),
       icon: FlaskConical,
       to: "/inventory",
       search: { view: "sample" },
+    },
+    {
+      label: "Rétention 🔒",
+      value: fmtG(metrics?.retentionGrams),
+      icon: FlaskConical,
+      to: "/inventory",
+      search: { view: "retention" },
+    },
+    {
+      label: "Total disponible",
+      value: fmtG(metrics?.totalAvailableGrams),
+      sub: "bulk + packagé + samples + rétention",
+      icon: PackageCheck,
+      to: "/inventory",
+      search: { view: "all" },
     },
     {
       label: "Événements ouverts",
