@@ -356,6 +356,46 @@ function BatchDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rouvrir cette batch ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette Batch est fermée. La rouvrir permettra de modifier les données. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={reopen} disabled={updating}>
+              {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Rouvrir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette batch ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Supprimer cette Batch effacera toutes les données liées (étapes, destructions, conteneurs, sacs, lots d'inventaire créés…). Cette action est irréversible. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={remove}
+              disabled={updating}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {updating && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
