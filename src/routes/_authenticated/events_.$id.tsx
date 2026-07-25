@@ -155,8 +155,15 @@ function EventDetailPage() {
     navigate({ to: "/events" });
   };
 
-  const changeStatus = async (next: string) => {
+  const changeStatus = async (next: string, completedAtIso?: string) => {
     if (!event) return;
+    if (next === "completed" && !completedAtIso) {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setCompletedAtInput(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      setCompleteOpen(true);
+      return;
+    }
     setUpdating(true);
     const { data, error } = await supabase
       .from("events")
@@ -164,7 +171,7 @@ function EventDetailPage() {
         status: next,
         completed_at:
           next === "completed"
-            ? new Date().toISOString()
+            ? (completedAtIso ?? new Date().toISOString())
             : next === "open"
               ? null
               : event.completed_at,
