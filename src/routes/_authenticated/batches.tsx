@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Download } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
 
 
@@ -29,8 +31,13 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Batch = Tables<"batches">;
 
+const searchSchema = z.object({
+  status: fallback(z.string(), "all").default("all"),
+});
+
 export const Route = createFileRoute("/_authenticated/batches")({
   head: () => ({ meta: [{ title: "Batches — ONO Cannabis" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: BatchesPage,
 });
 
@@ -66,11 +73,14 @@ export function StatusBadge({ status }: { status: string }) {
 
 function BatchesPage() {
   const navigate = useNavigate();
+  const { status: statusFilter } = Route.useSearch();
   const { roles } = useAuth();
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const setStatusFilter = (v: string) =>
+    navigate({ to: "/batches", search: { status: v } });
 
   useEffect(() => {
     let cancelled = false;

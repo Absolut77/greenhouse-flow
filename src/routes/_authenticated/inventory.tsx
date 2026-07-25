@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Download } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { exportXlsx, fmtDate } from "@/lib/export-xlsx";
 
 
@@ -30,8 +32,16 @@ import type { Tables } from "@/integrations/supabase/types";
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
 
+// URL views group product/status filters into semantic buckets that match the dashboard cards.
+const searchSchema = z.object({
+  view: fallback(z.string(), "all").default("all"), // all | bulk | packaged | sample
+  status: fallback(z.string(), "all").default("all"),
+  type: fallback(z.string(), "all").default("all"),
+});
+
 export const Route = createFileRoute("/_authenticated/inventory")({
   head: () => ({ meta: [{ title: "Inventaire — ONO Cannabis" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: InventoryPage,
 });
 
@@ -82,15 +92,29 @@ export const FLOWER_SIZES = [
   { value: "mix", label: "Mix" },
 ];
 
+const VIEW_LABEL: Record<string, string> = {
+  all: "Tous les lots",
+  bulk: "Bulk (flower + trim, disponibles)",
+  packaged: "Packagé avec timbres (en stock)",
+  sample: "Échantillons / Rétention",
+};
+
 function InventoryPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const { view, status: statusFilter, type: typeFilter } = search;
   const { roles } = useAuth();
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  const setStatusFilter = (v: string) =>
+    navigate({ to: "/inventory", search: { ...search, status: v, view: "all" } });
+  const setTypeFilter = (v: string) =>
+    navigate({ to: "/inventory", search: { ...search, type: v, view: "all" } });
+  const setView = (v: string) =>
+    navigate({ to: "/inventory", search: { view: v, status: "all", type: "all" } });
 
   useEffect(() => {
     let cancelled = false;
@@ -100,8 +124,18 @@ function InventoryPage() {
         .from("inventory_lots")
         .select("*")
         .order("created_at", { ascending: false });
-      if (statusFilter !== "all") query = query.eq("status", statusFilter);
-      if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
+
+      if (view === "bulk") {
+        query = query.eq("status", "available").in("product_type", ["flower", "trim"]);
+      } else if (view === "sample") {
+        query = query.eq("product_type", "sample");
+      } else if (view === "packaged") {
+        query = query.eq("status", "available").not("parent_lot_id", "is", null);
+      } else {
+        if (statusFilter !== "all") query = query.eq("status", statusFilter);
+        if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
+      }
+
       const { data, error } = await query;
       if (cancelled) return;
       if (error) {
@@ -128,7 +162,7 @@ function InventoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, typeFilter]);
+  }, [view, statusFilter, typeFilter]);
 
   const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
     arr.find((x) => x.value === v)?.label ?? v ?? "—";
@@ -139,7 +173,7 @@ function InventoryPage() {
         <div>
           <h1 className="text-2xl font-semibold">Inventaire</h1>
           <p className="text-sm text-muted-foreground">
-            Lots de produit, formats, emplacements et statuts.
+            {VIEW_LABEL[view] ?? "Lots de produit, formats, emplacements et statuts."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -181,36 +215,54 @@ function InventoryPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Statut</span>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
+          <span className="text-sm text-muted-foreground">Vue</span>
+          <Select value={view} onValueChange={setView}>
+            <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              <SelectItem value="available">Disponible</SelectItem>
-              <SelectItem value="reserved">Réservé</SelectItem>
-              <SelectItem value="shipped">Expédié</SelectItem>
-              <SelectItem value="destroyed">Détruit</SelectItem>
+              <SelectItem value="all">Tous les lots</SelectItem>
+              <SelectItem value="bulk">Bulk (flower + trim)</SelectItem>
+              <SelectItem value="packaged">Packagé avec timbres</SelectItem>
+              <SelectItem value="sample">Échantillons / Rétention</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Type</span>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              {PRODUCT_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {view === "all" && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Statut</span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="available">Disponible</SelectItem>
+                  <SelectItem value="reserved">Réservé</SelectItem>
+                  <SelectItem value="shipped">Expédié</SelectItem>
+                  <SelectItem value="destroyed">Détruit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Type</span>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  {PRODUCT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
       </div>
 
       <Card>

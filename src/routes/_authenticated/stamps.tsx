@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,8 +30,14 @@ import type { Tables } from "@/integrations/supabase/types";
 type Reel = Tables<"excise_reels">;
 type Movement = Tables<"stamp_movements">;
 
+const searchSchema = z.object({
+  status: fallback(z.string(), "all").default("all"),
+  province: fallback(z.string(), "all").default("all"),
+});
+
 export const Route = createFileRoute("/_authenticated/stamps")({
   head: () => ({ meta: [{ title: "Timbres d'accise — ONO Cannabis" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: StampsPage,
 });
 
@@ -90,6 +98,7 @@ export function computeBalance(
 
 function StampsPage() {
   const navigate = useNavigate();
+  const { status: statusFilter, province: provinceFilter } = Route.useSearch();
   const { roles } = useAuth();
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [reels, setReels] = useState<Reel[] | null>(null);
@@ -97,8 +106,11 @@ function StampsPage() {
     Record<string, Movement[]>
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [provinceFilter, setProvinceFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const setStatusFilter = (v: string) =>
+    navigate({ to: "/stamps", search: { status: v, province: provinceFilter } });
+  const setProvinceFilter = (v: string) =>
+    navigate({ to: "/stamps", search: { status: statusFilter, province: v } });
 
   useEffect(() => {
     let cancelled = false;

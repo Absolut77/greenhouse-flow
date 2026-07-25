@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Stamp,
   PackageCheck,
+  FlaskConical,
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       {
         name: "description",
         content:
-          "Vue d'ensemble des opérations : batches en cours, événements ouverts, stock bulk, timbres d'accise et activité récente.",
+          "Vue d'ensemble des opérations : batches en cours, stock réel bulk/samples/packagé, événements ouverts, timbres et alertes.",
       },
     ],
   }),
@@ -54,13 +55,17 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 const LOW_STAMP_THRESHOLD = 500;
 const LONG_BATCH_DAYS = 14;
+const OPEN_EVENT_DAYS = 7;
 
 type Metrics = {
   batchesInProgress: number;
   eventsOpen: number;
   bulkGrams: number;
+  packagedUnits: number;
+  packagedGrams: number;
+  sampleGrams: number;
+  stampsAvailable: number;
   reelsAvailable: number;
-  packagingOpen: number;
 };
 
 type BatchRow = {
@@ -128,12 +133,15 @@ const ACTION_LABELS: Record<string, string> = {
 function eventTypeLabel(t: string | null) {
   if (!t) return "—";
   const map: Record<string, string> = {
+    reception: "Réception",
     packaging: "Emballage",
     destruction: "Destruction",
     shipment: "Expédition",
-    reception: "Réception",
     transfer: "Transfert",
     sampling: "Échantillonnage",
+    return: "Retour",
+    rework: "Rework",
+    b2b: "B2B",
   };
   return map[t] ?? t;
 }
@@ -145,15 +153,11 @@ function Dashboard() {
   const [batches, setBatches] = useState<BatchRow[] | null>(null);
   const [batchLastActivity, setBatchLastActivity] = useState<Record<string, string>>({});
   const [events, setEvents] = useState<EventRow[] | null>(null);
-  const [batchesByEvent, setBatchesByEvent] = useState<
-    Record<string, string>
-  >({});
-  const [lowReels, setLowReels] = useState<
-    Array<ReelRow & { balance: number }>
-  >([]);
+  const [batchesByEvent, setBatchesByEvent] = useState<Record<string, string>>({});
+  const [lowReels, setLowReels] = useState<Array<ReelRow & { balance: number }>>([]);
   const [longBatches, setLongBatches] = useState<BatchRow[]>([]);
+  const [staleOpenEvents, setStaleOpenEvents] = useState<EventRow[]>([]);
   const [logs, setLogs] = useState<LogRow[] | null>(null);
-
 
   useEffect(() => {
     let cancelled = false;
@@ -162,11 +166,13 @@ function Dashboard() {
         batchesInProgressC,
         eventsOpenC,
         reelsAvailableC,
-        packagingOpenC,
         bulkLotsRes,
+        packagedLotsRes,
+        sampleLotsRes,
+        reelsFullRes,
+        stampMovementsRes,
         batchesRes,
         eventsRes,
-        reelsRes,
         logsRes,
       ] = await Promise.all([
         supabase
@@ -182,15 +188,26 @@ function Dashboard() {
           .select("id", { count: "exact", head: true })
           .eq("status", "available"),
         supabase
-          .from("events")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "open")
-          .eq("event_type", "packaging"),
-        supabase
           .from("inventory_lots")
-          .select("quantity_grams,product_type,status")
+          .select("quantity_grams")
           .eq("status", "available")
           .in("product_type", ["flower", "trim"]),
+        supabase
+          .from("inventory_lots")
+          .select("quantity_grams, units")
+          .eq("status", "available")
+          .not("parent_lot_id", "is", null),
+        supabase
+          .from("inventory_lots")
+          .select("quantity_grams")
+          .eq("product_type", "sample")
+          .eq("status", "available"),
+        supabase
+          .from("excise_reels")
+          .select("id,serial_number,original_quantity,spoiled_at_reception,status"),
+        supabase
+          .from("stamp_movements")
+          .select("reel_id,movement_type,quantity"),
         supabase
           .from("batches")
           .select("id,batch_number,strain,harvest_date,status,created_at")
@@ -199,16 +216,10 @@ function Dashboard() {
           .limit(20),
         supabase
           .from("events")
-          .select(
-            "id,event_number,event_type,status,created_at,related_batch_id"
-          )
+          .select("id,event_number,event_type,status,created_at,related_batch_id")
           .eq("status", "open")
           .order("created_at", { ascending: false })
-          .limit(10),
-        supabase
-          .from("excise_reels")
-          .select("id,serial_number,original_quantity,spoiled_at_reception,status")
-          .eq("status", "available"),
+          .limit(20),
         canSeeActivity
           ? supabase
               .from("audit_logs")
@@ -223,17 +234,46 @@ function Dashboard() {
       if (cancelled) return;
 
       const bulkGrams =
-        bulkLotsRes.data?.reduce(
-          (acc, l) => acc + (Number(l.quantity_grams) || 0),
-          0
-        ) ?? 0;
+        bulkLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
+      const packagedGrams =
+        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
+      const packagedUnits =
+        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.units) || 0), 0) ?? 0;
+      const sampleGrams =
+        sampleLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
+
+      // Compute stamps available: sum of balances across available reels
+      const reelsAll = (reelsFullRes.data ?? []) as ReelRow[];
+      const mvByReel = new Map<string, Array<{ movement_type: string; quantity: number }>>();
+      (stampMovementsRes.data ?? []).forEach((m) => {
+        const arr = mvByReel.get(m.reel_id) ?? [];
+        arr.push({ movement_type: m.movement_type ?? "", quantity: m.quantity ?? 0 });
+        mvByReel.set(m.reel_id, arr);
+      });
+      let stampsAvailable = 0;
+      for (const r of reelsAll) {
+        if (r.status !== "available") continue;
+        const { balance } = computeBalance(r, mvByReel.get(r.id) ?? []);
+        if (balance > 0) stampsAvailable += balance;
+      }
+      // Low balance reels for the alerts section
+      const withBal = reelsAll
+        .filter((r) => r.status === "available")
+        .map((r) => ({ ...r, balance: computeBalance(r, mvByReel.get(r.id) ?? []).balance }))
+        .filter((r) => r.balance > 0 && r.balance < LOW_STAMP_THRESHOLD)
+        .sort((a, b) => a.balance - b.balance)
+        .slice(0, 5);
+      setLowReels(withBal);
 
       setMetrics({
         batchesInProgress: batchesInProgressC.count ?? 0,
         eventsOpen: eventsOpenC.count ?? 0,
         bulkGrams,
+        packagedUnits,
+        packagedGrams,
+        sampleGrams,
+        stampsAvailable,
         reelsAvailable: reelsAvailableC.count ?? 0,
-        packagingOpen: packagingOpenC.count ?? 0,
       });
 
       const batchList = (batchesRes.data ?? []) as BatchRow[];
@@ -251,6 +291,12 @@ function Dashboard() {
       const evList = (eventsRes.data ?? []) as EventRow[];
       setEvents(evList);
 
+      // Stale open events
+      const evCutoff = Date.now() - OPEN_EVENT_DAYS * 24 * 3600 * 1000;
+      setStaleOpenEvents(
+        evList.filter((e) => e.created_at && new Date(e.created_at).getTime() < evCutoff)
+      );
+
       // Fetch batch numbers for events
       const batchIds = Array.from(
         new Set(evList.map((e) => e.related_batch_id).filter(Boolean))
@@ -267,9 +313,6 @@ function Dashboard() {
         }
       }
 
-      // Fetch last activity for the visible batches (from audit_logs).
-      // Readable by all authenticated roles via RLS? audit_logs SELECT is
-      // restricted to admin/supervisor, so only query when allowed.
       if (canSeeActivity && batchList.length) {
         const ids = batchList.map((b) => b.id);
         const { data: acts } = await supabase
@@ -288,56 +331,75 @@ function Dashboard() {
         }
       }
 
-      // Low balance reels
-      const reels = (reelsRes.data ?? []) as ReelRow[];
-      const withBal = reels
-        .map((r) => ({ ...r, balance: computeBalance(r, []).balance }))
-        .filter((r) => r.balance > 0 && r.balance < LOW_STAMP_THRESHOLD)
-        .sort((a, b) => a.balance - b.balance)
-        .slice(0, 5);
-      setLowReels(withBal);
-
       setLogs((logsRes.data ?? []) as LogRow[]);
     })();
     return () => {
       cancelled = true;
-
     };
-  }, []);
+  }, [canSeeActivity]);
 
-  const statCards = [
+  const fmtG = (g?: number) =>
+    g == null ? undefined : `${Math.round(g).toLocaleString("fr-CA")} g`;
+
+  const statCards: Array<{
+    label: string;
+    value: string | number | undefined;
+    sub?: string;
+    icon: typeof Boxes;
+    to: string;
+    search?: Record<string, string>;
+  }> = [
     {
       label: "Batches en cours",
       value: metrics?.batchesInProgress,
       icon: Boxes,
-      to: "/batches" as const,
+      to: "/batches",
+      search: { status: "in_progress" },
+    },
+    {
+      label: "Bulk (flower + trim)",
+      value: fmtG(metrics?.bulkGrams),
+      icon: Package,
+      to: "/inventory",
+      search: { view: "bulk" },
+    },
+    {
+      label: "Packagé en stock",
+      value: metrics?.packagedUnits != null
+        ? metrics.packagedUnits.toLocaleString("fr-CA")
+        : undefined,
+      sub: metrics?.packagedGrams != null
+        ? `${Math.round(metrics.packagedGrams).toLocaleString("fr-CA")} g`
+        : undefined,
+      icon: PackageCheck,
+      to: "/inventory",
+      search: { view: "packaged" },
+    },
+    {
+      label: "Samples / Rétention",
+      value: fmtG(metrics?.sampleGrams),
+      icon: FlaskConical,
+      to: "/inventory",
+      search: { view: "sample" },
     },
     {
       label: "Événements ouverts",
       value: metrics?.eventsOpen,
       icon: CalendarClock,
-      to: "/events" as const,
+      to: "/events",
+      search: { status: "open" },
     },
     {
-      label: "Stock bulk (g)",
-      value:
-        metrics?.bulkGrams != null
-          ? Math.round(metrics.bulkGrams).toLocaleString("fr-CA")
-          : undefined,
-      icon: Package,
-      to: "/inventory" as const,
-    },
-    {
-      label: "Rouleaux disponibles",
-      value: metrics?.reelsAvailable,
+      label: "Timbres disponibles",
+      value: metrics?.stampsAvailable != null
+        ? metrics.stampsAvailable.toLocaleString("fr-CA")
+        : undefined,
+      sub: metrics?.reelsAvailable != null
+        ? `${metrics.reelsAvailable} rouleaux`
+        : undefined,
       icon: Stamp,
-      to: "/stamps" as const,
-    },
-    {
-      label: "Emballages en cours",
-      value: metrics?.packagingOpen,
-      icon: PackageCheck,
-      to: "/events" as const,
+      to: "/stamps",
+      search: { status: "available" },
     },
   ];
 
@@ -350,10 +412,15 @@ function Dashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {statCards.map((s) => (
-          <Link key={s.label} to={s.to} className="block">
-            <Card className="transition-colors hover:border-primary/50">
+          <Link
+            key={s.label}
+            to={s.to}
+            search={s.search as never}
+            className="block"
+          >
+            <Card className="transition-colors hover:border-primary/50 h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {s.label}
@@ -366,13 +433,16 @@ function Dashboard() {
                 ) : (
                   <div className="text-2xl font-semibold">{s.value}</div>
                 )}
+                {s.sub && (
+                  <div className="text-xs text-muted-foreground mt-1">{s.sub}</div>
+                )}
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
 
-      {(lowReels.length > 0 || longBatches.length > 0) && (
+      {(lowReels.length > 0 || longBatches.length > 0 || staleOpenEvents.length > 0) && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -410,11 +480,34 @@ function Dashboard() {
                   >
                     {b.batch_number}
                   </Link>{" "}
-                  ouvert depuis plus de {LONG_BATCH_DAYS} jours
+                  ouverte depuis plus de {LONG_BATCH_DAYS} jours
                 </span>
                 {b.created_at && (
                   <Badge variant="outline" className="border-amber-500/50">
                     {formatDistanceToNow(new Date(b.created_at), {
+                      locale: fr,
+                      addSuffix: false,
+                    })}
+                  </Badge>
+                )}
+              </div>
+            ))}
+            {staleOpenEvents.map((e) => (
+              <div key={e.id} className="flex items-center justify-between">
+                <span>
+                  Événement{" "}
+                  <Link
+                    to="/events/$id"
+                    params={{ id: e.id }}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {e.event_number}
+                  </Link>{" "}
+                  ouvert depuis plus de {OPEN_EVENT_DAYS} jours
+                </span>
+                {e.created_at && (
+                  <Badge variant="outline" className="border-amber-500/50">
+                    {formatDistanceToNow(new Date(e.created_at), {
                       locale: fr,
                       addSuffix: false,
                     })}
@@ -431,12 +524,10 @@ function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Batches en cours</CardTitle>
-              <CardDescription>
-                Production active en post-récolte
-              </CardDescription>
+              <CardDescription>Production active en post-récolte</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/batches">
+              <Link to="/batches" search={{ status: "in_progress" }}>
                 Tout voir <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
             </Button>
@@ -492,7 +583,6 @@ function Dashboard() {
                             : "—";
                         })()}
                       </TableCell>
-
                       <TableCell>
                         <StatusBadge status={b.status} />
                       </TableCell>
@@ -509,11 +599,11 @@ function Dashboard() {
             <div>
               <CardTitle className="text-base">Événements ouverts</CardTitle>
               <CardDescription>
-                Emballage, destruction, expédition...
+                Réception, emballage, destruction, expédition...
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/events">
+              <Link to="/events" search={{ status: "open" }}>
                 Tout voir <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
             </Button>
@@ -541,7 +631,7 @@ function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((e) => (
+                  {events.slice(0, 10).map((e) => (
                     <TableRow key={e.id}>
                       <TableCell>{eventTypeLabel(e.event_type)}</TableCell>
                       <TableCell>
@@ -643,4 +733,3 @@ function Dashboard() {
     </div>
   );
 }
-
