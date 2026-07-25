@@ -362,6 +362,7 @@ function InventoryPage() {
                       "—"
                     )}
                   </TableCell>
+                  <TableCell><LotKindBadge kind={(l as any).lot_kind ?? null} /></TableCell>
                   <TableCell>{labelOf(PRODUCT_TYPES, l.product_type)}</TableCell>
                   <TableCell>{l.format ?? "—"}</TableCell>
                   <TableCell>{labelOf(FLOWER_SIZES, l.flower_size)}</TableCell>
