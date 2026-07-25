@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
+import { exportXlsx } from "@/lib/export-xlsx";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
@@ -158,11 +159,38 @@ function StampsPage() {
             Rouleaux de timbres provinciaux et mouvements associés.
           </p>
         </div>
-        {!isViewerOnly && (
-          <Button onClick={() => navigate({ to: "/stamps/new" })}>
-            <Plus className="mr-1 h-4 w-4" /> Nouveau rouleau
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = (reels ?? []).map((r) => {
+                const { used, destroyed, balance } = computeBalance(r, movementsByReel[r.id] ?? []);
+                return {
+                  "Numéro": r.serial_number,
+                  Province: r.province,
+                  "Box ID": r.box_id ?? "",
+                  Statut: r.status,
+                  "Qté originale": r.original_quantity,
+                  "Spoiled": r.spoiled_at_reception ?? 0,
+                  "Utilisés": used,
+                  "Détruits": destroyed,
+                  "Balance": balance,
+                  "Reçu le": r.received_at ?? "",
+                };
+              });
+              exportXlsx(`stamps-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+                { sheet: "Rouleaux", rows },
+              ]);
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
-        )}
+          {!isViewerOnly && (
+            <Button onClick={() => navigate({ to: "/stamps/new" })}>
+              <Plus className="mr-1 h-4 w-4" /> Nouveau rouleau
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
