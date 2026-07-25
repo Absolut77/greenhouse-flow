@@ -114,6 +114,39 @@ function BatchDetailPage() {
     toast.success("Batch archivée");
   };
 
+  const reopen = async () => {
+    if (!batch) return;
+    setUpdating(true);
+    const { data, error } = await supabase
+      .from("batches")
+      .update({ status: "in_progress", closed_at: null })
+      .eq("id", batch.id)
+      .select()
+      .single();
+    setUpdating(false);
+    setReopenOpen(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setBatch(data);
+    toast.success("Batch rouverte");
+  };
+
+  const remove = async () => {
+    if (!batch) return;
+    setUpdating(true);
+    const { error } = await supabase.rpc("delete_batch_cascade", { _batch_id: batch.id });
+    setUpdating(false);
+    setDeleteOpen(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Batch supprimée");
+    navigate({ to: "/batches" });
+  };
+
   if (error) {
     return (
       <div className="space-y-4">
