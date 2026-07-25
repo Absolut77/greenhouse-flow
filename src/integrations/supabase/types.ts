@@ -831,6 +831,7 @@ export type Database = {
           uname: string
         }[]
       }
+      delete_batch_cascade: { Args: { _batch_id: string }; Returns: undefined }
       delete_packaged_lot: { Args: { _lot_id: string }; Returns: undefined }
       has_any_role: {
         Args: {
