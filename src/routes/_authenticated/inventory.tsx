@@ -288,6 +288,7 @@ function InventoryPage() {
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
                 <TableHead>Batch</TableHead>
+                <TableHead>Kind</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Format</TableHead>
                 <TableHead>Taille</TableHead>
