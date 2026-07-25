@@ -605,6 +605,27 @@ export type Database = {
           },
         ]
       }
+      number_sequences: {
+        Row: {
+          current_value: number
+          kind: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          current_value?: number
+          kind: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          current_value?: number
+          kind?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       packaging_bags: {
         Row: {
           bag_count: number
@@ -965,6 +986,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_number: { Args: { _kind: string }; Returns: string }
       recompute_reel_status: { Args: { _reel_id: string }; Returns: undefined }
     }
     Enums: {
