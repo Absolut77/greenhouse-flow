@@ -144,8 +144,8 @@ function BatchDetailPage() {
             onClick={async () => {
               const [stagesR, dryingR, samplesR, weightsR] = await Promise.all([
                 supabase.from("batch_stages").select("*").eq("batch_id", batch.id).order("started_at", { ascending: true }),
-                supabase.from("drying_logs").select("*").eq("batch_id", batch.id).order("recorded_at", { ascending: true }),
-                supabase.from("samples").select("*").eq("batch_id", batch.id).order("created_at", { ascending: true }),
+                supabase.from("drying_logs").select("*").eq("batch_id", batch.id).order("log_date", { ascending: true }),
+                supabase.from("samples").select("*").eq("batch_id", batch.id).order("sample_date", { ascending: true }),
                 supabase.from("weights").select("*").eq("batch_id", batch.id).order("recorded_at", { ascending: true }),
               ]);
               exportXlsx(`batch_${batch.batch_number}`, [
@@ -166,43 +166,49 @@ function BatchDetailPage() {
                 },
                 {
                   name: "Étapes",
-                  rows: (stagesR.data ?? []).map((s: Record<string, unknown>) => ({
+                  rows: (stagesR.data ?? []).map((s) => ({
                     Étape: s.stage_type ?? "",
-                    Début: fmtDateTime(s.started_at as string | null),
-                    Fin: fmtDateTime(s.ended_at as string | null),
-                    Notes: s.notes ?? "",
+                    Début: fmtDateTime(s.started_at),
+                    Fin: fmtDateTime(s.ended_at),
                   })),
                 },
                 {
                   name: "Séchage",
-                  rows: (dryingR.data ?? []).map((d: Record<string, unknown>) => ({
-                    Date: fmtDateTime(d.recorded_at as string | null),
-                    "Température (°C)": d.temperature_c ?? "",
-                    "Humidité (%)": d.humidity_percent ?? "",
-                    Notes: d.notes ?? "",
+                  rows: (dryingR.data ?? []).map((d) => ({
+                    Date: fmtDate(d.log_date),
+                    Salle: d.room_number ?? "",
+                    "Temp. actuelle (°C)": d.temp_current ?? "",
+                    "Temp. consigne (°C)": d.temp_setpoint ?? "",
+                    "Temp. externe (°C)": d.temp_external ?? "",
+                    "Humidité actuelle (%)": d.humidity_current ?? "",
+                    "Humidité consigne (%)": d.humidity_setpoint ?? "",
+                    "Humidité externe (%)": d.humidity_external ?? "",
+                    Commentaires: d.comments ?? "",
                   })),
                 },
                 {
                   name: "Échantillons",
-                  rows: (samplesR.data ?? []).map((s: Record<string, unknown>) => ({
-                    Numéro: s.sample_number ?? "",
+                  rows: (samplesR.data ?? []).map((s) => ({
+                    Date: fmtDate(s.sample_date),
                     Type: s.sample_type ?? "",
-                    "Quantité (g)": s.quantity_grams ?? "",
-                    "Prélevé le": fmtDate(s.collected_at as string | null),
+                    "Poids (g)": s.weight_grams ?? "",
+                    Destruction: s.is_destruction ? "Oui" : "Non",
                     Notes: s.notes ?? "",
                   })),
                 },
                 {
                   name: "Pesées",
-                  rows: (weightsR.data ?? []).map((w: Record<string, unknown>) => ({
-                    Date: fmtDateTime(w.recorded_at as string | null),
+                  rows: (weightsR.data ?? []).map((w) => ({
+                    Date: fmtDateTime(w.recorded_at),
+                    Étape: w.stage ?? "",
                     Catégorie: w.category ?? "",
                     "Poids (g)": w.weight_grams ?? "",
-                    Étape: w.stage_id ?? "",
-                    Notes: w.notes ?? "",
+                    "Nb contenants": w.container_count ?? "",
+                    Commentaires: w.comments ?? "",
                   })),
                 },
               ]);
+
             }}
           >
             <Download className="mr-1 h-4 w-4" /> Exporter la batch
