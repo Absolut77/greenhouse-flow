@@ -437,9 +437,6 @@ export function WorkflowTimeline({
         ))}
       </ol>
 
-      <AlertDialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
       <Dialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
         <DialogContent>
           <DialogHeader>
