@@ -272,7 +272,7 @@ function BatchDetailPage() {
         onBatchClosed={load}
         onDestructionSaved={() => setDestructionRefresh((n) => n + 1)}
       />
-      <DestructionsSection batchId={batch.id} refreshKey={destructionRefresh} />
+      <DestructionsSection batchId={batch.id} batchStatus={batch.status} refreshKey={destructionRefresh} />
       <DryingLogsSection batchId={batch.id} />
       <SamplesSection batchId={batch.id} />
       <WeightsSection batchId={batch.id} />
