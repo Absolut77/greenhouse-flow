@@ -61,7 +61,13 @@ function NewBatchPage() {
     setSubmitting(false);
 
     if (error) {
-      toast.error(error.message);
+      const code = (error as { code?: string }).code;
+      if (code === "23505" || /duplicate|unique/i.test(error.message)) {
+        setErrors({ batch_number: "Ce numéro de batch existe déjà" });
+        toast.error("Ce numéro de batch existe déjà");
+      } else {
+        toast.error(error.message);
+      }
       return;
     }
     toast.success("Batch créée");

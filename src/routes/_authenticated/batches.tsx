@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Batch = Tables<"batches">;
@@ -63,6 +64,8 @@ export function StatusBadge({ status }: { status: string }) {
 
 function BatchesPage() {
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -95,10 +98,12 @@ function BatchesPage() {
             Gestion des batches de récolte, séchage et transformation.
           </p>
         </div>
-        <Button onClick={() => navigate({ to: "/batches/new" })}>
-          <Plus className="mr-1 h-4 w-4" />
-          Nouvelle Batch
-        </Button>
+        {!isViewerOnly && (
+          <Button onClick={() => navigate({ to: "/batches/new" })}>
+            <Plus className="mr-1 h-4 w-4" />
+            Nouvelle Batch
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
