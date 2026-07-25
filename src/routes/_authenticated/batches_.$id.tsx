@@ -253,6 +253,11 @@ function BatchDetailPage() {
           >
             <Download className="mr-1 h-4 w-4" /> Exporter la batch
           </Button>
+          <Button asChild variant="outline">
+            <Link to="/batches/$id/report" params={{ id: batch.id }}>
+              <FileText className="mr-1 h-4 w-4" /> Rapport PDF
+            </Link>
+          </Button>
           {batch.status !== "archived" && (
             <>
               {batch.status === "in_progress" && (
