@@ -37,8 +37,8 @@ import {
   type StageCode,
   type WorkflowStep,
 } from "@/lib/batch-workflow";
-import { DestructionPromptDialog } from "./destruction-prompt-dialog";
-import { DestructionFormDialog } from "./destruction-form-dialog";
+import { YesNoDialog } from "./destruction-prompt-dialog";
+import { DestructionFormDialog, type DestructionFormMode } from "./destruction-form-dialog";
 
 const fmt = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
