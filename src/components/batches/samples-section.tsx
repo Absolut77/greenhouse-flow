@@ -186,7 +186,11 @@ export function SamplesSection({ batchId }: { batchId: string }) {
                       {s.notes ?? "—"}
                     </TableCell>
                     <TableCell>
-                      {s.profiles?.full_name ?? s.profiles?.email ?? "—"}
+                      {s.created_by
+                        ? creators[s.created_by]?.full_name ??
+                          creators[s.created_by]?.email ??
+                          "—"
+                        : "—"}
                     </TableCell>
                   </TableRow>
                 ))}
