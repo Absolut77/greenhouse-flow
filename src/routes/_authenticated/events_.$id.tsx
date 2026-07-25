@@ -732,7 +732,7 @@ function CloseEventDialog({
 
   useEffect(() => {
     if (!open || !event) return;
-    setLotName(event.event_number || event.name || "");
+    setLotName(event.event_number || "");
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
     setCompletedAt(
