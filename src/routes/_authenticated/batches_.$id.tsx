@@ -263,7 +263,13 @@ function BatchDetailPage() {
         </CardContent>
       </Card>
 
-      <StagesSection batchId={batch.id} />
+      <WorkflowTimeline
+        batchId={batch.id}
+        canEdit={canEdit}
+        onBatchClosed={load}
+        onDestructionSaved={() => setDestructionRefresh((n) => n + 1)}
+      />
+      <DestructionsSection batchId={batch.id} refreshKey={destructionRefresh} />
       <DryingLogsSection batchId={batch.id} />
       <SamplesSection batchId={batch.id} />
       <WeightsSection batchId={batch.id} />
