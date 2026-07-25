@@ -102,13 +102,14 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
       .eq("id", toDelete.id);
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(`Suppression impossible : ${error.message}`);
       return;
     }
-    toast.success("Item supprimé");
+    toast.success("Item supprimé, stock ajusté");
     setToDelete(null);
     load();
   };
+
 
   return (
     <Card>
@@ -237,6 +238,17 @@ function ItemDialog({
   const [direction, setDirection] = useState<string>("out");
   const [saving, setSaving] = useState(false);
 
+  const selectedLot = lots.find((l) => l.id === lotId) ?? null;
+  const availableG = selectedLot?.quantity_grams ?? 0;
+  const availableU = selectedLot?.units ?? 0;
+  const q = Number(quantity);
+  const u = units.trim() ? Number(units) : 0;
+  const overStock =
+    direction === "out" &&
+    selectedLot &&
+    ((!Number.isNaN(q) && q > (availableG ?? 0)) ||
+      (units.trim() && !Number.isNaN(u) && u > (availableU ?? 0)));
+
   useEffect(() => {
     if (open) {
       setLotId("");
@@ -251,26 +263,38 @@ function ItemDialog({
       toast.error("Sélectionne un lot");
       return;
     }
-    const q = Number(quantity);
     if (!quantity || Number.isNaN(q) || q <= 0) {
       toast.error("La quantité doit être supérieure à 0");
       return;
     }
-    let u: number | null = null;
+    let uVal: number | null = null;
     if (units.trim()) {
-      const n = Number(units);
-      if (Number.isNaN(n) || n < 0) {
+      if (Number.isNaN(u) || u < 0) {
         toast.error("Nombre d'unités invalide");
         return;
       }
-      u = n;
+      uVal = u;
+    }
+    if (direction === "out" && selectedLot) {
+      if (q > (availableG ?? 0)) {
+        toast.error(
+          `Stock insuffisant : disponible ${availableG ?? 0}g, demandé ${q}g`,
+        );
+        return;
+      }
+      if (uVal != null && uVal > (availableU ?? 0)) {
+        toast.error(
+          `Unités insuffisantes : disponibles ${availableU ?? 0}, demandées ${uVal}`,
+        );
+        return;
+      }
     }
     setSaving(true);
     const { error } = await supabase.from("event_items").insert({
       event_id: eventId,
       inventory_lot_id: lotId,
       quantity_grams: q,
-      units: u,
+      units: uVal,
       direction,
     });
     setSaving(false);
@@ -278,7 +302,7 @@ function ItemDialog({
       toast.error(error.message);
       return;
     }
-    toast.success("Item ajouté");
+    toast.success("Item ajouté, stock ajusté");
     onOpenChange(false);
     onSaved();
   };
@@ -306,6 +330,12 @@ function ItemDialog({
                 ))}
               </SelectContent>
             </Select>
+            {selectedLot && (
+              <p className="text-xs text-muted-foreground">
+                Stock disponible : {availableG ?? 0}g
+                {selectedLot.units != null ? ` — ${availableU} unités` : ""}
+              </p>
+            )}
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -340,12 +370,17 @@ function ItemDialog({
               </SelectContent>
             </Select>
           </div>
+          {overStock && (
+            <p className="text-xs text-destructive">
+              La quantité demandée dépasse le stock disponible.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button onClick={submit} disabled={saving}>
+          <Button onClick={submit} disabled={saving || !!overStock}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             Ajouter
           </Button>
@@ -354,3 +389,4 @@ function ItemDialog({
     </Dialog>
   );
 }
+

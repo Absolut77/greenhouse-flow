@@ -568,6 +568,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_event_item_stock: {
+        Args: {
+          _direction: string
+          _grams: number
+          _lot_id: string
+          _sign: number
+          _units: number
+        }
+        Returns: undefined
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
