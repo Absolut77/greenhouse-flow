@@ -236,6 +236,31 @@ function Empty({ text }: { text: string }) {
   return <p className="p-3 text-sm italic text-muted-foreground">{text}</p>;
 }
 
+export function AnalysisCell({ sample }: { sample: { analysis_data: any; analysis_weight_grams?: number | null } }) {
+  const data = (sample?.analysis_data as any) ?? null;
+  if (!data || Object.keys(data).length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {Object.entries(data).map(([k, v]) => (
+        <span
+          key={k}
+          className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400"
+        >
+          <span className="font-medium">{k}</span>
+          <span className="text-emerald-300">{String(v)}</span>
+        </span>
+      ))}
+      {sample.analysis_weight_grams != null && (
+        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          {Number(sample.analysis_weight_grams).toFixed(2)} g utilisés
+        </span>
+      )}
+    </div>
+  );
+}
+
 function DryingLogDialog({
   batchId,
   log,
