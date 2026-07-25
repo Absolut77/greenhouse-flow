@@ -68,6 +68,8 @@ function EventDetailPage() {
     email: string | null;
   } | null>(null);
   const [itemCount, setItemCount] = useState<number | null>(null);
+  const [stampCount, setStampCount] = useState<number | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
