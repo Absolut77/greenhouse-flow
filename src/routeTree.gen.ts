@@ -23,6 +23,7 @@ import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStampsNewRouteImport } from './routes/_authenticated/stamps_.new'
 import { Route as AuthenticatedStampsIdRouteImport } from './routes/_authenticated/stamps_.$id'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
+import { Route as AuthenticatedReceptionsNewRouteImport } from './routes/_authenticated/receptions_.new'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory_.new'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory_.$id'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events_.new'
@@ -100,6 +101,12 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedReceptionsNewRoute =
+  AuthenticatedReceptionsNewRouteImport.update({
+    id: '/receptions_/new',
+    path: '/receptions/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryNewRoute =
   AuthenticatedInventoryNewRouteImport.update({
     id: '/inventory_/new',
@@ -150,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
+  '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
@@ -171,6 +179,7 @@ export interface FileRoutesByTo {
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
+  '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
@@ -194,6 +203,7 @@ export interface FileRoutesById {
   '/_authenticated/events_/new': typeof AuthenticatedEventsNewRoute
   '/_authenticated/inventory_/$id': typeof AuthenticatedInventoryIdRoute
   '/_authenticated/inventory_/new': typeof AuthenticatedInventoryNewRoute
+  '/_authenticated/receptions_/new': typeof AuthenticatedReceptionsNewRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/events/new'
     | '/inventory/$id'
     | '/inventory/new'
+    | '/receptions/new'
     | '/settings/users'
     | '/stamps/$id'
     | '/stamps/new'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/events/new'
     | '/inventory/$id'
     | '/inventory/new'
+    | '/receptions/new'
     | '/settings/users'
     | '/stamps/$id'
     | '/stamps/new'
@@ -260,6 +272,7 @@ export interface FileRouteTypes {
     | '/_authenticated/events_/new'
     | '/_authenticated/inventory_/$id'
     | '/_authenticated/inventory_/new'
+    | '/_authenticated/receptions_/new'
     | '/_authenticated/settings/users'
     | '/_authenticated/stamps_/$id'
     | '/_authenticated/stamps_/new'
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/receptions_/new': {
+      id: '/_authenticated/receptions_/new'
+      path: '/receptions/new'
+      fullPath: '/receptions/new'
+      preLoaderRoute: typeof AuthenticatedReceptionsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory_/new': {
       id: '/_authenticated/inventory_/new'
       path: '/inventory/new'
@@ -444,6 +464,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEventsNewRoute: typeof AuthenticatedEventsNewRoute
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
+  AuthenticatedReceptionsNewRoute: typeof AuthenticatedReceptionsNewRoute
   AuthenticatedStampsIdRoute: typeof AuthenticatedStampsIdRoute
   AuthenticatedStampsNewRoute: typeof AuthenticatedStampsNewRoute
 }
@@ -462,6 +483,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEventsNewRoute: AuthenticatedEventsNewRoute,
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
+  AuthenticatedReceptionsNewRoute: AuthenticatedReceptionsNewRoute,
   AuthenticatedStampsIdRoute: AuthenticatedStampsIdRoute,
   AuthenticatedStampsNewRoute: AuthenticatedStampsNewRoute,
 }
