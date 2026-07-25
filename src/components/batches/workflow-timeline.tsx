@@ -37,8 +37,8 @@ import {
   type StageCode,
   type WorkflowStep,
 } from "@/lib/batch-workflow";
-import { DestructionPromptDialog } from "./destruction-prompt-dialog";
-import { DestructionFormDialog } from "./destruction-form-dialog";
+import { YesNoDialog } from "./destruction-prompt-dialog";
+import { DestructionFormDialog, type DestructionFormMode } from "./destruction-form-dialog";
 
 const fmt = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
@@ -72,9 +72,10 @@ export function WorkflowTimeline({
 }) {
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
-  const [destruction, setDestruction] = useState<{ open: boolean; stageId: string | null; code: StageCode | null; label: string }>({
-    open: false, stageId: null, code: null, label: "",
+  const [destructionPrompt, setDestructionPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
+  const [sanitationPrompt, setSanitationPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
+  const [formDlg, setFormDlg] = useState<{ open: boolean; stageId: string | null; code: StageCode | null; label: string; mode: DestructionFormMode; nextStep: WorkflowStep | null }>({
+    open: false, stageId: null, code: null, label: "", mode: "destruction", nextStep: null,
   });
   const [metaEdit, setMetaEdit] = useState<WorkflowStep | null>(null);
 
@@ -161,20 +162,55 @@ export function WorkflowTimeline({
     }
     await load();
     if (step.askDestruction) {
-      setPrompt({ open: true, step: { ...step, row: updated } });
+      setDestructionPrompt({ open: true, step: { ...step, row: updated } });
     }
   };
 
-  const handlePromptAnswer = (yes: boolean) => {
-    const step = prompt.step;
-    setPrompt({ open: false, step: null });
-    if (yes && step) {
-      setDestruction({
+  const openSanitationPrompt = (step: WorkflowStep) => {
+    setSanitationPrompt({ open: true, step });
+  };
+
+  const handleDestructionAnswer = (yes: boolean) => {
+    const step = destructionPrompt.step;
+    setDestructionPrompt({ open: false, step: null });
+    if (!step) return;
+    if (yes) {
+      setFormDlg({
         open: true,
         stageId: step.row?.id ?? null,
         code: step.code,
         label: step.label,
+        mode: "destruction",
+        nextStep: step,
       });
+    } else {
+      openSanitationPrompt(step);
+    }
+  };
+
+  const handleSanitationAnswer = (yes: boolean) => {
+    const step = sanitationPrompt.step;
+    setSanitationPrompt({ open: false, step: null });
+    if (!step) return;
+    if (yes) {
+      setFormDlg({
+        open: true,
+        stageId: step.row?.id ?? null,
+        code: step.code,
+        label: step.label,
+        mode: "sanitation",
+        nextStep: null,
+      });
+    }
+  };
+
+  const handleFormClosed = () => {
+    const next = formDlg.nextStep;
+    const wasDestruction = formDlg.mode === "destruction";
+    setFormDlg((f) => ({ ...f, open: false, nextStep: null }));
+    if (wasDestruction && next) {
+      // Chain: after destruction, ask for sanitation log
+      setTimeout(() => openSanitationPrompt(next), 100);
     }
   };
 
@@ -259,22 +295,33 @@ export function WorkflowTimeline({
         </CardContent>
       </Card>
 
-      <DestructionPromptDialog
-        open={prompt.open}
-        onOpenChange={(o) => !o && setPrompt({ open: false, step: null })}
-        stageLabel={prompt.step?.label ?? ""}
-        onAnswer={handlePromptAnswer}
+      <YesNoDialog
+        open={destructionPrompt.open}
+        onOpenChange={(o) => !o && setDestructionPrompt({ open: false, step: null })}
+        title={`Destruction durant « ${destructionPrompt.step?.label ?? ""} » ?`}
+        description="Y a-t-il eu de la destruction durant cette étape ?"
+        onAnswer={handleDestructionAnswer}
+      />
+
+      <YesNoDialog
+        open={sanitationPrompt.open}
+        onOpenChange={(o) => !o && setSanitationPrompt({ open: false, step: null })}
+        title={`Log de sanitation pour « ${sanitationPrompt.step?.label ?? ""} » ?`}
+        description="Veux-tu ajouter un log de sanitation pour cette étape ?"
+        onAnswer={handleSanitationAnswer}
       />
 
       <DestructionFormDialog
-        open={destruction.open}
-        onOpenChange={(o) => setDestruction((d) => ({ ...d, open: o }))}
+        open={formDlg.open}
+        onOpenChange={(o) => { if (!o) handleFormClosed(); }}
         batchId={batchId}
-        stageId={destruction.stageId}
-        stageCode={destruction.code}
-        stageLabel={destruction.label}
-        onSaved={onDestructionSaved}
+        stageId={formDlg.stageId}
+        stageCode={formDlg.code}
+        stageLabel={formDlg.label}
+        mode={formDlg.mode}
+        onSaved={() => { onDestructionSaved?.(); }}
       />
+
 
       {metaEdit && (
         <StageMetadataDialog

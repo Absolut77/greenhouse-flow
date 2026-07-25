@@ -162,9 +162,11 @@ export type Database = {
           created_by: string | null
           duration_minutes: number | null
           id: string
+          is_sanitation_log: boolean
           person_count: number | null
           photos: string[]
           sanitation_products: string | null
+          sanitation_type: string | null
           stage_code: string | null
           stage_id: string | null
           updated_at: string
@@ -177,9 +179,11 @@ export type Database = {
           created_by?: string | null
           duration_minutes?: number | null
           id?: string
+          is_sanitation_log?: boolean
           person_count?: number | null
           photos?: string[]
           sanitation_products?: string | null
+          sanitation_type?: string | null
           stage_code?: string | null
           stage_id?: string | null
           updated_at?: string
@@ -192,9 +196,11 @@ export type Database = {
           created_by?: string | null
           duration_minutes?: number | null
           id?: string
+          is_sanitation_log?: boolean
           person_count?: number | null
           photos?: string[]
           sanitation_products?: string | null
+          sanitation_type?: string | null
           stage_code?: string | null
           stage_id?: string | null
           updated_at?: string
