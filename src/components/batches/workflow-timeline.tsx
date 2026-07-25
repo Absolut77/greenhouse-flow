@@ -422,7 +422,10 @@ export function WorkflowTimeline({
               curingRefreshKey={curingRefreshKey}
               onFinishRequest={() => {
                 if (step.code === "curing") askFinishCuring();
-                else setConfirmFinish(step);
+                else {
+                  setFinishEndedAt(toLocalDatetimeInput(new Date()));
+                  setConfirmFinish(step);
+                }
               }}
               onRevertRequest={() => setConfirmRevert(step)}
               onDataChanged={() => {
