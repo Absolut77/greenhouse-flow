@@ -383,9 +383,11 @@ export type Database = {
       }
       events: {
         Row: {
+          carrier: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
+          destination: string | null
           event_number: string
           event_type: string | null
           id: string
@@ -394,13 +396,16 @@ export type Database = {
           reception_kind: string | null
           reference_number: string | null
           related_batch_id: string | null
+          shipment_kind: string | null
           status: string | null
           supplier: string | null
         }
         Insert: {
+          carrier?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          destination?: string | null
           event_number: string
           event_type?: string | null
           id?: string
@@ -409,13 +414,16 @@ export type Database = {
           reception_kind?: string | null
           reference_number?: string | null
           related_batch_id?: string | null
+          shipment_kind?: string | null
           status?: string | null
           supplier?: string | null
         }
         Update: {
+          carrier?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          destination?: string | null
           event_number?: string
           event_type?: string | null
           id?: string
@@ -424,6 +432,7 @@ export type Database = {
           reception_kind?: string | null
           reference_number?: string | null
           related_batch_id?: string | null
+          shipment_kind?: string | null
           status?: string | null
           supplier?: string | null
         }
