@@ -280,6 +280,8 @@ function Dashboard() {
         packagedUnits,
         packagedGrams,
         sampleGrams,
+        retentionGrams,
+        totalAvailableGrams,
         stampsAvailable,
         reelsAvailable: reelsAvailableC.count ?? 0,
       });
