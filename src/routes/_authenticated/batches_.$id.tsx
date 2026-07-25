@@ -45,11 +45,16 @@ function BatchDetailPage() {
   const navigate = useNavigate();
   const { roles } = useAuth();
   const canEdit = roles.some((r) => r === "admin" || r === "supervisor" || r === "operator");
+  const isAdmin = roles.includes("admin");
+  const isSupervisor = roles.includes("supervisor");
+  const canReopen = isAdmin || isSupervisor;
   const [batch, setBatch] = useState<Batch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [destructionRefresh, setDestructionRefresh] = useState(0);
 
   const load = async () => {
