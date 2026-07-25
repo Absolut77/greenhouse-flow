@@ -578,66 +578,69 @@ function Dashboard() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Activité récente</CardTitle>
-            <CardDescription>Dernières actions enregistrées</CardDescription>
-          </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/activity">
-              Journal complet <ArrowRight className="ml-1 h-3 w-3" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {logs === null ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
+      {canSeeActivity && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Activité récente</CardTitle>
+              <CardDescription>Dernières actions enregistrées</CardDescription>
             </div>
-          ) : logs.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-4">
-              Aucune activité pour l'instant.
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {logs.map((l) => (
-                <li key={l.id} className="flex items-center gap-3 py-2.5">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">
-                      {l.user_initials ?? "??"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0 text-sm">
-                    <div className="truncate">
-                      <span className="font-medium">
-                        {l.user_name ?? "Système"}
-                      </span>{" "}
-                      <span className="text-muted-foreground">
-                        {ACTION_LABELS[l.action] ?? l.action}
-                      </span>{" "}
-                      <Badge variant="outline" className="mx-1 text-xs">
-                        {ENTITY_LABELS[l.entity_type] ?? l.entity_type}
-                      </Badge>
-                      {l.entity_label && (
-                        <span className="font-medium">{l.entity_label}</span>
-                      )}
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/activity">
+                Journal complet <ArrowRight className="ml-1 h-3 w-3" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {logs === null ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-4">
+                Aucune activité pour l'instant.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {logs.map((l) => (
+                  <li key={l.id} className="flex items-center gap-3 py-2.5">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs">
+                        {l.user_initials ?? "??"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-sm">
+                      <div className="truncate">
+                        <span className="font-medium">
+                          {l.user_name ?? "Système"}
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {ACTION_LABELS[l.action] ?? l.action}
+                        </span>{" "}
+                        <Badge variant="outline" className="mx-1 text-xs">
+                          {ENTITY_LABELS[l.entity_type] ?? l.entity_type}
+                        </Badge>
+                        {l.entity_label && (
+                          <span className="font-medium">{l.entity_label}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {formatDistanceToNow(new Date(l.created_at), {
-                      locale: fr,
-                      addSuffix: true,
-                    })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {formatDistanceToNow(new Date(l.created_at), {
+                        locale: fr,
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
