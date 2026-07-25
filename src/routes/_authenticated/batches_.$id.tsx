@@ -30,6 +30,7 @@ import { StatusBadge } from "./batches";
 import { StagesSection } from "@/components/batches/stages-section";
 import { DryingLogsSection } from "@/components/batches/drying-logs-section";
 import { SamplesSection } from "@/components/batches/samples-section";
+import { WeightsSection } from "@/components/batches/weights-section";
 
 type Batch = Tables<"batches">;
 
