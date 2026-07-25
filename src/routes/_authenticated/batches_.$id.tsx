@@ -187,6 +187,7 @@ function BatchDetailPage() {
       <StagesSection batchId={batch.id} />
       <DryingLogsSection batchId={batch.id} />
       <SamplesSection batchId={batch.id} />
+      <WeightsSection batchId={batch.id} />
 
       <EditBatchDialog
         key={batch.id + batch.strain}
