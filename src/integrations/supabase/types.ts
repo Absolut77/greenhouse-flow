@@ -400,6 +400,7 @@ export type Database = {
           id: string
           is_destruction: boolean
           notes: string | null
+          sample_date: string
           sample_type: string | null
           stage_id: string | null
           weight_grams: number | null
@@ -411,6 +412,7 @@ export type Database = {
           id?: string
           is_destruction?: boolean
           notes?: string | null
+          sample_date?: string
           sample_type?: string | null
           stage_id?: string | null
           weight_grams?: number | null
@@ -422,6 +424,7 @@ export type Database = {
           id?: string
           is_destruction?: boolean
           notes?: string | null
+          sample_date?: string
           sample_type?: string | null
           stage_id?: string | null
           weight_grams?: number | null
