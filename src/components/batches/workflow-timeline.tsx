@@ -206,67 +206,115 @@ export function WorkflowTimeline({
     }
 
     const prefix = `${batch.batch_number ?? batchId.slice(0, 6)} – ${batch.strain ?? "sans nom"}`;
-    // NOUVELLE RÈGLE : un seul lot d'inventaire par batch, regroupant tous les sacs.
     const pendingBags = list.filter((b) => !b.inventory_lot_id);
     if (pendingBags.length === 0) return true;
 
-    const totalPending = pendingBags.reduce(
-      (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
-      0,
-    );
-    const totalUnits = pendingBags.reduce((s, b) => s + Number(b.bag_count), 0);
-    const flowerTypes = Array.from(new Set(pendingBags.map((b) => b.flower_type))).join(", ");
-
-    // Chercher un lot déjà existant pour cette batch (créé lors d'un packaging partiel précédent).
-    const { data: existingLot } = await supabase
-      .from("inventory_lots")
-      .select("*")
-      .eq("batch_id", batchId)
-      .eq("product_type", "packaged")
-      .maybeSingle();
-
-    let lotId: string;
-    if (existingLot) {
-      const { data: upd, error: updErr } = await supabase
-        .from("inventory_lots")
-        .update({
-          quantity_grams: Number(existingLot.quantity_grams ?? 0) + totalPending,
-          units: Number(existingLot.units ?? 0) + totalUnits,
-        } as any)
-        .eq("id", existingLot.id)
-        .select()
-        .single();
-      if (updErr) { toast.error(updErr.message); return false; }
-      lotId = upd.id;
-    } else {
-      const { data: lot, error: lotErr } = await supabase
-        .from("inventory_lots")
-        .insert({
-          lot_number: prefix,
-          batch_id: batchId,
-          product_type: "packaged",
-          format: "bulk",
-          flower_size: flowerTypes || null,
-          quantity_grams: totalPending,
-          units: totalUnits,
-          status: "available",
-          lot_kind: "bulk",
-          notes: "Détail des sacs disponible sur la fiche du lot.",
-        } as any)
-        .select()
-        .single();
-      if (lotErr) { toast.error(`Lot ${prefix}: ${lotErr.message}`); return false; }
-      lotId = lot.id;
-    }
-
+    // Split pending bags into 3 lot kinds
+    const groups: Record<"bulk" | "sample" | "retention", any[]> = {
+      bulk: [],
+      sample: [],
+      retention: [],
+    };
     for (const b of pendingBags) {
-      await (supabase as any)
-        .from("packaging_bags")
-        .update({ inventory_lot_id: lotId })
-        .eq("id", b.id);
+      const t = String(b.flower_type ?? "").toLowerCase();
+      if (t.startsWith("échantillon") || t.startsWith("echantillon") || t.startsWith("sample")) {
+        groups.sample.push(b);
+      } else if (t.startsWith("rétention") || t.startsWith("retention")) {
+        groups.retention.push(b);
+      } else {
+        groups.bulk.push(b);
+      }
     }
 
-    // Créer les 3 échantillons fixes s'ils n'existent pas déjà
+    const kindMeta: Record<
+      "bulk" | "sample" | "retention",
+      { product_type: string; lot_kind: string; format: string; lot_number: string; notes: string }
+    > = {
+      bulk: {
+        product_type: "packaged",
+        lot_kind: "bulk",
+        format: "bulk",
+        lot_number: prefix,
+        notes: "Détail des sacs disponible sur la fiche du lot.",
+      },
+      sample: {
+        product_type: "sample",
+        lot_kind: "sample",
+        format: "sample",
+        lot_number: `SMP – ${prefix}`,
+        notes: "Lot d'échantillons créé à la clôture du bulk packaging.",
+      },
+      retention: {
+        product_type: "retention",
+        lot_kind: "retention",
+        format: "retention",
+        lot_number: `RET – ${prefix}`,
+        notes: "Lot de rétention — bloqué. À conserver 3 ans avant destruction.",
+      },
+    };
+
+    for (const kind of ["bulk", "sample", "retention"] as const) {
+      const bags = groups[kind];
+      if (bags.length === 0) continue;
+
+      const totalPending = bags.reduce(
+        (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
+        0,
+      );
+      const totalUnits = bags.reduce((s, b) => s + Number(b.bag_count), 0);
+      const flowerTypes = Array.from(new Set(bags.map((b) => b.flower_type))).join(", ");
+      const meta = kindMeta[kind];
+
+      const { data: existingLot } = await supabase
+        .from("inventory_lots")
+        .select("*")
+        .eq("batch_id", batchId)
+        .eq("lot_kind", meta.lot_kind)
+        .maybeSingle();
+
+      let lotId: string;
+      if (existingLot) {
+        const { data: upd, error: updErr } = await supabase
+          .from("inventory_lots")
+          .update({
+            quantity_grams: Number(existingLot.quantity_grams ?? 0) + totalPending,
+            units: Number(existingLot.units ?? 0) + totalUnits,
+          } as any)
+          .eq("id", existingLot.id)
+          .select()
+          .single();
+        if (updErr) { toast.error(updErr.message); return false; }
+        lotId = upd.id;
+      } else {
+        const { data: lot, error: lotErr } = await supabase
+          .from("inventory_lots")
+          .insert({
+            lot_number: meta.lot_number,
+            batch_id: batchId,
+            product_type: meta.product_type,
+            format: meta.format,
+            flower_size: flowerTypes || null,
+            quantity_grams: totalPending,
+            units: totalUnits,
+            status: "available",
+            lot_kind: meta.lot_kind,
+            notes: meta.notes,
+          } as any)
+          .select()
+          .single();
+        if (lotErr) { toast.error(`Lot ${meta.lot_number}: ${lotErr.message}`); return false; }
+        lotId = lot.id;
+      }
+
+      for (const b of bags) {
+        await (supabase as any)
+          .from("packaging_bags")
+          .update({ inventory_lot_id: lotId })
+          .eq("id", b.id);
+      }
+    }
+
+    // Créer les 3 échantillons "logbook" fixes s'ils n'existent pas déjà (traçabilité labo/interne/rétention)
     const { data: existingSamples } = await supabase
       .from("samples")
       .select("sample_type")
@@ -290,6 +338,7 @@ export function WorkflowTimeline({
     }
     return true;
   };
+
 
   const startNext = async (currentCode: StageCode, startedAt: string) => {
     const idx = STAGE_ORDER.indexOf(currentCode);
