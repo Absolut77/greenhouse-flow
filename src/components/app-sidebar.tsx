@@ -32,6 +32,7 @@ const items = [
   { title: "Événements", url: "/events", icon: CalendarClock, roles: null },
   { title: "Timbres d'accise", url: "/stamps", icon: Stamp, roles: null },
   { title: "Journal d'activité", url: "/activity", icon: ScrollText, roles: ["admin", "supervisor"] as const },
+  { title: "Rapports mensuels", url: "/reports", icon: FileBarChart, roles: ["admin", "supervisor"] as const },
   { title: "Paramètres", url: "/settings", icon: Settings, roles: null },
 ];
 
