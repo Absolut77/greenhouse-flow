@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil, Archive, Download, Unlock, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Archive, Download, Unlock, Trash2, FileText } from "lucide-react";
 import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
 
 
@@ -252,6 +252,11 @@ function BatchDetailPage() {
             }}
           >
             <Download className="mr-1 h-4 w-4" /> Exporter la batch
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/batches/$id/report" params={{ id: batch.id }}>
+              <FileText className="mr-1 h-4 w-4" /> Rapport PDF
+            </Link>
           </Button>
           {batch.status !== "archived" && (
             <>

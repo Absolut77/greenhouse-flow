@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoNumberButton } from "@/lib/auto-number";
 import { useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
@@ -96,7 +97,10 @@ function NewReelPage() {
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
             <Label>Numéro de série *</Label>
-            <Input value={serial} onChange={(e) => setSerial(e.target.value)} />
+            <div className="flex gap-2">
+              <Input value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="REEL-2026-0001" />
+              <AutoNumberButton kind="reel" onGenerated={setSerial} />
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">

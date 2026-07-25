@@ -32,6 +32,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsIdRouteImport } from './routes/_authenticated/events_.$id'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
 import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
+import { Route as AuthenticatedBatchesIdReportRouteImport } from './routes/_authenticated/batches_.$id.report'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -152,6 +153,12 @@ const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
   path: '/batches/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBatchesIdReportRoute =
+  AuthenticatedBatchesIdReportRouteImport.update({
+    id: '/report',
+    path: '/report',
+    getParentRoute: () => AuthenticatedBatchesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -165,7 +172,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/stamps': typeof AuthenticatedStampsRoute
-  '/batches/$id': typeof AuthenticatedBatchesIdRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRouteWithChildren
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
+  '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -189,7 +197,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/stamps': typeof AuthenticatedStampsRoute
-  '/batches/$id': typeof AuthenticatedBatchesIdRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRouteWithChildren
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
+  '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,7 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/stamps': typeof AuthenticatedStampsRoute
-  '/_authenticated/batches_/$id': typeof AuthenticatedBatchesIdRoute
+  '/_authenticated/batches_/$id': typeof AuthenticatedBatchesIdRouteWithChildren
   '/_authenticated/batches_/new': typeof AuthenticatedBatchesNewRoute
   '/_authenticated/events_/$id': typeof AuthenticatedEventsIdRoute
   '/_authenticated/events_/new': typeof AuthenticatedEventsNewRoute
@@ -226,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated/shipments_/new': typeof AuthenticatedShipmentsNewRoute
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
+  '/_authenticated/batches_/$id/report': typeof AuthenticatedBatchesIdReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/shipments/new'
     | '/stamps/$id'
     | '/stamps/new'
+    | '/batches/$id/report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/shipments/new'
     | '/stamps/$id'
     | '/stamps/new'
+    | '/batches/$id/report'
   id:
     | '__root__'
     | '/'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shipments_/new'
     | '/_authenticated/stamps_/$id'
     | '/_authenticated/stamps_/new'
+    | '/_authenticated/batches_/$id/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -473,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/batches_/$id/report': {
+      id: '/_authenticated/batches_/$id/report'
+      path: '/report'
+      fullPath: '/batches/$id/report'
+      preLoaderRoute: typeof AuthenticatedBatchesIdReportRouteImport
+      parentRoute: typeof AuthenticatedBatchesIdRoute
+    }
   }
 }
 
@@ -489,6 +509,20 @@ const AuthenticatedSettingsRouteWithChildren =
     AuthenticatedSettingsRouteChildren,
   )
 
+interface AuthenticatedBatchesIdRouteChildren {
+  AuthenticatedBatchesIdReportRoute: typeof AuthenticatedBatchesIdReportRoute
+}
+
+const AuthenticatedBatchesIdRouteChildren: AuthenticatedBatchesIdRouteChildren =
+  {
+    AuthenticatedBatchesIdReportRoute: AuthenticatedBatchesIdReportRoute,
+  }
+
+const AuthenticatedBatchesIdRouteWithChildren =
+  AuthenticatedBatchesIdRoute._addFileChildren(
+    AuthenticatedBatchesIdRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
   AuthenticatedBatchesRoute: typeof AuthenticatedBatchesRoute
@@ -498,7 +532,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedStampsRoute: typeof AuthenticatedStampsRoute
-  AuthenticatedBatchesIdRoute: typeof AuthenticatedBatchesIdRoute
+  AuthenticatedBatchesIdRoute: typeof AuthenticatedBatchesIdRouteWithChildren
   AuthenticatedBatchesNewRoute: typeof AuthenticatedBatchesNewRoute
   AuthenticatedEventsIdRoute: typeof AuthenticatedEventsIdRoute
   AuthenticatedEventsNewRoute: typeof AuthenticatedEventsNewRoute
@@ -519,7 +553,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedStampsRoute: AuthenticatedStampsRoute,
-  AuthenticatedBatchesIdRoute: AuthenticatedBatchesIdRoute,
+  AuthenticatedBatchesIdRoute: AuthenticatedBatchesIdRouteWithChildren,
   AuthenticatedBatchesNewRoute: AuthenticatedBatchesNewRoute,
   AuthenticatedEventsIdRoute: AuthenticatedEventsIdRoute,
   AuthenticatedEventsNewRoute: AuthenticatedEventsNewRoute,
