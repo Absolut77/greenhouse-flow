@@ -710,6 +710,13 @@ function ShipmentDetailsSection({ event }: { event: Event }) {
   );
 }
 
+type SourceLotRow = {
+  lot_id: string;
+  lot_number: string;
+  out_grams: number;
+  return_grams: string;
+};
+
 function CloseEventDialog({
   open,
   onOpenChange,
@@ -727,8 +734,10 @@ function CloseEventDialog({
   const [processingLoss, setProcessingLoss] = useState("0");
   const [dryDestroyed, setDryDestroyed] = useState("0");
   const [completedAt, setCompletedAt] = useState("");
-  const [sourceOut, setSourceOut] = useState<number | null>(null);
+  const [sourceLots, setSourceLots] = useState<SourceLotRow[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const sourceOut = sourceLots.reduce((a, r) => a + r.out_grams, 0);
 
   useEffect(() => {
     if (!open || !event) return;
@@ -739,13 +748,28 @@ function CloseEventDialog({
       `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`,
     );
     (async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("event_items")
-        .select("quantity_grams")
+        .select("inventory_lot_id, quantity_grams, inventory_lots(lot_number)")
         .eq("event_id", event.id)
         .eq("direction", "out");
-      const s = (data ?? []).reduce((a, r) => a + Number(r.quantity_grams || 0), 0);
-      setSourceOut(s);
+      const map = new Map<string, SourceLotRow>();
+      for (const r of (data ?? []) as any[]) {
+        if (!r.inventory_lot_id) continue;
+        const prev = map.get(r.inventory_lot_id);
+        const g = Number(r.quantity_grams || 0);
+        if (prev) {
+          prev.out_grams += g;
+        } else {
+          map.set(r.inventory_lot_id, {
+            lot_id: r.inventory_lot_id,
+            lot_number: r.inventory_lots?.lot_number ?? r.inventory_lot_id.slice(0, 8),
+            out_grams: g,
+            return_grams: "0",
+          });
+        }
+      }
+      setSourceLots(Array.from(map.values()));
     })();
   }, [open, event]);
 
@@ -755,14 +779,47 @@ function CloseEventDialog({
   const loss = Number(processingLoss) || 0;
   const dry = Number(dryDestroyed) || 0;
   const usedG = produced + loss;
-  const surplus = sourceOut != null ? sourceOut - usedG - dry : null;
-  const invalid = surplus != null && surplus < -0.001;
+  const surplus = sourceOut - usedG - dry;
+  const invalid = surplus < -0.001;
+
+  const returnedTotal = sourceLots.reduce((a, r) => a + (Number(r.return_grams) || 0), 0);
+  const returnMismatch = surplus > 0.001 && Math.abs(returnedTotal - surplus) > 0.01;
+  const overReturn = sourceLots.some((r) => (Number(r.return_grams) || 0) > r.out_grams + 1e-6);
+
+  const setReturn = (lot_id: string, v: string) => {
+    setSourceLots((rows) => rows.map((r) => (r.lot_id === lot_id ? { ...r, return_grams: v } : r)));
+  };
+
+  const distributeProportional = () => {
+    if (surplus <= 0 || sourceOut <= 0) return;
+    setSourceLots((rows) =>
+      rows.map((r) => ({
+        ...r,
+        return_grams: ((r.out_grams / sourceOut) * surplus).toFixed(2),
+      })),
+    );
+  };
+  const distributeToFirst = () => {
+    if (surplus <= 0 || sourceLots.length === 0) return;
+    setSourceLots((rows) => rows.map((r, i) => ({ ...r, return_grams: i === 0 ? surplus.toFixed(2) : "0" })));
+  };
+  const clearReturns = () => {
+    setSourceLots((rows) => rows.map((r) => ({ ...r, return_grams: "0" })));
+  };
 
   const submit = async () => {
     if (!event) return;
     if (!lotName.trim()) return toast.error("Nom du lot obligatoire");
     if (u <= 0 || w <= 0) return toast.error("Unités et poids/unité > 0");
     if (invalid) return toast.error("Utilisé + destruction dépasse la sortie totale.");
+    if (overReturn) return toast.error("Un retour dépasse la quantité sortie du lot.");
+    if (returnMismatch)
+      return toast.error(
+        `La répartition du surplus (${returnedTotal.toFixed(2)} g) doit égaler ${surplus.toFixed(2)} g.`,
+      );
+    const returns = sourceLots
+      .map((r) => ({ lot_id: r.lot_id, grams: Number(r.return_grams) || 0 }))
+      .filter((r) => r.grams > 0);
     setSaving(true);
     const { error } = await (supabase as any).rpc("close_event", {
       _event_id: event.id,
@@ -772,6 +829,7 @@ function CloseEventDialog({
       _used_g: usedG,
       _dry_destroyed_g: dry,
       _completed_at: new Date(completedAt).toISOString(),
+      _surplus_returns: surplus > 0.001 ? returns : null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -782,7 +840,7 @@ function CloseEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Clôturer l'événement</DialogTitle>
         </DialogHeader>
@@ -815,19 +873,76 @@ function CloseEventDialog({
             <Label>Date et heure de clôture</Label>
             <Input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
           </div>
+
           <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-            <div>Sortie totale (source) : <b>{sourceOut != null ? sourceOut.toFixed(2) : "—"} g</b></div>
+            <div>Sortie totale (source) : <b>{sourceOut.toFixed(2)} g</b></div>
             <div>Produit : <b>{produced.toFixed(2)} g</b> ({u} × {w} g)</div>
             <div>Processing loss : <b>{loss.toFixed(2)} g</b></div>
             <div>Destruction dry : <b>{dry.toFixed(2)} g</b></div>
             <div className={invalid ? "text-destructive font-medium" : ""}>
-              Surplus retourné au lot source : <b>{surplus != null ? surplus.toFixed(2) : "—"} g</b>
+              Surplus à retourner : <b>{surplus.toFixed(2)} g</b>
             </div>
           </div>
+
+          {surplus > 0.001 && sourceLots.length > 0 && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-medium">Répartition du surplus par lot source</div>
+                <div className="flex gap-1">
+                  {sourceLots.length > 1 && (
+                    <Button type="button" size="sm" variant="outline" onClick={distributeProportional}>
+                      Proportionnel
+                    </Button>
+                  )}
+                  <Button type="button" size="sm" variant="outline" onClick={distributeToFirst}>
+                    Tout sur le 1er
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={clearReturns}>
+                    Vider
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {sourceLots.map((r) => {
+                  const rg = Number(r.return_grams) || 0;
+                  const over = rg > r.out_grams + 1e-6;
+                  return (
+                    <div key={r.lot_id} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
+                      <div>
+                        <div className="text-sm font-medium">{r.lot_number}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Sorti : {r.out_grams.toFixed(2)} g
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Retour (g)</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={r.out_grams}
+                        value={r.return_grams}
+                        onChange={(e) => setReturn(r.lot_id, e.target.value)}
+                        className={over ? "border-destructive" : ""}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={`text-xs ${returnMismatch ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                Total réparti : <b>{returnedTotal.toFixed(2)} g</b> / attendu <b>{surplus.toFixed(2)} g</b>
+                {returnMismatch && ` (écart ${(returnedTotal - surplus).toFixed(2)} g)`}
+              </div>
+              {overReturn && (
+                <div className="text-xs text-destructive">
+                  Un retour dépasse la quantité sortie du lot correspondant.
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={submit} disabled={saving || invalid}>
+          <Button onClick={submit} disabled={saving || invalid || returnMismatch || overReturn}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             Clôturer et créer le lot
           </Button>
@@ -836,3 +951,4 @@ function CloseEventDialog({
     </Dialog>
   );
 }
+
