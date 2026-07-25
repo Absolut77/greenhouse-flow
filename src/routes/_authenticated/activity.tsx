@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Search, ShieldAlert, Loader2 } from "lucide-react";
+import { Search, ShieldAlert, Loader2, Download } from "lucide-react";
+import { exportXlsx, fmtDateTime } from "@/lib/export-xlsx";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
