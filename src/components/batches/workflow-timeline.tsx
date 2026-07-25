@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import {
   Lock,
   Play,
@@ -38,7 +39,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Batch = Tables<"batches">;
 
-const STEP_ICONS: Record<StageCode, JSX.Element> = {
+const STEP_ICONS: Record<StageCode, React.ReactNode> = {
   drying: <Wind className="h-4 w-4" />,
   debudding: <Scissors className="h-4 w-4" />,
   curing: <Boxes className="h-4 w-4" />,
@@ -46,7 +47,7 @@ const STEP_ICONS: Record<StageCode, JSX.Element> = {
 };
 
 function StatusPill({ status }: { status: WorkflowStep["status"] }) {
-  const map: Record<WorkflowStep["status"], { label: string; icon: JSX.Element; className: string }> = {
+  const map: Record<WorkflowStep["status"], { label: string; icon: React.ReactNode; className: string }> = {
     locked: { label: "Verrouillée", icon: <Lock className="h-3 w-3" />, className: "bg-muted text-muted-foreground" },
     available: { label: "Disponible", icon: <Circle className="h-3 w-3" />, className: "bg-secondary text-secondary-foreground" },
     in_progress: { label: "En cours", icon: <Play className="h-3 w-3" />, className: "bg-amber-500/20 text-amber-500" },
