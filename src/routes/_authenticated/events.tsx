@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
+import { exportXlsx, fmtDateTime } from "@/lib/export-xlsx";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
