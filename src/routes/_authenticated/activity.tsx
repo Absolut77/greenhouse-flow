@@ -212,18 +212,43 @@ function ActivityPage() {
             Toutes les actions enregistrées dans l'application (append-only).
           </p>
         </div>
-        <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="100">100 lignes</SelectItem>
-            <SelectItem value="200">200 lignes</SelectItem>
-            <SelectItem value="500">500 lignes</SelectItem>
-            <SelectItem value="1000">1000 lignes</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={filtered.length === 0}
+            onClick={() => {
+              exportXlsx("journal_activite", [
+                {
+                  name: "Activité",
+                  rows: filtered.map((l) => ({
+                    "Date/heure": fmtDateTime(l.created_at),
+                    Utilisateur: l.user_name ?? "Système",
+                    Initiales: l.user_initials ?? "",
+                    Action: ACTION_LABELS[l.action] ?? l.action,
+                    Type: ENTITY_LABELS[l.entity_type] ?? l.entity_type,
+                    Élément: l.entity_label ?? "",
+                    Détails: l.details ? JSON.stringify(l.details) : "",
+                  })),
+                },
+              ]);
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> Exporter Excel
+          </Button>
+          <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="100">100 lignes</SelectItem>
+              <SelectItem value="200">200 lignes</SelectItem>
+              <SelectItem value="500">500 lignes</SelectItem>
+              <SelectItem value="1000">1000 lignes</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
 
       <Card className="p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
