@@ -75,6 +75,8 @@ function EventDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completedAtInput, setCompletedAtInput] = useState("");
 
   const load = async () => {
     setError(null);
