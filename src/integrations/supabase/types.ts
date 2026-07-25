@@ -592,6 +592,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      recompute_reel_status: { Args: { _reel_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "operator" | "viewer"
