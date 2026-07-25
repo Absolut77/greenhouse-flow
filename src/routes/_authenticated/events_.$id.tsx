@@ -68,6 +68,8 @@ function EventDetailPage() {
     email: string | null;
   } | null>(null);
   const [itemCount, setItemCount] = useState<number | null>(null);
+  const [stampCount, setStampCount] = useState<number | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -106,11 +108,19 @@ function EventDetailPage() {
         .maybeSingle();
       setCreator(p);
     } else setCreator(null);
-    const { count } = await supabase
-      .from("event_items")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", id);
-    setItemCount(count ?? 0);
+    const [{ count: iCount }, { count: sCount }] = await Promise.all([
+      supabase
+        .from("event_items")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", id),
+      supabase
+        .from("stamp_movements")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", id),
+    ]);
+    setItemCount(iCount ?? 0);
+    setStampCount(sCount ?? 0);
+
   };
 
   useEffect(() => {
@@ -124,13 +134,17 @@ function EventDetailPage() {
     const { error } = await supabase.from("events").delete().eq("id", event.id);
     setDeleting(false);
     if (error) {
-      if (error.code === "23001" || /mouvements de stock/i.test(error.message)) {
+      if (
+        error.code === "23001" ||
+        /mouvements de stock|mouvements de timbres/i.test(error.message)
+      ) {
         toast.error(
-          "Impossible de supprimer cet événement car il contient des mouvements de stock. Utilisez un événement de type destruction ou expédition.",
+          "Impossible de supprimer cet événement car il contient des mouvements de stock ou de timbres. Utilisez un événement de type destruction ou expédition.",
         );
       } else {
         toast.error(error.message);
       }
+
       // Refresh count in case it changed
       load();
       setConfirmDelete(false);
@@ -241,19 +255,30 @@ function EventDetailPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setConfirmDelete(true)}
-                      disabled={itemCount === null || itemCount > 0}
+                      disabled={
+                        itemCount === null ||
+                        stampCount === null ||
+                        itemCount > 0 ||
+                        stampCount > 0
+                      }
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="mr-1 h-4 w-4" /> Supprimer
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {itemCount !== null && itemCount > 0 && (
+                {((itemCount ?? 0) > 0 || (stampCount ?? 0) > 0) && (
                   <TooltipContent>
-                    Impossible : cet événement contient {itemCount} mouvement
-                    {itemCount > 1 ? "s" : ""} de stock.
+                    Impossible : cet événement contient{" "}
+                    {(itemCount ?? 0) > 0 &&
+                      `${itemCount} mouvement${itemCount! > 1 ? "s" : ""} de stock`}
+                    {(itemCount ?? 0) > 0 && (stampCount ?? 0) > 0 && " et "}
+                    {(stampCount ?? 0) > 0 &&
+                      `${stampCount} mouvement${stampCount! > 1 ? "s" : ""} de timbres`}
+                    .
                   </TooltipContent>
                 )}
+
               </Tooltip>
             </TooltipProvider>
           )}
@@ -323,7 +348,7 @@ function EventDetailPage() {
             <AlertDialogTitle>Supprimer cet événement ?</AlertDialogTitle>
             <AlertDialogDescription>
               Cette action est définitive. Elle n'est possible que si
-              l'événement ne contient aucun mouvement de stock.
+              l'événement ne contient aucun mouvement de stock ni de timbres.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

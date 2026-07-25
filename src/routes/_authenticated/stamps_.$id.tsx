@@ -40,6 +40,13 @@ import {
   computeBalance,
 } from "./stamps";
 import { StampMovementsSection } from "@/components/stamps/movements-section";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 type Reel = Tables<"excise_reels">;
 type Movement = Tables<"stamp_movements">;
@@ -121,12 +128,24 @@ function ReelDetailPage() {
       .eq("id", reel.id);
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      if (
+        error.code === "23001" ||
+        /mouvements de timbres/i.test(error.message)
+      ) {
+        toast.error(
+          "Impossible de supprimer ce rouleau car il contient des mouvements de timbres.",
+        );
+      } else {
+        toast.error(error.message);
+      }
+      loadMovements();
+      setConfirmDelete(false);
       return;
     }
     toast.success("Rouleau supprimé");
     navigate({ to: "/stamps" });
   };
+
 
   if (error) {
     return (
@@ -192,13 +211,30 @@ function ReelDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1 h-4 w-4" /> Modifier
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="mr-1 h-4 w-4 text-destructive" /> Supprimer
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={movements.length > 0}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4 text-destructive" />{" "}
+                      Supprimer
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {movements.length > 0 && (
+                  <TooltipContent>
+                    Impossible : ce rouleau contient {movements.length} mouvement
+                    {movements.length > 1 ? "s" : ""} de timbres.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+
           </div>
         )}
       </div>
@@ -249,9 +285,10 @@ function ReelDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce rouleau ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera le rouleau et ses mouvements associés.
-              Elle est irréversible.
+              Cette action est définitive. Elle n'est possible que si le
+              rouleau ne contient aucun mouvement de timbres.
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
