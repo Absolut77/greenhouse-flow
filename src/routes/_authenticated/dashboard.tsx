@@ -67,14 +67,12 @@ type BatchRow = {
   strain: string | null;
   harvest_date: string | null;
   status: string;
-  updated_at: string | null;
   created_at: string | null;
 };
 
 type EventRow = {
   id: string;
-  event_number: string | null;
-  name: string | null;
+  event_number: string;
   event_type: string | null;
   status: string | null;
   created_at: string | null;
@@ -83,9 +81,9 @@ type EventRow = {
 
 type ReelRow = {
   id: string;
-  reel_number: string;
+  serial_number: string;
   original_quantity: number | null;
-  spoiled_at_reception: number | null;
+  spoiled_at_reception: number;
   status: string | null;
 };
 
