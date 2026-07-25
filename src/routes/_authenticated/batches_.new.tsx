@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { AutoNumberButton } from "@/lib/auto-number";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
