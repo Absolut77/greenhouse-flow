@@ -29,9 +29,6 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
-import { DryingLogsSection } from "@/components/batches/drying-logs-section";
-import { SamplesSection } from "@/components/batches/samples-section";
-import { WeightsSection } from "@/components/batches/weights-section";
 import { WorkflowTimeline } from "@/components/batches/workflow-timeline";
 import { DestructionsSection } from "@/components/batches/destructions-section";
 import { useAuth } from "@/hooks/use-auth";
@@ -267,15 +264,13 @@ function BatchDetailPage() {
       </Card>
 
       <WorkflowTimeline
-        batchId={batch.id}
+        batch={batch}
         canEdit={canEdit}
         onBatchClosed={load}
         onDestructionSaved={() => setDestructionRefresh((n) => n + 1)}
       />
       <DestructionsSection batchId={batch.id} batchStatus={batch.status} refreshKey={destructionRefresh} />
-      <DryingLogsSection batchId={batch.id} />
-      <SamplesSection batchId={batch.id} />
-      <WeightsSection batchId={batch.id} />
+
 
       <EditBatchDialog
         key={batch.id + batch.strain}

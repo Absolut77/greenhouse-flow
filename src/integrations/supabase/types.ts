@@ -154,6 +154,63 @@ export type Database = {
         }
         Relationships: []
       }
+      curing_containers: {
+        Row: {
+          batch_id: string
+          content: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          notes: string | null
+          stage_id: string | null
+          updated_at: string
+          weight_in_grams: number
+          weight_out_grams: number | null
+        }
+        Insert: {
+          batch_id: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          notes?: string | null
+          stage_id?: string | null
+          updated_at?: string
+          weight_in_grams?: number
+          weight_out_grams?: number | null
+        }
+        Update: {
+          batch_id?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          notes?: string | null
+          stage_id?: string | null
+          updated_at?: string
+          weight_in_grams?: number
+          weight_out_grams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curing_containers_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curing_containers_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "batch_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       destructions: {
         Row: {
           batch_id: string
@@ -165,6 +222,7 @@ export type Database = {
           is_sanitation_log: boolean
           person_count: number | null
           photos: string[]
+          reason: string | null
           sanitation_products: string | null
           sanitation_type: string | null
           stage_code: string | null
@@ -182,6 +240,7 @@ export type Database = {
           is_sanitation_log?: boolean
           person_count?: number | null
           photos?: string[]
+          reason?: string | null
           sanitation_products?: string | null
           sanitation_type?: string | null
           stage_code?: string | null
@@ -199,6 +258,7 @@ export type Database = {
           is_sanitation_log?: boolean
           person_count?: number | null
           photos?: string[]
+          reason?: string | null
           sanitation_products?: string | null
           sanitation_type?: string | null
           stage_code?: string | null
@@ -454,6 +514,76 @@ export type Database = {
             columns: ["parent_lot_id"]
             isOneToOne: false
             referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      packaging_bags: {
+        Row: {
+          bag_count: number
+          bag_type: string
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          flower_type: string
+          gross_weight_grams: number | null
+          id: string
+          inventory_lot_id: string | null
+          net_weight_grams: number
+          notes: string | null
+          stage_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          bag_count?: number
+          bag_type: string
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          flower_type: string
+          gross_weight_grams?: number | null
+          id?: string
+          inventory_lot_id?: string | null
+          net_weight_grams: number
+          notes?: string | null
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bag_count?: number
+          bag_type?: string
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          flower_type?: string
+          gross_weight_grams?: number | null
+          id?: string
+          inventory_lot_id?: string | null
+          net_weight_grams?: number
+          notes?: string | null
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packaging_bags_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packaging_bags_inventory_lot_id_fkey"
+            columns: ["inventory_lot_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packaging_bags_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "batch_stages"
             referencedColumns: ["id"]
           },
         ]

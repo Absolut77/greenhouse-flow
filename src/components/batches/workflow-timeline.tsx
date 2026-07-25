@@ -1,35 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import {
   Lock,
   Play,
   CheckCircle2,
-  PauseCircle,
   Loader2,
   Circle,
-  Settings2,
+  Wind,
+  Scissors,
+  Package,
+  Boxes,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   computeWorkflow,
@@ -37,18 +31,26 @@ import {
   type StageCode,
   type WorkflowStep,
 } from "@/lib/batch-workflow";
-import { YesNoDialog } from "./destruction-prompt-dialog";
-import { DestructionFormDialog, type DestructionFormMode } from "./destruction-form-dialog";
+import { DryingStepContent } from "./steps/drying-step";
+import { DebuddingStepContent } from "./steps/debudding-step";
+import { CuringStepContent } from "./steps/curing-step";
+import { BulkPackagingStepContent } from "./steps/bulk-packaging-step";
+import type { Tables } from "@/integrations/supabase/types";
 
-const fmt = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
+type Batch = Tables<"batches">;
+
+const STEP_ICONS: Record<StageCode, React.ReactNode> = {
+  drying: <Wind className="h-4 w-4" />,
+  debudding: <Scissors className="h-4 w-4" />,
+  curing: <Boxes className="h-4 w-4" />,
+  bulk_packaging: <Package className="h-4 w-4" />,
+};
 
 function StatusPill({ status }: { status: WorkflowStep["status"] }) {
   const map: Record<WorkflowStep["status"], { label: string; icon: React.ReactNode; className: string }> = {
     locked: { label: "Verrouillée", icon: <Lock className="h-3 w-3" />, className: "bg-muted text-muted-foreground" },
     available: { label: "Disponible", icon: <Circle className="h-3 w-3" />, className: "bg-secondary text-secondary-foreground" },
     in_progress: { label: "En cours", icon: <Play className="h-3 w-3" />, className: "bg-amber-500/20 text-amber-500" },
-    on_hold: { label: "En pause", icon: <PauseCircle className="h-3 w-3" />, className: "bg-blue-500/20 text-blue-400" },
     done: { label: "Terminée", icon: <CheckCircle2 className="h-3 w-3" />, className: "bg-emerald-500/20 text-emerald-500" },
   };
   const m = map[status];
@@ -60,24 +62,22 @@ function StatusPill({ status }: { status: WorkflowStep["status"] }) {
 }
 
 export function WorkflowTimeline({
-  batchId,
+  batch,
   canEdit,
-  onDestructionSaved,
   onBatchClosed,
+  onDestructionSaved,
 }: {
-  batchId: string;
+  batch: Batch;
   canEdit: boolean;
-  onDestructionSaved?: () => void;
   onBatchClosed?: () => void;
+  onDestructionSaved?: () => void;
 }) {
+  const batchId = batch.id;
+  const isClosed = batch.status !== "in_progress";
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [destructionPrompt, setDestructionPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
-  const [sanitationPrompt, setSanitationPrompt] = useState<{ open: boolean; step: WorkflowStep | null }>({ open: false, step: null });
-  const [formDlg, setFormDlg] = useState<{ open: boolean; stageId: string | null; code: StageCode | null; label: string; mode: DestructionFormMode; nextStep: WorkflowStep | null }>({
-    open: false, stageId: null, code: null, label: "", mode: "destruction", nextStep: null,
-  });
-  const [metaEdit, setMetaEdit] = useState<WorkflowStep | null>(null);
+  const [confirmFinish, setConfirmFinish] = useState<WorkflowStep | null>(null);
+  const [availableGrams, setAvailableGrams] = useState<number | null>(null);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -89,8 +89,22 @@ export function WorkflowTimeline({
     else setStages(data ?? []);
   };
 
+  const loadAvailable = async () => {
+    // available = weight_per_plant - sum(destructions)
+    const { data: destr } = await (supabase as any)
+      .from("destructions")
+      .select("weight_grams, is_sanitation_log")
+      .eq("batch_id", batchId);
+    const totalDestroyed = (destr ?? [])
+      .filter((d: any) => !d.is_sanitation_log)
+      .reduce((s: number, d: any) => s + Number(d.weight_grams || 0), 0);
+    const base = batch.weight_per_plant != null ? Number(batch.weight_per_plant) : null;
+    setAvailableGrams(base != null ? base - totalDestroyed : null);
+  };
+
   useEffect(() => {
     load();
+    loadAvailable();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchId]);
 
@@ -110,421 +124,314 @@ export function WorkflowTimeline({
         .single();
       if (error) { toast.error(error.message); return null; }
       return data as Stage;
-    } else {
-      const { data, error } = await supabase
-        .from("batch_stages")
-        .insert({ batch_id: batchId, stage_type: code, ...(patch as any) })
-        .select()
-        .single();
-      if (error) { toast.error(error.message); return null; }
-      return data as Stage;
     }
+    const { data, error } = await supabase
+      .from("batch_stages")
+      .insert({ batch_id: batchId, stage_type: code, ...(patch as any) })
+      .select()
+      .single();
+    if (error) { toast.error(error.message); return null; }
+    return data as Stage;
   };
 
   const startStage = async (step: WorkflowStep) => {
     setBusy(step.code);
+    // For drying, use batch creation date as the start (fixed).
+    const startedAt = step.code === "drying" ? batch.created_at : new Date().toISOString();
     await upsertStage(step.code, step.row, {
       status: "in_progress",
-      started_at: step.row?.started_at ?? new Date().toISOString(),
+      started_at: step.row?.started_at ?? startedAt,
       ended_at: null,
     } as any);
     setBusy(null);
     await load();
   };
 
-  const holdStage = async (step: WorkflowStep) => {
-    setBusy(step.code);
-    await upsertStage(step.code, step.row, { status: "on_hold" } as any);
-    setBusy(null);
-    await load();
+  const finalizeBulkPackaging = async (step: WorkflowStep): Promise<boolean> => {
+    // Load bags for this batch
+    const { data: bags, error: bagsErr } = await (supabase as any)
+      .from("packaging_bags")
+      .select("*")
+      .eq("batch_id", batchId);
+    if (bagsErr) { toast.error(bagsErr.message); return false; }
+    const list = (bags ?? []) as any[];
+    if (list.length === 0) {
+      toast.error("Aucun sac défini pour le bulk packaging.");
+      return false;
+    }
+    const totalPackaged = list.reduce(
+      (s, b) => s + Number(b.net_weight_grams) * Number(b.bag_count),
+      0,
+    );
+    if (availableGrams != null && totalPackaged > availableGrams + 1e-6) {
+      toast.error(
+        `Poids packagé (${totalPackaged.toFixed(2)} g) > disponible (${availableGrams.toFixed(2)} g).`,
+      );
+      return false;
+    }
+
+    const prefix = batch.batch_number ?? batchId.slice(0, 6);
+    const pendingBags = list.filter((b) => !b.inventory_lot_id);
+    for (let i = 0; i < pendingBags.length; i++) {
+      const b = pendingBags[i];
+      const lotNumber = `${prefix}-${b.bag_type === "sample" ? "S" : "P"}-${String(i + 1).padStart(3, "0")}`;
+      const totalGrams = Number(b.net_weight_grams) * Number(b.bag_count);
+      const { data: lot, error: lotErr } = await supabase
+        .from("inventory_lots")
+        .insert({
+          lot_number: lotNumber,
+          batch_id: batchId,
+          product_type: b.bag_type === "sample" ? "packaged_sample" : "packaged",
+          format: b.bag_type === "sample" ? "sample" : "bulk_1kg",
+          flower_size: b.flower_type,
+          quantity_grams: totalGrams,
+          units: b.bag_count,
+          status: "available",
+        })
+        .select()
+        .single();
+      if (lotErr) { toast.error(`Lot ${lotNumber}: ${lotErr.message}`); return false; }
+      await (supabase as any)
+        .from("packaging_bags")
+        .update({ inventory_lot_id: lot.id })
+        .eq("id", b.id);
+    }
+
+    // Create the 3 fixed samples: Laboratoire, Interne, Rétention
+    const { data: existingSamples } = await supabase
+      .from("samples")
+      .select("sample_type")
+      .eq("batch_id", batchId);
+    const existing = new Set((existingSamples ?? []).map((s: any) => s.sample_type));
+    const fixed = ["Laboratoire", "Interne", "Rétention"] as const;
+    const toInsert = fixed
+      .filter((t) => !existing.has(t))
+      .map((t) => ({
+        batch_id: batchId,
+        stage_id: step.row?.id ?? null,
+        sample_type: t,
+        weight_grams: null,
+        is_destruction: false,
+        notes: "Créé automatiquement à la fin du bulk packaging",
+      }));
+    if (toInsert.length > 0) {
+      await supabase.from("samples").insert(toInsert as any);
+    }
+    return true;
   };
 
   const finishStage = async (step: WorkflowStep) => {
     setBusy(step.code);
+    if (step.code === "bulk_packaging") {
+      const ok = await finalizeBulkPackaging(step);
+      if (!ok) { setBusy(null); return; }
+    }
     const updated = await upsertStage(step.code, step.row, {
       status: "done",
       started_at: step.row?.started_at ?? new Date().toISOString(),
       ended_at: new Date().toISOString(),
     } as any);
-    setBusy(null);
-    if (!updated) return;
-    // Bulk packaging → close batch
+    if (!updated) { setBusy(null); return; }
+
     if (step.code === "bulk_packaging") {
       const { error } = await supabase
         .from("batches")
         .update({ status: "closed", closed_at: new Date().toISOString() })
         .eq("id", batchId);
       if (error) toast.error(error.message);
-      else toast.success("Bulk Packaging validé — batch fermée");
+      else toast.success("Bulk Packaging validé — batch fermée.");
       onBatchClosed?.();
     } else {
-      toast.success(`${step.label} terminée`);
+      toast.success(`${step.label} terminée.`);
     }
+    setBusy(null);
     await load();
-    if (step.askDestruction) {
-      setDestructionPrompt({ open: true, step: { ...step, row: updated } });
-    }
+    await loadAvailable();
+    onDestructionSaved?.();
   };
-
-  const openSanitationPrompt = (step: WorkflowStep) => {
-    setSanitationPrompt({ open: true, step });
-  };
-
-  const handleDestructionAnswer = (yes: boolean) => {
-    const step = destructionPrompt.step;
-    setDestructionPrompt({ open: false, step: null });
-    if (!step) return;
-    if (yes) {
-      setFormDlg({
-        open: true,
-        stageId: step.row?.id ?? null,
-        code: step.code,
-        label: step.label,
-        mode: "destruction",
-        nextStep: step,
-      });
-    } else {
-      openSanitationPrompt(step);
-    }
-  };
-
-  const handleSanitationAnswer = (yes: boolean) => {
-    const step = sanitationPrompt.step;
-    setSanitationPrompt({ open: false, step: null });
-    if (!step) return;
-    if (yes) {
-      setFormDlg({
-        open: true,
-        stageId: step.row?.id ?? null,
-        code: step.code,
-        label: step.label,
-        mode: "sanitation",
-        nextStep: null,
-      });
-    }
-  };
-
-  const handleFormClosed = () => {
-    const next = formDlg.nextStep;
-    const wasDestruction = formDlg.mode === "destruction";
-    setFormDlg((f) => ({ ...f, open: false, nextStep: null }));
-    if (wasDestruction && next) {
-      // Chain: after destruction, ask for sanitation log
-      setTimeout(() => openSanitationPrompt(next), 100);
-    }
-  };
-
-  const nonSanitation = workflow.filter((s) => s.code !== "sanitation");
-  const sanitation = workflow.find((s) => s.code === "sanitation")!;
 
   if (!stages) {
     return (
-      <Card>
-        <CardContent className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Chargement du workflow...
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Chargement du workflow...
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Workflow de production</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="relative space-y-6 border-l border-border pl-6">
-            <li className="relative">
-              <span className="absolute -left-[30px] flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
-                <CheckCircle2 className="h-4 w-4" />
-              </span>
-              <div className="flex items-center gap-2">
-                <p className="font-medium">Création</p>
-                <StatusPill status="done" />
-              </div>
-              <p className="text-xs text-muted-foreground">Batch initialisée</p>
-            </li>
-            {nonSanitation.map((step) => (
-              <li key={step.code} className="relative">
-                <span className={`absolute -left-[30px] flex h-6 w-6 items-center justify-center rounded-full ${
-                  step.status === "done" ? "bg-emerald-500/20 text-emerald-500"
-                  : step.status === "in_progress" ? "bg-amber-500/20 text-amber-500"
-                  : step.status === "on_hold" ? "bg-blue-500/20 text-blue-400"
-                  : step.status === "locked" ? "bg-muted text-muted-foreground"
+      <ol className="relative space-y-6 border-l border-border pl-6">
+        <li className="relative">
+          <span className="absolute -left-[30px] flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
+            <CheckCircle2 className="h-4 w-4" />
+          </span>
+          <div className="rounded-lg border p-4">
+            <div className="flex items-center gap-2">
+              <p className="font-medium">Création</p>
+              <StatusPill status="done" />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Batch initialisée le {new Date(batch.created_at).toLocaleString("fr-CA")} —
+              séchage démarré à cette date.
+            </p>
+          </div>
+        </li>
+
+        {workflow.map((step) => (
+          <li key={step.code} className="relative">
+            <span
+              className={`absolute -left-[30px] flex h-6 w-6 items-center justify-center rounded-full ${
+                step.status === "done"
+                  ? "bg-emerald-500/20 text-emerald-500"
+                  : step.status === "in_progress"
+                  ? "bg-amber-500/20 text-amber-500"
+                  : step.status === "locked"
+                  ? "bg-muted text-muted-foreground"
                   : "bg-secondary text-secondary-foreground"
-                }`}>
-                  {step.status === "done" ? <CheckCircle2 className="h-4 w-4" />
-                    : step.status === "in_progress" ? <Play className="h-4 w-4" />
-                    : step.status === "on_hold" ? <PauseCircle className="h-4 w-4" />
-                    : step.status === "locked" ? <Lock className="h-4 w-4" />
-                    : <Circle className="h-4 w-4" />}
-                </span>
-                <StepCard
-                  step={step}
-                  canEdit={canEdit}
-                  busy={busy === step.code}
-                  onStart={() => startStage(step)}
-                  onFinish={() => finishStage(step)}
-                  onEditMeta={() => setMetaEdit(step)}
-                />
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
+              }`}
+            >
+              {step.status === "done" ? <CheckCircle2 className="h-4 w-4" />
+                : step.status === "in_progress" ? <Play className="h-4 w-4" />
+                : step.status === "locked" ? <Lock className="h-4 w-4" />
+                : <Circle className="h-4 w-4" />}
+            </span>
+            <StepCard
+              batch={batch}
+              step={step}
+              canEdit={canEdit && !isClosed}
+              busy={busy === step.code}
+              availableGrams={availableGrams}
+              onStart={() => startStage(step)}
+              onFinishRequest={() => setConfirmFinish(step)}
+              onDataChanged={() => {
+                loadAvailable();
+                onDestructionSaved?.();
+              }}
+            />
+          </li>
+        ))}
+      </ol>
 
-      {/* Sanitation - independent */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Sanitation
-            <Badge variant="outline">Étape indépendante</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StepCard
-            step={sanitation}
-            canEdit={canEdit}
-            busy={busy === "sanitation"}
-            onStart={() => startStage(sanitation)}
-            onFinish={() => finishStage(sanitation)}
-            onHold={() => holdStage(sanitation)}
-            showStandby
-          />
-        </CardContent>
-      </Card>
-
-      <YesNoDialog
-        open={destructionPrompt.open}
-        onOpenChange={(o) => !o && setDestructionPrompt({ open: false, step: null })}
-        title={`Destruction durant « ${destructionPrompt.step?.label ?? ""} » ?`}
-        description="Y a-t-il eu de la destruction durant cette étape ?"
-        onAnswer={handleDestructionAnswer}
-      />
-
-      <YesNoDialog
-        open={sanitationPrompt.open}
-        onOpenChange={(o) => !o && setSanitationPrompt({ open: false, step: null })}
-        title={`Log de sanitation pour « ${sanitationPrompt.step?.label ?? ""} » ?`}
-        description="Veux-tu ajouter un log de sanitation pour cette étape ?"
-        onAnswer={handleSanitationAnswer}
-      />
-
-      <DestructionFormDialog
-        open={formDlg.open}
-        onOpenChange={(o) => { if (!o) handleFormClosed(); }}
-        batchId={batchId}
-        stageId={formDlg.stageId}
-        stageCode={formDlg.code}
-        stageLabel={formDlg.label}
-        mode={formDlg.mode}
-        onSaved={() => { onDestructionSaved?.(); }}
-      />
-
-
-      {metaEdit && (
-        <StageMetadataDialog
-          step={metaEdit}
-          onClose={() => setMetaEdit(null)}
-          onSaved={async (meta) => {
-            await upsertStage(metaEdit.code, metaEdit.row, { metadata: meta } as any);
-            setMetaEdit(null);
-            load();
-          }}
-        />
-      )}
+      <AlertDialog open={!!confirmFinish} onOpenChange={(o) => !o && setConfirmFinish(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Terminer « {confirmFinish?.label} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmFinish?.code === "bulk_packaging"
+                ? "Les sacs seront convertis en inventaire, les échantillons fixes créés, et la batch sera fermée. Cette action est définitive."
+                : "L'étape sera marquée comme terminée et l'étape suivante sera débloquée."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const step = confirmFinish;
+                setConfirmFinish(null);
+                if (step) finishStage(step);
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 function StepCard({
+  batch,
   step,
   canEdit,
   busy,
+  availableGrams,
   onStart,
-  onFinish,
-  onHold,
-  onEditMeta,
-  showStandby,
+  onFinishRequest,
+  onDataChanged,
 }: {
+  batch: Batch;
   step: WorkflowStep;
   canEdit: boolean;
   busy: boolean;
+  availableGrams: number | null;
   onStart: () => void;
-  onFinish: () => void;
-  onHold?: () => void;
-  onEditMeta?: () => void;
-  showStandby?: boolean;
+  onFinishRequest: () => void;
+  onDataChanged: () => void;
 }) {
   const locked = step.status === "locked";
-  const isMetaStage = step.code === "debudding_manual" || step.code === "mobius";
+  const active = step.status === "in_progress";
+  const done = step.status === "done";
+  const stageId = step.row?.id ?? null;
+
   return (
     <div className={`rounded-lg border p-4 ${locked ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">{STEP_ICONS[step.code]}</span>
           <p className="font-medium">{step.label}</p>
           <StatusPill status={step.status} />
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEdit && isMetaStage && step.status !== "locked" && onEditMeta && (
-            <Button size="sm" variant="ghost" onClick={onEditMeta}>
-              <Settings2 className="mr-1 h-4 w-4" /> Paramètres
-            </Button>
-          )}
           {canEdit && step.status === "available" && (
             <Button size="sm" onClick={onStart} disabled={busy}>
               {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Démarrer
+              Démarrer {step.label.toLowerCase()}
             </Button>
           )}
-          {canEdit && (step.status === "in_progress" || step.status === "on_hold") && (
-            <>
-              {showStandby && step.status === "in_progress" && onHold && (
-                <Button size="sm" variant="outline" onClick={onHold} disabled={busy}>
-                  <PauseCircle className="mr-1 h-4 w-4" /> Standby
-                </Button>
-              )}
-              {step.status === "on_hold" && (
-                <Button size="sm" variant="outline" onClick={onStart} disabled={busy}>
-                  Reprendre
-                </Button>
-              )}
-              <Button size="sm" variant="secondary" onClick={onFinish} disabled={busy}>
-                {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-                Terminer cette étape
-              </Button>
-            </>
+          {canEdit && active && (
+            <Button size="sm" variant="secondary" onClick={onFinishRequest} disabled={busy}>
+              {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Terminer {step.label.toLowerCase()}
+            </Button>
           )}
         </div>
       </div>
-      <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+
+      <div className="mt-1 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
         <span>Début : {fmt(step.row?.started_at)}</span>
         <span>Fin : {fmt(step.row?.ended_at)}</span>
       </div>
-      {isMetaStage && step.row?.metadata && Object.keys(step.row.metadata as any).length > 0 && (
-        <div className="mt-3 rounded-md bg-muted/40 p-3 text-xs">
-          <StageMetaSummary code={step.code} metadata={step.row.metadata as any} />
+
+      {(active || done) && (
+        <div className="mt-4">
+          {step.code === "drying" && (
+            <DryingStepContent
+              batchId={batch.id}
+              stageId={stageId}
+              disabled={!canEdit || done}
+              onDestructionCreated={onDataChanged}
+            />
+          )}
+          {step.code === "debudding" && (
+            <DebuddingStepContent
+              stage={step.row}
+              disabled={!canEdit || done}
+              onSaved={onDataChanged}
+            />
+          )}
+          {step.code === "curing" && (
+            <CuringStepContent
+              batchId={batch.id}
+              stageId={stageId}
+              disabled={!canEdit || done}
+              onSampleCreated={onDataChanged}
+            />
+          )}
+          {step.code === "bulk_packaging" && (
+            <BulkPackagingStepContent
+              batchId={batch.id}
+              stageId={stageId}
+              disabled={!canEdit || done}
+              availableGrams={availableGrams}
+              onChanged={onDataChanged}
+            />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function StageMetaSummary({ code, metadata }: { code: StageCode; metadata: any }) {
-  if (code === "debudding_manual") {
-    return (
-      <div className="grid gap-1 sm:grid-cols-2">
-        <span>Type : {metadata.type ?? "—"}</span>
-        <span>Personnes : {metadata.persons ?? "—"}</span>
-        <span>Temps (min) : {metadata.duration ?? "—"}</span>
-        {metadata.comments && <span className="sm:col-span-2">Commentaires : {metadata.comments}</span>}
-      </div>
-    );
-  }
-  if (code === "mobius") {
-    return (
-      <div className="grid gap-1 sm:grid-cols-2">
-        <span>Inclinaison : {metadata.inclination ?? "—"}</span>
-        <span>Tumbler : {metadata.tumbler ?? "—"}/12</span>
-        <span>Lames : {metadata.blades ?? "—"}/12</span>
-        <span>Aspiration : {metadata.suction ?? "—"}/12</span>
-        {metadata.comments && <span className="sm:col-span-2">Commentaires : {metadata.comments}</span>}
-      </div>
-    );
-  }
-  return null;
-}
-
-function StageMetadataDialog({
-  step,
-  onClose,
-  onSaved,
-}: {
-  step: WorkflowStep;
-  onClose: () => void;
-  onSaved: (meta: any) => void;
-}) {
-  const initial = (step.row?.metadata as any) ?? {};
-  const [meta, setMeta] = useState<any>(initial);
-  const [saving, setSaving] = useState(false);
-
-  const isManual = step.code === "debudding_manual";
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Paramètres — {step.label}</DialogTitle>
-          <DialogDescription>
-            {isManual ? "Renseignez les détails du debudage manuel." : "Réglages du Mobius (0 à 12)."}
-          </DialogDescription>
-        </DialogHeader>
-        {isManual ? (
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-2">
-              <Label>Type de debudage</Label>
-              <Select value={meta.type ?? ""} onValueChange={(v) => setMeta({ ...meta, type: v })}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sec">À sec</SelectItem>
-                  <SelectItem value="humide">Humide</SelectItem>
-                  <SelectItem value="mixte">Mixte</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Nombre de personnes</Label>
-                <Input type="number" min="0" value={meta.persons ?? ""} onChange={(e) => setMeta({ ...meta, persons: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Temps (minutes)</Label>
-                <Input type="number" min="0" value={meta.duration ?? ""} onChange={(e) => setMeta({ ...meta, duration: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Commentaires</Label>
-              <Textarea rows={3} value={meta.comments ?? ""} onChange={(e) => setMeta({ ...meta, comments: e.target.value })} />
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Inclinaison</Label>
-                <Input value={meta.inclination ?? ""} onChange={(e) => setMeta({ ...meta, inclination: e.target.value })} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Tumbler (0-12)</Label>
-                <Input type="number" min="0" max="12" value={meta.tumbler ?? ""} onChange={(e) => setMeta({ ...meta, tumbler: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Lames (0-12)</Label>
-                <Input type="number" min="0" max="12" value={meta.blades ?? ""} onChange={(e) => setMeta({ ...meta, blades: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Aspiration (0-12)</Label>
-                <Input type="number" min="0" max="12" value={meta.suction ?? ""} onChange={(e) => setMeta({ ...meta, suction: e.target.value ? Number(e.target.value) : null })} />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Commentaires</Label>
-              <Textarea rows={3} value={meta.comments ?? ""} onChange={(e) => setMeta({ ...meta, comments: e.target.value })} />
-            </div>
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button
-            onClick={async () => { setSaving(true); await onSaved(meta); setSaving(false); }}
-            disabled={saving}
-          >
-            {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Enregistrer
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+const fmt = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
