@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2, Pencil, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,29 +40,40 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { useAuth } from "@/hooks/use-auth";
 
 type EventItem = Tables<"event_items">;
 type Lot = Tables<"inventory_lots">;
 
-export function EventItemsSection({ eventId }: { eventId: string }) {
+export function EventItemsSection({
+  eventId,
+  eventStatus,
+}: {
+  eventId: string;
+  eventStatus?: string | null;
+}) {
+  const { roles } = useAuth();
+  const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
+  const locked = eventStatus === "completed" || eventStatus === "cancelled";
+  const readOnly = isViewerOnly || locked;
+
   const [items, setItems] = useState<EventItem[] | null>(null);
-  const [lots, setLots] = useState<Lot[]>([]);
+  const [availableLots, setAvailableLots] = useState<Lot[]>([]);
   const [lotMap, setLotMap] = useState<Record<string, Lot>>({});
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<EventItem | null>(null);
   const [toDelete, setToDelete] = useState<EventItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
     const [{ data: iData, error: iErr }, { data: lData }] = await Promise.all([
-      supabase
-        .from("event_items")
-        .select("*")
-        .eq("event_id", eventId),
+      supabase.from("event_items").select("*").eq("event_id", eventId),
       supabase
         .from("inventory_lots")
         .select("*")
+        .eq("status", "available")
         .order("created_at", { ascending: false }),
     ]);
     if (iErr) {
@@ -71,10 +82,9 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
     }
     const rows = iData ?? [];
     setItems(rows);
-    setLots(lData ?? []);
+    setAvailableLots(lData ?? []);
     const m: Record<string, Lot> = {};
     (lData ?? []).forEach((l) => (m[l.id] = l));
-    // Also fetch lot info for referenced lots that might have been filtered out
     const missing = rows
       .map((r) => r.inventory_lot_id)
       .filter((id): id is string => !!id && !m[id]);
@@ -110,16 +120,23 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
     load();
   };
 
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Items</CardTitle>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <Plus className="mr-1 h-4 w-4" /> Ajouter un item
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" /> Ajouter un item
+          </Button>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
+        {locked && (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            <Lock className="h-4 w-4" />
+            Événement verrouillé — les items ne peuvent plus être modifiés.
+          </div>
+        )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         {!error && items === null && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -140,7 +157,9 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
                   <TableHead>Quantité (g)</TableHead>
                   <TableHead>Unités</TableHead>
                   <TableHead>Direction</TableHead>
-                  <TableHead className="w-16 text-right">Actions</TableHead>
+                  {!readOnly && (
+                    <TableHead className="w-24 text-right">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -172,15 +191,24 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
                         )}
                         {it.direction !== "in" && it.direction !== "out" && "—"}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setToDelete(it)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
+                      {!readOnly && (
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setEditing(it)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setToDelete(it)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -192,9 +220,20 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
 
       <ItemDialog
         eventId={eventId}
-        lots={lots}
+        availableLots={availableLots}
+        lotMap={lotMap}
         open={open}
+        editing={null}
         onOpenChange={setOpen}
+        onSaved={load}
+      />
+      <ItemDialog
+        eventId={eventId}
+        availableLots={availableLots}
+        lotMap={lotMap}
+        open={!!editing}
+        editing={editing}
+        onOpenChange={(o) => !o && setEditing(null)}
         onSaved={load}
       />
 
@@ -203,7 +242,7 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cet item ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible.
+              Le stock du lot lié sera réajusté automatiquement.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -221,14 +260,18 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
 
 function ItemDialog({
   eventId,
-  lots,
+  availableLots,
+  lotMap,
   open,
+  editing,
   onOpenChange,
   onSaved,
 }: {
   eventId: string;
-  lots: Lot[];
+  availableLots: Lot[];
+  lotMap: Record<string, Lot>;
   open: boolean;
+  editing: EventItem | null;
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
@@ -238,25 +281,62 @@ function ItemDialog({
   const [direction, setDirection] = useState<string>("out");
   const [saving, setSaving] = useState(false);
 
-  const selectedLot = lots.find((l) => l.id === lotId) ?? null;
-  const availableG = selectedLot?.quantity_grams ?? 0;
-  const availableU = selectedLot?.units ?? 0;
-  const q = Number(quantity);
-  const u = units.trim() ? Number(units) : 0;
-  const overStock =
-    direction === "out" &&
-    selectedLot &&
-    ((!Number.isNaN(q) && q > (availableG ?? 0)) ||
-      (units.trim() && !Number.isNaN(u) && u > (availableU ?? 0)));
-
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (editing) {
+      setLotId(editing.inventory_lot_id ?? "");
+      setQuantity(editing.quantity_grams?.toString() ?? "");
+      setUnits(editing.units?.toString() ?? "");
+      setDirection(editing.direction ?? "out");
+    } else {
       setLotId("");
       setQuantity("");
       setUnits("");
       setDirection("out");
     }
-  }, [open]);
+  }, [open, editing]);
+
+  // In edit mode, ensure the currently linked lot appears in the select even if
+  // no longer available.
+  const currentLot =
+    (lotId && (availableLots.find((l) => l.id === lotId) || lotMap[lotId])) ||
+    null;
+  const lotChoices = (() => {
+    if (editing && currentLot && !availableLots.some((l) => l.id === currentLot.id)) {
+      return [currentLot, ...availableLots];
+    }
+    return availableLots;
+  })();
+
+  const selectedLot = currentLot;
+  // For edit: baseline stock excludes the current row's effect, since DB trigger
+  // reverses OLD then applies NEW.
+  const baseG = (() => {
+    if (!selectedLot) return 0;
+    let g = selectedLot.quantity_grams ?? 0;
+    if (editing && editing.inventory_lot_id === selectedLot.id) {
+      if (editing.direction === "out") g += editing.quantity_grams ?? 0;
+      else if (editing.direction === "in") g -= editing.quantity_grams ?? 0;
+    }
+    return g;
+  })();
+  const baseU = (() => {
+    if (!selectedLot) return 0;
+    let u = selectedLot.units ?? 0;
+    if (editing && editing.inventory_lot_id === selectedLot.id) {
+      if (editing.direction === "out") u += editing.units ?? 0;
+      else if (editing.direction === "in") u -= editing.units ?? 0;
+    }
+    return u;
+  })();
+
+  const q = Number(quantity);
+  const u = units.trim() ? Number(units) : 0;
+  const overStock =
+    direction === "out" &&
+    selectedLot &&
+    ((!Number.isNaN(q) && q > baseG) ||
+      (units.trim() && !Number.isNaN(u) && u > baseU));
 
   const submit = async () => {
     if (!lotId) {
@@ -276,33 +356,34 @@ function ItemDialog({
       uVal = u;
     }
     if (direction === "out" && selectedLot) {
-      if (q > (availableG ?? 0)) {
-        toast.error(
-          `Stock insuffisant : disponible ${availableG ?? 0}g, demandé ${q}g`,
-        );
+      if (q > baseG) {
+        toast.error(`Stock insuffisant : disponible ${baseG}g, demandé ${q}g`);
         return;
       }
-      if (uVal != null && uVal > (availableU ?? 0)) {
+      if (uVal != null && uVal > baseU) {
         toast.error(
-          `Unités insuffisantes : disponibles ${availableU ?? 0}, demandées ${uVal}`,
+          `Unités insuffisantes : disponibles ${baseU}, demandées ${uVal}`,
         );
         return;
       }
     }
     setSaving(true);
-    const { error } = await supabase.from("event_items").insert({
+    const payload = {
       event_id: eventId,
       inventory_lot_id: lotId,
       quantity_grams: q,
       units: uVal,
       direction,
-    });
+    };
+    const { error } = editing
+      ? await supabase.from("event_items").update(payload).eq("id", editing.id)
+      : await supabase.from("event_items").insert(payload);
     setSaving(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Item ajouté, stock ajusté");
+    toast.success(editing ? "Item mis à jour, stock ajusté" : "Item ajouté, stock ajusté");
     onOpenChange(false);
     onSaved();
   };
@@ -311,7 +392,7 @@ function ItemDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouvel item</DialogTitle>
+          <DialogTitle>{editing ? "Modifier l'item" : "Nouvel item"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
@@ -321,19 +402,24 @@ function ItemDialog({
                 <SelectValue placeholder="Sélectionner un lot" />
               </SelectTrigger>
               <SelectContent>
-                {lots.map((l) => (
+                {lotChoices.map((l) => (
                   <SelectItem key={l.id} value={l.id}>
                     {l.lot_number}
                     {l.product_type ? ` — ${l.product_type}` : ""}
                     {l.quantity_grams != null ? ` (${l.quantity_grams}g)` : ""}
                   </SelectItem>
                 ))}
+                {lotChoices.length === 0 && (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    Aucun lot disponible
+                  </div>
+                )}
               </SelectContent>
             </Select>
             {selectedLot && (
               <p className="text-xs text-muted-foreground">
-                Stock disponible : {availableG ?? 0}g
-                {selectedLot.units != null ? ` — ${availableU} unités` : ""}
+                Stock disponible : {baseG}g
+                {selectedLot.units != null ? ` — ${baseU} unités` : ""}
               </p>
             )}
           </div>
@@ -382,11 +468,10 @@ function ItemDialog({
           </Button>
           <Button onClick={submit} disabled={saving || !!overStock}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Ajouter
+            {editing ? "Enregistrer" : "Ajouter"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
