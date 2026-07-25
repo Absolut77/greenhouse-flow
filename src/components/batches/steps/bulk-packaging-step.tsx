@@ -97,11 +97,15 @@ export function BulkPackagingStepContent({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border bg-muted/30 p-3 text-xs">
-        <span className="text-muted-foreground">
+      <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+        <div className="text-muted-foreground">
           La quantité totale à packager est basée sur les <b>poids de sortie du curing</b> (pas le poids frais).
-        </span>
+        </div>
+        <div className="text-muted-foreground">
+          À la clôture : les sacs <b>Échantillon</b> génèrent un lot <span className="text-sky-400">Sample</span>, les sacs <b>Rétention</b> un lot <span className="text-amber-400">Rétention</span> (bloqué), et le reste un lot <span className="text-emerald-400">Bulk</span>.
+        </div>
       </div>
+
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-medium">Liste des sacs</h4>
