@@ -227,19 +227,24 @@ function Dashboard() {
 
       if (cancelled) return;
 
-      const bulkGrams =
-        bulkLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
-      const packagedGrams =
-        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
-      const packagedUnits =
-        packagedLotsRes.data?.reduce((a, l) => a + (Number(l.units) || 0), 0) ?? 0;
-      const sampleRetentionRows = ((sampleLotsRes.data ?? []) as any[]);
-      const sampleGrams = sampleRetentionRows
-        .filter((l) => l.lot_kind === "sample")
-        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
-      const retentionGrams = sampleRetentionRows
-        .filter((l) => l.lot_kind === "retention")
-        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const allAvailable = ((bulkLotsRes as any).data ?? []) as Array<{
+        quantity_grams: number | null;
+        units: number | null;
+        lot_kind: string | null;
+      }>;
+      const sumG = (rows: typeof allAvailable) =>
+        rows.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const sumU = (rows: typeof allAvailable) =>
+        rows.reduce((a, l) => a + (Number(l.units) || 0), 0);
+      const bulkRows = allAvailable.filter((l) => (l.lot_kind ?? "bulk") === "bulk");
+      const packagedRows = allAvailable.filter((l) => l.lot_kind === "packaged");
+      const sampleRows = allAvailable.filter((l) => l.lot_kind === "sample");
+      const retentionRows = allAvailable.filter((l) => l.lot_kind === "retention");
+      const bulkGrams = sumG(bulkRows);
+      const packagedGrams = sumG(packagedRows);
+      const packagedUnits = sumU(packagedRows);
+      const sampleGrams = sumG(sampleRows);
+      const retentionGrams = sumG(retentionRows);
       const totalAvailableGrams = bulkGrams + packagedGrams + sampleGrams + retentionGrams;
 
       // Compute stamps available: sum of balances across available reels
