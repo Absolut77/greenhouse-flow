@@ -162,20 +162,55 @@ export function WorkflowTimeline({
     }
     await load();
     if (step.askDestruction) {
-      setPrompt({ open: true, step: { ...step, row: updated } });
+      setDestructionPrompt({ open: true, step: { ...step, row: updated } });
     }
   };
 
-  const handlePromptAnswer = (yes: boolean) => {
-    const step = prompt.step;
-    setPrompt({ open: false, step: null });
-    if (yes && step) {
-      setDestruction({
+  const openSanitationPrompt = (step: WorkflowStep) => {
+    setSanitationPrompt({ open: true, step });
+  };
+
+  const handleDestructionAnswer = (yes: boolean) => {
+    const step = destructionPrompt.step;
+    setDestructionPrompt({ open: false, step: null });
+    if (!step) return;
+    if (yes) {
+      setFormDlg({
         open: true,
         stageId: step.row?.id ?? null,
         code: step.code,
         label: step.label,
+        mode: "destruction",
+        nextStep: step,
       });
+    } else {
+      openSanitationPrompt(step);
+    }
+  };
+
+  const handleSanitationAnswer = (yes: boolean) => {
+    const step = sanitationPrompt.step;
+    setSanitationPrompt({ open: false, step: null });
+    if (!step) return;
+    if (yes) {
+      setFormDlg({
+        open: true,
+        stageId: step.row?.id ?? null,
+        code: step.code,
+        label: step.label,
+        mode: "sanitation",
+        nextStep: null,
+      });
+    }
+  };
+
+  const handleFormClosed = () => {
+    const next = formDlg.nextStep;
+    const wasDestruction = formDlg.mode === "destruction";
+    setFormDlg((f) => ({ ...f, open: false, nextStep: null }));
+    if (wasDestruction && next) {
+      // Chain: after destruction, ask for sanitation log
+      setTimeout(() => openSanitationPrompt(next), 100);
     }
   };
 
