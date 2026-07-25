@@ -139,8 +139,11 @@ function eventTypeLabel(t: string | null) {
 }
 
 function Dashboard() {
+  const { roles } = useAuth();
+  const canSeeActivity = roles.includes("admin") || roles.includes("supervisor");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [batches, setBatches] = useState<BatchRow[] | null>(null);
+  const [batchLastActivity, setBatchLastActivity] = useState<Record<string, string>>({});
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [batchesByEvent, setBatchesByEvent] = useState<
     Record<string, string>
@@ -150,6 +153,7 @@ function Dashboard() {
   >([]);
   const [longBatches, setLongBatches] = useState<BatchRow[]>([]);
   const [logs, setLogs] = useState<LogRow[] | null>(null);
+
 
   useEffect(() => {
     let cancelled = false;
