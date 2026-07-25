@@ -435,6 +435,7 @@ export function WorkflowTimeline({
         onOpenChange={setCuringFinishOpen}
         batchId={batchId}
         onDone={async () => {
+          setCuringRefreshKey((n) => n + 1);
           const curingStep = workflow.find((s) => s.code === "curing");
           if (!curingStep) return;
           await finishStage(curingStep);
