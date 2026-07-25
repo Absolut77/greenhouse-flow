@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { EventStatusBadge, EVENT_TYPES, RECEPTION_KINDS } from "./events";
+import { EventStatusBadge, EVENT_TYPES, RECEPTION_KINDS, SHIPMENT_KINDS } from "./events";
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
@@ -336,6 +336,10 @@ function EventDetailPage() {
 
       {event.event_type === "reception" && (
         <ReceptionDetailsSection event={event} />
+      )}
+
+      {event.event_type === "shipment" && (
+        <ShipmentDetailsSection event={event} />
       )}
 
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
@@ -655,6 +659,31 @@ function ReceptionDetailsSection({ event }: { event: Event }) {
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShipmentDetailsSection({ event }: { event: Event }) {
+  const anyEvent = event as any;
+  const kindLabel =
+    SHIPMENT_KINDS.find((k) => k.value === anyEvent.shipment_kind)?.label ??
+    anyEvent.shipment_kind ??
+    "—";
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Détails expédition</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Info label="Type">{kindLabel}</Info>
+          <Info label="Destination">{anyEvent.destination ?? "—"}</Info>
+          <Info label="Transporteur">{anyEvent.carrier ?? "—"}</Info>
+          <Info label="Référence / manifeste">
+            {anyEvent.reference_number ?? "—"}
+          </Info>
+        </div>
       </CardContent>
     </Card>
   );
