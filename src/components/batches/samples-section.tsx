@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +75,9 @@ export function SamplesSection({ batchId }: { batchId: string }) {
   >({});
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Sample | null>(null);
+  const [toDelete, setToDelete] = useState<Sample | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
@@ -73,6 +86,7 @@ export function SamplesSection({ batchId }: { batchId: string }) {
         .from("samples")
         .select("*")
         .eq("batch_id", batchId)
+        .order("sample_date", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("batch_stages")
@@ -119,11 +133,34 @@ export function SamplesSection({ batchId }: { batchId: string }) {
     return STAGE_LABELS[s.stage_type] ?? s.stage_type;
   };
 
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("samples")
+      .delete()
+      .eq("id", toDelete.id);
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Échantillon supprimé");
+    setToDelete(null);
+    load();
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Échantillons</CardTitle>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
           <Plus className="mr-1 h-4 w-4" /> Ajouter un échantillon
         </Button>
       </CardHeader>
@@ -151,13 +188,16 @@ export function SamplesSection({ batchId }: { batchId: string }) {
                   <TableHead>Destruction</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Créé par</TableHead>
+                  <TableHead className="w-24 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {samples.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell>
-                      {new Date(s.created_at).toLocaleDateString("fr-CA")}
+                      {s.sample_date
+                        ? new Date(s.sample_date).toLocaleDateString("fr-CA")
+                        : "—"}
                     </TableCell>
                     <TableCell className="font-medium">
                       {SAMPLE_TYPES.find((t) => t.value === s.sample_type)
@@ -192,6 +232,27 @@ export function SamplesSection({ batchId }: { batchId: string }) {
                           "—"
                         : "—"}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditing(s);
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setToDelete(s)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -201,12 +262,38 @@ export function SamplesSection({ batchId }: { batchId: string }) {
       </CardContent>
 
       <SampleDialog
+        key={editing?.id ?? "new"}
         batchId={batchId}
         stages={stages}
+        sample={editing}
         open={open}
-        onOpenChange={setOpen}
-        onCreated={load}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) setEditing(null);
+        }}
+        onSaved={load}
       />
+
+      <AlertDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet échantillon ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -214,34 +301,38 @@ export function SamplesSection({ batchId }: { batchId: string }) {
 function SampleDialog({
   batchId,
   stages,
+  sample,
   open,
   onOpenChange,
-  onCreated,
+  onSaved,
 }: {
   batchId: string;
   stages: Stage[];
+  sample: Sample | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [sampleType, setSampleType] = useState("");
-  const [weight, setWeight] = useState("");
-  const [stageId, setStageId] = useState<string>(NONE);
-  const [isDestruction, setIsDestruction] = useState(true);
-  const [notes, setNotes] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  const [sampleDate, setSampleDate] = useState(sample?.sample_date ?? today);
+  const [sampleType, setSampleType] = useState(sample?.sample_type ?? "");
+  const [weight, setWeight] = useState(sample?.weight_grams?.toString() ?? "");
+  const [stageId, setStageId] = useState<string>(sample?.stage_id ?? NONE);
+  const [isDestruction, setIsDestruction] = useState(
+    sample?.is_destruction ?? true,
+  );
+  const [notes, setNotes] = useState(sample?.notes ?? "");
   const [saving, setSaving] = useState(false);
 
-  const reset = () => {
-    setSampleType("");
-    setWeight("");
-    setStageId(NONE);
-    setIsDestruction(true);
-    setNotes("");
-  };
+  const isEdit = !!sample;
 
   const submit = async () => {
     if (!sampleType) {
       toast.error("Le type d'échantillon est obligatoire");
+      return;
+    }
+    if (!sampleDate) {
+      toast.error("La date est obligatoire");
       return;
     }
     const w = Number(weight);
@@ -250,48 +341,71 @@ function SampleDialog({
       return;
     }
     setSaving(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from("samples").insert({
-      batch_id: batchId,
+    const payload = {
+      sample_date: sampleDate,
       sample_type: sampleType,
       weight_grams: w,
       stage_id: stageId === NONE ? null : stageId,
       is_destruction: isDestruction,
       notes: notes.trim() || null,
-      created_by: userData.user?.id ?? null,
-    });
+    };
+    let error;
+    if (isEdit && sample) {
+      ({ error } = await supabase
+        .from("samples")
+        .update(payload)
+        .eq("id", sample.id));
+    } else {
+      const { data: userData } = await supabase.auth.getUser();
+      ({ error } = await supabase.from("samples").insert({
+        ...payload,
+        batch_id: batchId,
+        created_by: userData.user?.id ?? null,
+      }));
+    }
     setSaving(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Échantillon ajouté");
-    reset();
+    toast.success(isEdit ? "Échantillon mis à jour" : "Échantillon ajouté");
     onOpenChange(false);
-    onCreated();
+    onSaved();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouvel échantillon</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Modifier l'échantillon" : "Nouvel échantillon"}
+          </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
-          <div className="grid gap-2">
-            <Label>Type d'échantillon *</Label>
-            <Select value={sampleType} onValueChange={setSampleType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un type" />
-              </SelectTrigger>
-              <SelectContent>
-                {SAMPLE_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Date *</Label>
+              <Input
+                type="date"
+                value={sampleDate}
+                onChange={(e) => setSampleDate(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Type d'échantillon *</Label>
+              <Select value={sampleType} onValueChange={setSampleType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SAMPLE_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid gap-2">
             <Label>Poids (g) *</Label>
@@ -347,7 +461,7 @@ function SampleDialog({
           </Button>
           <Button onClick={submit} disabled={saving}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-            Créer
+            {isEdit ? "Enregistrer" : "Créer"}
           </Button>
         </DialogFooter>
       </DialogContent>
