@@ -19,6 +19,7 @@ import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticated/batches'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
+import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,6 +70,11 @@ const AuthenticatedBatchesNewRoute = AuthenticatedBatchesNewRouteImport.update({
   path: '/batches/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
+  id: '/batches_/$id',
+  path: '/batches/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamps': typeof AuthenticatedStampsRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamps': typeof AuthenticatedStampsRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRoutesById {
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stamps': typeof AuthenticatedStampsRoute
+  '/_authenticated/batches_/$id': typeof AuthenticatedBatchesIdRoute
   '/_authenticated/batches_/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/stamps'
+    | '/batches/$id'
     | '/batches/new'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/stamps'
+    | '/batches/$id'
     | '/batches/new'
   id:
     | '__root__'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory'
     | '/_authenticated/settings'
     | '/_authenticated/stamps'
+    | '/_authenticated/batches_/$id'
     | '/_authenticated/batches_/new'
   fileRoutesById: FileRoutesById
 }
@@ -220,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/batches_/$id': {
+      id: '/_authenticated/batches_/$id'
+      path: '/batches/$id'
+      fullPath: '/batches/$id'
+      preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -230,6 +249,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStampsRoute: typeof AuthenticatedStampsRoute
+  AuthenticatedBatchesIdRoute: typeof AuthenticatedBatchesIdRoute
   AuthenticatedBatchesNewRoute: typeof AuthenticatedBatchesNewRoute
 }
 
@@ -240,6 +260,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStampsRoute: AuthenticatedStampsRoute,
+  AuthenticatedBatchesIdRoute: AuthenticatedBatchesIdRoute,
   AuthenticatedBatchesNewRoute: AuthenticatedBatchesNewRoute,
 }
 
@@ -254,3 +275,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
