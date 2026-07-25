@@ -364,7 +364,7 @@ function Dashboard() {
       search: { status: "in_progress" },
     },
     {
-      label: "Bulk (flower + trim)",
+      label: "Bulk (post-curing)",
       value: fmtG(metrics?.bulkGrams),
       icon: Package,
       to: "/inventory",

@@ -139,13 +139,13 @@ function InventoryPage() {
         .order("created_at", { ascending: false });
 
       if (view === "bulk") {
-        query = query.eq("status", "available").in("product_type", ["flower", "trim"]);
+        query = (query as any).eq("status", "available").eq("lot_kind", "bulk");
       } else if (view === "sample") {
         query = (query as any).eq("lot_kind", "sample");
       } else if (view === "retention") {
         query = (query as any).eq("lot_kind", "retention");
       } else if (view === "packaged") {
-        query = query.eq("status", "available").not("parent_lot_id", "is", null);
+        query = (query as any).eq("status", "available").eq("lot_kind", "packaged");
       } else {
         if (statusFilter !== "all") query = query.eq("status", statusFilter);
         if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
