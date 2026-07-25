@@ -255,9 +255,20 @@ function BatchDetailPage() {
           </Button>
           {batch.status !== "archived" && (
             <>
-              <Button onClick={toggleStatus} disabled={updating} variant="secondary">
-                {batch.status === "in_progress" ? "Fermer la batch" : "Rouvrir la batch"}
-              </Button>
+              {batch.status === "in_progress" && (
+                <Button onClick={toggleStatus} disabled={updating} variant="secondary">
+                  Fermer la batch
+                </Button>
+              )}
+              {batch.status === "closed" && canReopen && (
+                <Button
+                  onClick={() => setReopenOpen(true)}
+                  disabled={updating}
+                  variant="secondary"
+                >
+                  <Unlock className="mr-1 h-4 w-4" /> Rouvrir la batch
+                </Button>
+              )}
               <Button
                 onClick={() => setArchiveOpen(true)}
                 disabled={updating}
@@ -266,6 +277,15 @@ function BatchDetailPage() {
                 <Archive className="mr-1 h-4 w-4" /> Archiver
               </Button>
             </>
+          )}
+          {isAdmin && (
+            <Button
+              onClick={() => setDeleteOpen(true)}
+              disabled={updating}
+              variant="destructive"
+            >
+              <Trash2 className="mr-1 h-4 w-4" /> Supprimer
+            </Button>
           )}
 
         </div>
