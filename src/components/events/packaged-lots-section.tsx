@@ -199,8 +199,19 @@ export function PackagedLotsSection({
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {source ? source.lot_number : "—"}
+                        {source ? (
+                          <Link
+                            to="/inventory/$id"
+                            params={{ id: source.id }}
+                            className="inline-flex items-center gap-1 hover:underline"
+                          >
+                            ← {source.lot_number}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
+
                       <TableCell>{l.format ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {l.quantity_grams ?? "—"}
