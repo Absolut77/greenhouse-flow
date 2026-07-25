@@ -255,19 +255,30 @@ function EventDetailPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setConfirmDelete(true)}
-                      disabled={itemCount === null || itemCount > 0}
+                      disabled={
+                        itemCount === null ||
+                        stampCount === null ||
+                        itemCount > 0 ||
+                        stampCount > 0
+                      }
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="mr-1 h-4 w-4" /> Supprimer
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {itemCount !== null && itemCount > 0 && (
+                {((itemCount ?? 0) > 0 || (stampCount ?? 0) > 0) && (
                   <TooltipContent>
-                    Impossible : cet événement contient {itemCount} mouvement
-                    {itemCount > 1 ? "s" : ""} de stock.
+                    Impossible : cet événement contient{" "}
+                    {(itemCount ?? 0) > 0 &&
+                      `${itemCount} mouvement${itemCount! > 1 ? "s" : ""} de stock`}
+                    {(itemCount ?? 0) > 0 && (stampCount ?? 0) > 0 && " et "}
+                    {(stampCount ?? 0) > 0 &&
+                      `${stampCount} mouvement${stampCount! > 1 ? "s" : ""} de timbres`}
+                    .
                   </TooltipContent>
                 )}
+
               </Tooltip>
             </TooltipProvider>
           )}
