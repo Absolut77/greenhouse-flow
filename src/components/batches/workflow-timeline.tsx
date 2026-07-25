@@ -450,6 +450,7 @@ function StepCard({
   canRevert,
   busy,
   availableGramsForPackaging,
+  curingRefreshKey,
   onFinishRequest,
   onRevertRequest,
   onDataChanged,
@@ -460,6 +461,7 @@ function StepCard({
   canRevert: boolean;
   busy: boolean;
   availableGramsForPackaging: number | null;
+  curingRefreshKey: number;
   onFinishRequest: () => void;
   onRevertRequest: () => void;
   onDataChanged: () => void;
