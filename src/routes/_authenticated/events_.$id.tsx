@@ -737,6 +737,8 @@ function CloseEventDialog({
   const [completedAt, setCompletedAt] = useState("");
   const [sourceLots, setSourceLots] = useState<SourceLotRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<"form" | "confirm">("form");
+  const [confirmed, setConfirmed] = useState(false);
 
   const sourceOut = sourceLots.reduce((a, r) => a + r.out_grams, 0);
 
