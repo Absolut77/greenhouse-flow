@@ -8,6 +8,8 @@ import {
   Settings,
   Leaf,
   ScrollText,
+  FileBarChart,
+
 } from "lucide-react";
 
 import {
