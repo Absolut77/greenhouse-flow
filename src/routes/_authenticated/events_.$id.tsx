@@ -106,11 +106,19 @@ function EventDetailPage() {
         .maybeSingle();
       setCreator(p);
     } else setCreator(null);
-    const { count } = await supabase
-      .from("event_items")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", id);
-    setItemCount(count ?? 0);
+    const [{ count: iCount }, { count: sCount }] = await Promise.all([
+      supabase
+        .from("event_items")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", id),
+      supabase
+        .from("stamp_movements")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", id),
+    ]);
+    setItemCount(iCount ?? 0);
+    setStampCount(sCount ?? 0);
+
   };
 
   useEffect(() => {
