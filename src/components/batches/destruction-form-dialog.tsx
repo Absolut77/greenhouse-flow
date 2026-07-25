@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { PhotoUploader } from "@/components/batches/photo-uploader";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
