@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Pencil, Archive } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Archive, Download } from "lucide-react";
+import { exportXlsx, fmtDate, fmtDateTime } from "@/lib/export-xlsx";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -137,6 +139,80 @@ function BatchDetailPage() {
           <StatusBadge status={batch.status} />
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const [stagesR, dryingR, samplesR, weightsR] = await Promise.all([
+                supabase.from("batch_stages").select("*").eq("batch_id", batch.id).order("started_at", { ascending: true }),
+                supabase.from("drying_logs").select("*").eq("batch_id", batch.id).order("log_date", { ascending: true }),
+                supabase.from("samples").select("*").eq("batch_id", batch.id).order("sample_date", { ascending: true }),
+                supabase.from("weights").select("*").eq("batch_id", batch.id).order("recorded_at", { ascending: true }),
+              ]);
+              exportXlsx(`batch_${batch.batch_number}`, [
+                {
+                  name: "Infos",
+                  rows: [
+                    { Champ: "Numéro", Valeur: batch.batch_number },
+                    { Champ: "Strain", Valeur: batch.strain ?? "" },
+                    { Champ: "Nombre de plants", Valeur: batch.plant_count ?? "" },
+                    { Champ: "Poids récolte (g)", Valeur: batch.weight_per_plant ?? "" },
+                    { Champ: "Date récolte", Valeur: fmtDate(batch.harvest_date) },
+                    { Champ: "Salle récolte", Valeur: batch.harvest_room ?? "" },
+                    { Champ: "Séchage", Valeur: batch.drying_location ?? "" },
+                    { Champ: "Statut", Valeur: batch.status },
+                    { Champ: "Créée le", Valeur: fmtDateTime(batch.created_at) },
+                    { Champ: "Fermée le", Valeur: fmtDateTime(batch.closed_at) },
+                  ],
+                },
+                {
+                  name: "Étapes",
+                  rows: (stagesR.data ?? []).map((s) => ({
+                    Étape: s.stage_type ?? "",
+                    Début: fmtDateTime(s.started_at),
+                    Fin: fmtDateTime(s.ended_at),
+                  })),
+                },
+                {
+                  name: "Séchage",
+                  rows: (dryingR.data ?? []).map((d) => ({
+                    Date: fmtDate(d.log_date),
+                    Salle: d.room_number ?? "",
+                    "Temp. actuelle (°C)": d.temp_current ?? "",
+                    "Temp. consigne (°C)": d.temp_setpoint ?? "",
+                    "Temp. externe (°C)": d.temp_external ?? "",
+                    "Humidité actuelle (%)": d.humidity_current ?? "",
+                    "Humidité consigne (%)": d.humidity_setpoint ?? "",
+                    "Humidité externe (%)": d.humidity_external ?? "",
+                    Commentaires: d.comments ?? "",
+                  })),
+                },
+                {
+                  name: "Échantillons",
+                  rows: (samplesR.data ?? []).map((s) => ({
+                    Date: fmtDate(s.sample_date),
+                    Type: s.sample_type ?? "",
+                    "Poids (g)": s.weight_grams ?? "",
+                    Destruction: s.is_destruction ? "Oui" : "Non",
+                    Notes: s.notes ?? "",
+                  })),
+                },
+                {
+                  name: "Pesées",
+                  rows: (weightsR.data ?? []).map((w) => ({
+                    Date: fmtDateTime(w.recorded_at),
+                    Étape: w.stage ?? "",
+                    Catégorie: w.category ?? "",
+                    "Poids (g)": w.weight_grams ?? "",
+                    "Nb contenants": w.container_count ?? "",
+                    Commentaires: w.comments ?? "",
+                  })),
+                },
+              ]);
+
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> Exporter la batch
+          </Button>
           {batch.status !== "archived" && (
             <>
               <Button onClick={toggleStatus} disabled={updating} variant="secondary">
@@ -151,6 +227,7 @@ function BatchDetailPage() {
               </Button>
             </>
           )}
+
         </div>
       </div>
 

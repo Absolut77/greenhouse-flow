@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
+import { exportXlsx, fmtDate } from "@/lib/export-xlsx";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -140,12 +142,41 @@ function InventoryPage() {
             Lots de produit, formats, emplacements et statuts.
           </p>
         </div>
-        {!isViewerOnly && (
-          <Button onClick={() => navigate({ to: "/inventory/new" })}>
-            <Plus className="mr-1 h-4 w-4" />
-            Nouveau lot
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={!lots || lots.length === 0}
+            onClick={() => {
+              if (!lots) return;
+              exportXlsx("inventaire", [
+                {
+                  name: "Lots",
+                  rows: lots.map((l) => ({
+                    "Numéro lot": l.lot_number,
+                    Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
+                    Type: labelOf(PRODUCT_TYPES, l.product_type),
+                    Format: l.format ?? "",
+                    Taille: labelOf(FLOWER_SIZES, l.flower_size),
+                    "Quantité (g)": l.quantity_grams ?? "",
+                    Unités: l.units ?? "",
+                    Emplacement: l.location ?? "",
+                    Statut: l.status ?? "",
+                    "Créé le": fmtDate(l.created_at),
+                  })),
+                },
+              ]);
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
-        )}
+          {!isViewerOnly && (
+            <Button onClick={() => navigate({ to: "/inventory/new" })}>
+              <Plus className="mr-1 h-4 w-4" />
+              Nouveau lot
+            </Button>
+          )}
+        </div>
+
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
