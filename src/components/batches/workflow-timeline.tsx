@@ -519,9 +519,25 @@ export function WorkflowTimeline({
               </p>
             )}
           </div>
+          {confirmFinish?.code === "bulk_packaging" && (
+            <div className="space-y-3">
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+                ⚠ Action définitive : la batch sera <b>fermée</b> et les lots d'inventaire créés. Vérifiez les sacs avant de confirmer.
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer rounded-md border p-3 hover:bg-muted/30">
+                <Checkbox
+                  checked={finishConfirmed}
+                  onCheckedChange={(v) => setFinishConfirmed(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm">Je confirme que les quantités sont exactes.</span>
+              </label>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmFinish(null)}>Annuler</Button>
             <Button
+              disabled={confirmFinish?.code === "bulk_packaging" && !finishConfirmed}
               onClick={() => {
                 const step = confirmFinish;
                 const iso = finishEndedAt ? new Date(finishEndedAt).toISOString() : new Date().toISOString();
