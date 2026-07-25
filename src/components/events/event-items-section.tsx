@@ -74,6 +74,7 @@ export function EventItemsSection({
         .from("inventory_lots")
         .select("*")
         .eq("status", "available")
+        .neq("lot_kind", "retention")
         .order("created_at", { ascending: false }),
     ]);
     if (iErr) {
@@ -406,7 +407,8 @@ function ItemDialog({
                   <SelectItem key={l.id} value={l.id}>
                     {l.lot_number}
                     {l.product_type ? ` — ${l.product_type}` : ""}
-                    {l.quantity_grams != null ? ` (${l.quantity_grams}g)` : ""}
+                    {l.quantity_grams != null ? ` (${l.quantity_grams}g` : ""}
+                    {l.units != null ? `, ${l.units} sacs)` : l.quantity_grams != null ? ")" : ""}
                   </SelectItem>
                 ))}
                 {lotChoices.length === 0 && (
@@ -419,7 +421,7 @@ function ItemDialog({
             {selectedLot && (
               <p className="text-xs text-muted-foreground">
                 Stock disponible : {baseG}g
-                {selectedLot.units != null ? ` — ${baseU} unités` : ""}
+                {selectedLot.units != null ? ` — ${baseU} sac${baseU > 1 ? "s" : ""}` : ""}
               </p>
             )}
           </div>
@@ -445,16 +447,13 @@ function ItemDialog({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Direction *</Label>
-            <Select value={direction} onValueChange={setDirection}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in">Entrée (in)</SelectItem>
-                <SelectItem value="out">Sortie (out)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Direction</Label>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              <span className="font-medium">Sortie (out)</span>
+              <span className="ml-2 text-xs text-muted-foreground">
+                Le stock est extrait temporairement jusqu'à la clôture de l'événement.
+              </span>
+            </div>
           </div>
           {overStock && (
             <p className="text-xs text-destructive">

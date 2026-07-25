@@ -45,12 +45,14 @@ export function CuringStepContent({
   stageId,
   disabled,
   refreshKey,
+  freshHarvestGrams,
   onSampleCreated,
 }: {
   batchId: string;
   stageId: string | null;
   disabled: boolean;
   refreshKey?: number;
+  freshHarvestGrams?: number | null;
   onSampleCreated?: () => void;
 }) {
   const [rows, setRows] = useState<Container[] | null>(null);
@@ -100,6 +102,10 @@ export function CuringStepContent({
   );
   const allOut = rows && rows.length > 0 && rows.every((r) => r.weight_out_grams != null);
   const loss = allOut ? totalIn - totalOut : null;
+  const freshCap = freshHarvestGrams != null && Number(freshHarvestGrams) > 0
+    ? Number(freshHarvestGrams)
+    : null;
+  const overFresh = freshCap != null && totalIn > freshCap + 1e-6;
 
   const containerLabel = (id: string | null) => {
     if (!id) return "—";
@@ -200,6 +206,16 @@ export function CuringStepContent({
         </div>
       )}
 
+      {freshCap != null && (
+        <div className={`rounded-md border p-3 text-xs ${overFresh ? "border-destructive/60 bg-destructive/10 text-destructive" : "bg-muted/30 text-muted-foreground"}`}>
+          Poids humide de la récolte : <b>{freshCap.toFixed(2)} g</b>. Total entrée
+          conteneurs : <b>{totalIn.toFixed(2)} g</b>.
+          {overFresh
+            ? " Le total dépasse le poids humide — corrigez avant de continuer."
+            : ` Restant possible : ${(freshCap - totalIn).toFixed(2)} g.`}
+        </div>
+      )}
+
       {/* Suivi jour par jour des prises */}
       <div className="rounded-md border">
         <div className="flex items-center justify-between border-b px-3 py-2">
@@ -247,6 +263,8 @@ export function CuringStepContent({
         stageId={stageId}
         container={editing}
         open={open}
+        freshCap={freshCap}
+        existingTotalIn={totalIn - (editing ? Number(editing.weight_in_grams || 0) : 0)}
         onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}
         onSaved={loadContainers}
       />
@@ -287,6 +305,8 @@ function ContainerDialog({
   stageId,
   container,
   open,
+  freshCap,
+  existingTotalIn,
   onOpenChange,
   onSaved,
 }: {
@@ -294,6 +314,8 @@ function ContainerDialog({
   stageId: string | null;
   container: Container | null;
   open: boolean;
+  freshCap?: number | null;
+  existingTotalIn?: number;
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
@@ -308,6 +330,11 @@ function ContainerDialog({
     if (!label.trim()) return toast.error("Label obligatoire");
     const wInN = Number(wIn);
     if (!wIn || wInN < 0) return toast.error("Poids d'entrée invalide");
+    if (freshCap != null && (existingTotalIn ?? 0) + wInN > freshCap + 1e-6) {
+      return toast.error(
+        `Le total d'entrée des conteneurs (${((existingTotalIn ?? 0) + wInN).toFixed(2)} g) dépasse le poids humide de la récolte (${freshCap.toFixed(2)} g).`,
+      );
+    }
     setSaving(true);
     const payload: any = {
       label: label.trim(),

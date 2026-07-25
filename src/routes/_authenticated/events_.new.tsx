@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { EVENT_TYPES } from "./events";
+import { CREATABLE_EVENT_TYPES } from "./events";
 
 type Batch = Tables<"batches">;
 
@@ -113,7 +113,7 @@ function NewEventPage() {
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map((t) => (
+                  {CREATABLE_EVENT_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>

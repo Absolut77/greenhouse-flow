@@ -221,6 +221,7 @@ export type Database = {
           id: string
           is_sanitation_log: boolean
           person_count: number | null
+          phase: string | null
           photos: string[]
           reason: string | null
           sanitation_products: string | null
@@ -239,6 +240,7 @@ export type Database = {
           id?: string
           is_sanitation_log?: boolean
           person_count?: number | null
+          phase?: string | null
           photos?: string[]
           reason?: string | null
           sanitation_products?: string | null
@@ -257,6 +259,7 @@ export type Database = {
           id?: string
           is_sanitation_log?: boolean
           person_count?: number | null
+          phase?: string | null
           photos?: string[]
           reason?: string | null
           sanitation_products?: string | null
@@ -388,11 +391,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           destination: string | null
+          dry_destroyed_grams: number | null
           event_number: string
           event_type: string | null
           id: string
           linked_shipment_event_id: string | null
           notes: string | null
+          processing_loss_grams: number | null
           reception_kind: string | null
           reference_number: string | null
           related_batch_id: string | null
@@ -406,11 +411,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           destination?: string | null
+          dry_destroyed_grams?: number | null
           event_number: string
           event_type?: string | null
           id?: string
           linked_shipment_event_id?: string | null
           notes?: string | null
+          processing_loss_grams?: number | null
           reception_kind?: string | null
           reference_number?: string | null
           related_batch_id?: string | null
@@ -424,11 +431,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           destination?: string | null
+          dry_destroyed_grams?: number | null
           event_number?: string
           event_type?: string | null
           id?: string
           linked_shipment_event_id?: string | null
           notes?: string | null
+          processing_loss_grams?: number | null
           reception_kind?: string | null
           reference_number?: string | null
           related_batch_id?: string | null
@@ -494,6 +503,7 @@ export type Database = {
           format: string | null
           id: string
           location: string | null
+          lot_kind: string
           lot_number: string
           notes: string | null
           parent_lot_id: string | null
@@ -509,6 +519,7 @@ export type Database = {
           format?: string | null
           id?: string
           location?: string | null
+          lot_kind?: string
           lot_number: string
           notes?: string | null
           parent_lot_id?: string | null
@@ -524,6 +535,7 @@ export type Database = {
           format?: string | null
           id?: string
           location?: string | null
+          lot_kind?: string
           lot_number?: string
           notes?: string | null
           parent_lot_id?: string | null
@@ -916,6 +928,18 @@ export type Database = {
           _units: number
         }
         Returns: undefined
+      }
+      close_event: {
+        Args: {
+          _completed_at?: string
+          _dry_destroyed_g: number
+          _event_id: string
+          _lot_name: string
+          _unit_weight_g: number
+          _units: number
+          _used_g: number
+        }
+        Returns: string
       }
       current_user_display: {
         Args: never

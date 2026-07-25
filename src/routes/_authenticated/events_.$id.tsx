@@ -157,14 +157,24 @@ function EventDetailPage() {
     navigate({ to: "/events" });
   };
 
+  const isCloseable =
+    event?.event_type === "packaging" || event?.event_type === "rework";
+
   const changeStatus = async (next: string, completedAtIso?: string) => {
     if (!event) return;
-    if (next === "completed" && !completedAtIso) {
-      const d = new Date();
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setCompletedAtInput(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
-      setCompleteOpen(true);
-      return;
+    if (next === "completed") {
+      if (isCloseable) {
+        // Open dedicated close dialog with lot creation & surplus handling.
+        setCompleteOpen(true);
+        return;
+      }
+      if (!completedAtIso) {
+        const d = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setCompletedAtInput(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+        setCompleteOpen(true);
+        return;
+      }
     }
     setUpdating(true);
     const { data, error } = await supabase
@@ -378,51 +388,62 @@ function EventDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Terminer l'événement</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-2 py-2">
-            <Label>Date et heure de fin</Label>
-            <Input
-              type="datetime-local"
-              value={completedAtInput}
-              min={event?.created_at ? (() => {
-                const d = new Date(event.created_at);
-                const p = (n: number) => String(n).padStart(2, "0");
-                return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-              })() : undefined}
-              onChange={(e) => setCompletedAtInput(e.target.value)}
-            />
-            {event?.created_at && (
-              <p className="text-xs text-muted-foreground">
-                Créé le {new Date(event.created_at).toLocaleString("fr-CA")}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCompleteOpen(false)}>Annuler</Button>
-            <Button
-              onClick={() => {
-                if (!completedAtInput) return;
-                const iso = new Date(completedAtInput).toISOString();
-                if (event?.created_at && new Date(iso).getTime() < new Date(event.created_at).getTime()) {
-                  toast.error("La date de fin ne peut pas être antérieure à la date de création.");
-                  return;
-                }
-                setCompleteOpen(false);
-                changeStatus("completed", iso);
-              }}
-            >
-              Confirmer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isCloseable ? (
+        <CloseEventDialog
+          open={completeOpen}
+          onOpenChange={setCompleteOpen}
+          event={event}
+          onClosed={load}
+        />
+      ) : (
+        <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Terminer l'événement</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-2 py-2">
+              <Label>Date et heure de fin</Label>
+              <Input
+                type="datetime-local"
+                value={completedAtInput}
+                min={event?.created_at ? (() => {
+                  const d = new Date(event.created_at);
+                  const p = (n: number) => String(n).padStart(2, "0");
+                  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+                })() : undefined}
+                onChange={(e) => setCompletedAtInput(e.target.value)}
+              />
+              {event?.created_at && (
+                <p className="text-xs text-muted-foreground">
+                  Créé le {new Date(event.created_at).toLocaleString("fr-CA")}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setCompleteOpen(false)}>Annuler</Button>
+              <Button
+                onClick={() => {
+                  if (!completedAtInput) return;
+                  const iso = new Date(completedAtInput).toISOString();
+                  if (event?.created_at && new Date(iso).getTime() < new Date(event.created_at).getTime()) {
+                    toast.error("La date de fin ne peut pas être antérieure à la date de création.");
+                    return;
+                  }
+                  setCompleteOpen(false);
+                  changeStatus("completed", iso);
+                }}
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
+
+
 
 function Info({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -686,5 +707,132 @@ function ShipmentDetailsSection({ event }: { event: Event }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function CloseEventDialog({
+  open,
+  onOpenChange,
+  event,
+  onClosed,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  event: Event | null;
+  onClosed: () => void;
+}) {
+  const [lotName, setLotName] = useState("");
+  const [units, setUnits] = useState("");
+  const [unitWeight, setUnitWeight] = useState("");
+  const [processingLoss, setProcessingLoss] = useState("0");
+  const [dryDestroyed, setDryDestroyed] = useState("0");
+  const [completedAt, setCompletedAt] = useState("");
+  const [sourceOut, setSourceOut] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open || !event) return;
+    setLotName(event.event_number || "");
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    setCompletedAt(
+      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`,
+    );
+    (async () => {
+      const { data } = await supabase
+        .from("event_items")
+        .select("quantity_grams")
+        .eq("event_id", event.id)
+        .eq("direction", "out");
+      const s = (data ?? []).reduce((a, r) => a + Number(r.quantity_grams || 0), 0);
+      setSourceOut(s);
+    })();
+  }, [open, event]);
+
+  const u = Number(units) || 0;
+  const w = Number(unitWeight) || 0;
+  const produced = u * w;
+  const loss = Number(processingLoss) || 0;
+  const dry = Number(dryDestroyed) || 0;
+  const usedG = produced + loss;
+  const surplus = sourceOut != null ? sourceOut - usedG - dry : null;
+  const invalid = surplus != null && surplus < -0.001;
+
+  const submit = async () => {
+    if (!event) return;
+    if (!lotName.trim()) return toast.error("Nom du lot obligatoire");
+    if (u <= 0 || w <= 0) return toast.error("Unités et poids/unité > 0");
+    if (invalid) return toast.error("Utilisé + destruction dépasse la sortie totale.");
+    setSaving(true);
+    const { error } = await (supabase as any).rpc("close_event", {
+      _event_id: event.id,
+      _lot_name: lotName.trim(),
+      _units: u,
+      _unit_weight_g: w,
+      _used_g: usedG,
+      _dry_destroyed_g: dry,
+      _completed_at: new Date(completedAt).toISOString(),
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Événement clôturé — lot créé");
+    onOpenChange(false);
+    onClosed();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Clôturer l'événement</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 py-2">
+          <div className="grid gap-2">
+            <Label>Nom du lot produit *</Label>
+            <Input value={lotName} onChange={(e) => setLotName(e.target.value)} />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Unités produites *</Label>
+              <Input type="number" min="0" value={units} onChange={(e) => setUnits(e.target.value)} placeholder="Ex. 24" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Poids / unité (g) *</Label>
+              <Input type="number" step="0.01" min="0" value={unitWeight} onChange={(e) => setUnitWeight(e.target.value)} placeholder="Ex. 2.5" />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Processing loss (g)</Label>
+              <Input type="number" step="0.01" min="0" value={processingLoss} onChange={(e) => setProcessingLoss(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Destruction dry (g)</Label>
+              <Input type="number" step="0.01" min="0" value={dryDestroyed} onChange={(e) => setDryDestroyed(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Date et heure de clôture</Label>
+            <Input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
+          </div>
+          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+            <div>Sortie totale (source) : <b>{sourceOut != null ? sourceOut.toFixed(2) : "—"} g</b></div>
+            <div>Produit : <b>{produced.toFixed(2)} g</b> ({u} × {w} g)</div>
+            <div>Processing loss : <b>{loss.toFixed(2)} g</b></div>
+            <div>Destruction dry : <b>{dry.toFixed(2)} g</b></div>
+            <div className={invalid ? "text-destructive font-medium" : ""}>
+              Surplus retourné au lot source : <b>{surplus != null ? surplus.toFixed(2) : "—"} g</b>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={submit} disabled={saving || invalid}>
+            {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+            Clôturer et créer le lot
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

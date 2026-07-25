@@ -250,6 +250,7 @@ export function WorkflowTimeline({
           quantity_grams: totalPending,
           units: totalUnits,
           status: "available",
+          lot_kind: "bulk",
           notes: "Détail des sacs disponible sur la fiche du lot.",
         } as any)
         .select()
@@ -597,6 +598,7 @@ function StepCard({
               stageId={stageId}
               disabled={!canEdit || done}
               refreshKey={curingRefreshKey}
+              freshHarvestGrams={batch.weight_per_plant}
               onSampleCreated={onDataChanged}
             />
           )}

@@ -96,8 +96,21 @@ const VIEW_LABEL: Record<string, string> = {
   all: "Tous les lots",
   bulk: "Bulk (flower + trim, disponibles)",
   packaged: "Packagé avec timbres (en stock)",
-  sample: "Échantillons / Rétention",
+  sample: "Échantillons (par batch)",
+  retention: "Rétention (bloqués — destruction après 3 ans)",
 };
+
+export const LOT_KIND_VARIANTS: Record<string, { label: string; className: string }> = {
+  bulk: { label: "Bulk", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  packaged: { label: "Packagé", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  sample: { label: "Échantillon", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  retention: { label: "Rétention 🔒", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+};
+
+export function LotKindBadge({ kind }: { kind: string | null }) {
+  const v = LOT_KIND_VARIANTS[kind ?? ""] ?? { label: kind ?? "—", className: "bg-muted text-muted-foreground" };
+  return <Badge variant="outline" className={v.className}>{v.label}</Badge>;
+}
 
 function InventoryPage() {
   const navigate = useNavigate();
@@ -128,7 +141,9 @@ function InventoryPage() {
       if (view === "bulk") {
         query = query.eq("status", "available").in("product_type", ["flower", "trim"]);
       } else if (view === "sample") {
-        query = query.eq("product_type", "sample");
+        query = (query as any).eq("lot_kind", "sample");
+      } else if (view === "retention") {
+        query = (query as any).eq("lot_kind", "retention");
       } else if (view === "packaged") {
         query = query.eq("status", "available").not("parent_lot_id", "is", null);
       } else {
@@ -224,7 +239,8 @@ function InventoryPage() {
               <SelectItem value="all">Tous les lots</SelectItem>
               <SelectItem value="bulk">Bulk (flower + trim)</SelectItem>
               <SelectItem value="packaged">Packagé avec timbres</SelectItem>
-              <SelectItem value="sample">Échantillons / Rétention</SelectItem>
+              <SelectItem value="sample">Échantillons</SelectItem>
+              <SelectItem value="retention">Rétention 🔒</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -272,6 +288,7 @@ function InventoryPage() {
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
                 <TableHead>Batch</TableHead>
+                <TableHead>Kind</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Format</TableHead>
                 <TableHead>Taille</TableHead>
@@ -285,7 +302,7 @@ function InventoryPage() {
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-destructive">
+                  <TableCell colSpan={11} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -294,7 +311,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(10)].map((_, j) => (
+                      {[...Array(11)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -306,7 +323,7 @@ function InventoryPage() {
               {lots && lots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={11}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
@@ -345,6 +362,7 @@ function InventoryPage() {
                       "—"
                     )}
                   </TableCell>
+                  <TableCell><LotKindBadge kind={(l as any).lot_kind ?? null} /></TableCell>
                   <TableCell>{labelOf(PRODUCT_TYPES, l.product_type)}</TableCell>
                   <TableCell>{l.format ?? "—"}</TableCell>
                   <TableCell>{labelOf(FLOWER_SIZES, l.flower_size)}</TableCell>

@@ -64,6 +64,8 @@ type Metrics = {
   packagedUnits: number;
   packagedGrams: number;
   sampleGrams: number;
+  retentionGrams: number;
+  totalAvailableGrams: number;
   stampsAvailable: number;
   reelsAvailable: number;
 };
@@ -199,8 +201,8 @@ function Dashboard() {
           .not("parent_lot_id", "is", null),
         supabase
           .from("inventory_lots")
-          .select("quantity_grams")
-          .eq("product_type", "sample")
+          .select("quantity_grams, lot_kind" as any)
+          .in("lot_kind" as any, ["sample", "retention"])
           .eq("status", "available"),
         supabase
           .from("excise_reels")
@@ -239,8 +241,14 @@ function Dashboard() {
         packagedLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
       const packagedUnits =
         packagedLotsRes.data?.reduce((a, l) => a + (Number(l.units) || 0), 0) ?? 0;
-      const sampleGrams =
-        sampleLotsRes.data?.reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0) ?? 0;
+      const sampleRetentionRows = ((sampleLotsRes.data ?? []) as any[]);
+      const sampleGrams = sampleRetentionRows
+        .filter((l) => l.lot_kind === "sample")
+        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const retentionGrams = sampleRetentionRows
+        .filter((l) => l.lot_kind === "retention")
+        .reduce((a, l) => a + (Number(l.quantity_grams) || 0), 0);
+      const totalAvailableGrams = bulkGrams + packagedGrams + sampleGrams + retentionGrams;
 
       // Compute stamps available: sum of balances across available reels
       const reelsAll = (reelsFullRes.data ?? []) as ReelRow[];
@@ -272,6 +280,8 @@ function Dashboard() {
         packagedUnits,
         packagedGrams,
         sampleGrams,
+        retentionGrams,
+        totalAvailableGrams,
         stampsAvailable,
         reelsAvailable: reelsAvailableC.count ?? 0,
       });
@@ -376,11 +386,26 @@ function Dashboard() {
       search: { view: "packaged" },
     },
     {
-      label: "Samples / Rétention",
+      label: "Échantillons",
       value: fmtG(metrics?.sampleGrams),
       icon: FlaskConical,
       to: "/inventory",
       search: { view: "sample" },
+    },
+    {
+      label: "Rétention 🔒",
+      value: fmtG(metrics?.retentionGrams),
+      icon: FlaskConical,
+      to: "/inventory",
+      search: { view: "retention" },
+    },
+    {
+      label: "Total disponible",
+      value: fmtG(metrics?.totalAvailableGrams),
+      sub: "bulk + packagé + samples + rétention",
+      icon: PackageCheck,
+      to: "/inventory",
+      search: { view: "all" },
     },
     {
       label: "Événements ouverts",

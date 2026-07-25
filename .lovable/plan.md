@@ -1,96 +1,86 @@
-# Plan — P1 Dashboard fonctionnel + P2 Module Réception
+# Itération de finalisation ONO Cannabis
 
-## P1 — Dashboard réellement fonctionnel
+## 1. Inventaire & Rétention
 
-### Cartes indicateurs (remplacement)
-Grille passe de 5 à 6-7 cartes, toutes cliquables vers la vue filtrée correspondante :
+- Migration : ajouter colonne `lot_kind` sur `inventory_lots` (`bulk` | `packaged` | `sample` | `retention`), défaut `bulk`.
+- Contrainte trigger : bloquer tout `event_items.inventory_lot_id` référant un lot `retention` (SELECT/INSERT bloqué en amont via check RPC + guard UI).
+- Le packaging final continue de créer **un seul lot par batch** (déjà en place) ; les échantillons créés pendant le Bulk Packaging deviennent lot `sample` (lié à la batch) ou `retention` (isolé, non lié à un flux).
+- UI Inventaire : ajouter un filtre `kind` (Bulk / Packagé / Sample / Rétention) + badge distinct pour Rétention avec pastille "verrouillé".
 
-- **Batches en cours** → `/batches?status=in_progress`
-- **Bulk (flower + trim)** en g → `/inventory?type=bulk` (somme `inventory_lots.quantity_grams` où `status=available` et `product_type ∈ {flower, trim}`)
-- **Packagé en stock (avec timbres)** en unités + grammes → `/inventory?type=packaged` (lots `product_type=preroll` OU `parent_lot_id NOT NULL`, `status=available`)
-- **Samples / Rétention** en g → `/inventory?type=sample` (lots `product_type=sample` + table `samples` non détruits, agrégé)
-- **Événements ouverts** → `/events?status=open`
-- **Timbres disponibles** (somme balances des rouleaux `available`) → `/stamps?status=available`
+## 2. Dashboard
 
-Chaque carte : valeur dynamique via `Promise.all` d’agrégats Supabase, skeleton pendant chargement, `Link` qui pousse la searchParam appropriée.
+- Nouveau bloc "Stock disponible total" = somme `quantity_grams` de tous les lots `status='available'`.
+- Séparer les cartes Samples vs Rétention (deux compteurs distincts au lieu d'un seul "Samples").
 
-### Filtres URL sur les pages cibles
-Ajouter `validateSearch` sur `/inventory` et `/stamps` pour lire `type`/`status` depuis l’URL (déjà présent sur `/batches` via state — on branche state initial sur `Route.useSearch`). Sur `/inventory`, ajouter un mode `type=bulk|packaged|sample` qui applique les mêmes filtres que le calcul dashboard, pour que la carte et la page listent la même chose.
+## 3. Création de Batch
 
-### Alertes
-Conserver : timbres bas (<500), batches ouvertes depuis >14 jours. Ajouter : événements `open` depuis >7 jours.
+- Renommer le label du champ poids en « **Poids total de la récolte humide (g)** » dans `batches_.new.tsx` et fiche batch.
+- Étape Curing : dans `curing-step.tsx`, validation bloquante — somme des poids d'entrée des conteneurs ≤ `batches.fresh_weight_grams`. Message clair au-dessus du bouton "Ajouter".
 
-### Activité récente
-Inchangé (déjà filtrée par rôle admin/supervisor).
+## 4. Événements — simplification et flux de clôture
 
-### Fichiers touchés
-- `src/routes/_authenticated/dashboard.tsx` — refonte requêtes + cartes + liens
-- `src/routes/_authenticated/inventory.tsx` — `validateSearch`, groupe `type` bulk/packaged/sample, initial filters depuis URL
-- `src/routes/_authenticated/stamps.tsx` — `validateSearch` sur `status`
-- `src/routes/_authenticated/batches.tsx` — `validateSearch` sur `status`
-- `src/routes/_authenticated/events.tsx` — `validateSearch` sur `status`
+- Réduire les types disponibles dans `events_.new.tsx` et filtres `events.tsx` à : **Packaging, Destruction, Rework**. (Réception/Expédition/B2B/Transfert/Échantillonnage retirés du sélecteur — les routes `/receptions/new` et `/shipments/new` restent la seule façon de créer ces événements techniques.)
+- `EventItemsSection` :
+  - Forcer `direction = out` (retirer le choix).
+  - Afficher pour chaque lot sélectionnable : quantité g **et nombre de sacs disponibles** (via `packaging_bags` count).
+  - Ajouter section "Détail du calcul" (unités × poids unitaire).
+- **Clôture d'événement** (nouveau bouton "Clôturer l'événement" quand statut open) :
+  - Champs : quantité réellement utilisée (g), unités produites (Master Case × unités × poids unitaire → calcul auto), destruction dry (g), notes.
+  - Actions atomiques via nouvelle RPC `close_event(event_id, used_g, produced_lot_name, produced_g, produced_units, destroyed_g)` :
+    1. Calcul surplus = sortie totale − used_g − destroyed_g → réinjecter dans lot source (`parent_lot_id`).
+    2. Créer nouveau lot enfant `parent_lot_id = event source lot`, `batch_id = source.batch_id`, nom = nom de l'événement.
+    3. Enregistrer destruction dry (`destructions` avec `phase='dry'`).
+    4. Enregistrer processing loss (dans `events.processing_loss_grams` — nouvelle colonne).
+    5. Passer event `status='closed'`.
+  - UI : dialog `CloseEventDialog` avec récap complet et badges (Utilisé / Surplus retourné / Destruction dry / Loss).
 
-## P2 — Module Réception
+## 5. Timbres d'accise
 
-### Modèle de données
-Nouveau type d’événement `reception` (déjà supportable via `events.event_type`, on ajoute la valeur dans `EVENT_TYPES`). Pour couvrir les 3 sous-cas de manière propre, migration ajoutant à `events` :
+- Page `/stamps` : deux onglets (`Tabs` shadcn) :
+  1. **Stock réel** (tableau actuel, avec calculs déjà dynamiques — vérifier affichage `depleted` bien visible en rouge/gris).
+  2. **Packaging Runs** (nouveau) : liste des `stamp_movements` de type `used` joints à `events` + `excise_reels` + `inventory_lots` (lot produit). Colonnes : date, province, rouleau, événement, batch/lot, quantité timbres. Filtres : province, rouleau, batch, plage de dates.
 
-- `reception_kind text` — `cannabis_bulk | cannabis_batch | non_cannabis | transformation_return`
-- `supplier text` — producteur d’origine / fournisseur / transformateur (Nuance, etc.)
-- `reference_number text` — bordereau, PO, manifest
-- `linked_shipment_event_id uuid REFERENCES events(id)` — pour les retours de transformation (permet le calcul d’écart envoyé vs reçu)
+## 6. Précision (détails calculs)
 
-Nouvelle table `non_cannabis_receptions` (léger, produits/matériel non-cannabis qui ne rentrent pas dans `inventory_lots`) :
-```
-id, event_id (FK events), item_name, category, quantity, unit, location, notes, created_at
-```
-Avec GRANT + RLS (authenticated read/write, service_role all).
-
-Pas de nouvelle table pour cannabis : on réutilise `inventory_lots` (création ou append) avec `direction='in'` dans `event_items`. Les triggers existants `event_items_stock_trigger` gèrent déjà l’ajustement de stock automatiquement.
-
-### UI
-
-**Page liste** — les réceptions apparaissent naturellement dans `/events` filtré `event_type=reception`. Un bouton “Nouvelle réception” sur `/events` pointe directement vers le formulaire dédié.
-
-**Nouvelle route** `src/routes/_authenticated/receptions_.new.tsx` : formulaire multi-étapes simple :
-
-1. **Type** : Cannabis bulk / Cannabis batch entière / Non-cannabis / Retour de transformation
-2. **Infos communes** : date, fournisseur, référence, notes
-3. Selon type :
-   - **Cannabis bulk** : batch existante (dropdown) OU créer nouveau lot → produit, format, grammes, unités, emplacement
-   - **Cannabis batch** : crée une nouvelle batch (numéro auto) + lot associé
-   - **Non-cannabis** : liste d’items (nom, catégorie, quantité, unité, emplacement)
-   - **Retour de transformation** : sélection de l’événement `shipment` d’origine (filtré `event_type ∈ {shipment, transfer}`) → affiche quantités envoyées → saisie quantités reçues → calcul écart affiché en temps réel, création `event_items` `direction='in'` sur les mêmes lots (ou nouveaux si transformé)
-
-Submit : crée l’`event` (status=`completed` si tout est là, `open` sinon), les `event_items` associés, et éventuellement le/les `inventory_lots` ou lignes `non_cannabis_receptions`.
-
-**Fiche réception** — réutilise `events_.$id.tsx` avec section conditionnelle affichant :
-- Détails réception (fournisseur, kind, référence)
-- Section non-cannabis items (si applicable)
-- Section écart envoyé/reçu (si `linked_shipment_event_id`)
-
-### Fichiers touchés
-- `supabase/migrations` — nouvelle migration `events` colonnes + `non_cannabis_receptions`
-- `src/routes/_authenticated/events.tsx` — ajouter `reception` dans `EVENT_TYPES` + bouton “Nouvelle réception”
-- `src/routes/_authenticated/receptions_.new.tsx` — nouveau formulaire dédié
-- `src/routes/_authenticated/events_.$id.tsx` — sections conditionnelles réception + écart
-- `src/components/events/reception-details-section.tsx` — nouveau composant
-- `src/components/events/shipment-variance-section.tsx` — nouveau composant
+- Fiche inventaire lot packagé : afficher le calcul `N master cases × U unités × P g = Total g`.
+- Fiche événement : afficher détail du calcul de clôture (déjà couvert §4).
 
 ## Détails techniques
 
-- Les cartes dashboard font 6 requêtes agrégées en parallèle (`Promise.all`) ; pas de N+1.
-- `validateSearch` avec Zod pour typer proprement les filtres URL.
-- Réception cannabis : réutilise 100% le pipeline stock existant (`event_items` direction=`in` → trigger SQL ajuste `inventory_lots`), donc aucun risque de désync.
-- Retour de transformation : on charge les `event_items` `direction='out'` de l’événement lié pour pré-remplir le formulaire et calculer les écarts côté client (pas de calcul en base — juste affichage).
-- Numérotation événement réception : suit le pattern existant `EV-YYYY-####` géré côté formulaire.
-- Design : composants shadcn existants, thème sombre respecté.
+**Migration SQL** (une seule migration) :
+```sql
+ALTER TABLE public.inventory_lots ADD COLUMN lot_kind text NOT NULL DEFAULT 'bulk'
+  CHECK (lot_kind IN ('bulk','packaged','sample','retention'));
+ALTER TABLE public.events ADD COLUMN processing_loss_grams numeric;
+ALTER TABLE public.events ADD COLUMN dry_destroyed_grams numeric;
 
-## Ordre d’exécution
-1. Migration SQL (ajout colonnes events + table non_cannabis_receptions + GRANT/RLS)
-2. Refonte dashboard + filtres URL sur inventory/stamps/batches/events
-3. Route + formulaire `receptions_.new.tsx`
-4. Sections réception dans `events_.$id.tsx`
-5. Vérif typecheck + smoke test navigation
+-- Trigger : bloquer event_items sur lot rétention
+CREATE OR REPLACE FUNCTION public.block_retention_in_events() ...
+CREATE TRIGGER ... BEFORE INSERT OR UPDATE ON event_items ...
 
-Rapport final structuré fourni à la fin.
+-- RPC close_event(...)
+```
+
+**Fichiers touchés** :
+- `src/routes/_authenticated/inventory.tsx` — filtre kind, badge rétention
+- `src/routes/_authenticated/inventory_.$id.tsx` — affichage calcul
+- `src/routes/_authenticated/dashboard.tsx` — stock total + split sample/rétention
+- `src/routes/_authenticated/batches_.new.tsx` + `batches_.$id.tsx` — label poids humide
+- `src/components/batches/steps/curing-step.tsx` — validation ≤ poids humide
+- `src/routes/_authenticated/events_.new.tsx` + `events.tsx` — types réduits
+- `src/components/events/event-items-section.tsx` — direction out, sacs dispo
+- `src/routes/_authenticated/events_.$id.tsx` — bouton clôture + dialog
+- Nouveau : `src/components/events/close-event-dialog.tsx`
+- `src/routes/_authenticated/stamps.tsx` — tabs
+- Nouveau : `src/components/stamps/packaging-runs-section.tsx`
+- Packaging Bulk : les échantillons créés doivent poser `lot_kind` selon leur type
+
+## Ordre d'exécution
+
+1. Lancer la migration SQL (approbation utilisateur).
+2. Après approbation, éditer tous les fichiers frontend en parallèle.
+3. Vérifier avec `tsgo` puis screenshot Playwright des pages clés.
+
+## Points non couverts (à confirmer si besoin)
+
+- PDF de rapport de batch, photos Storage, rapports mensuels — reportés (P5–P7).
