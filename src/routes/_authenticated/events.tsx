@@ -165,7 +165,7 @@ function EventsPage() {
                 .select("id, lot_number")
                 .in(
                   "id",
-                  Array.from(new Set((items ?? []).map((i) => i.lot_id).filter(Boolean))) as string[],
+                  Array.from(new Set((items ?? []).map((i) => i.inventory_lot_id).filter(Boolean))) as string[],
                 );
               const lotMap = new Map((lots ?? []).map((l) => [l.id, l.lot_number]));
               const itemsByEvent = new Map<string, typeof items>();
@@ -205,16 +205,15 @@ function EventsPage() {
                     return {
                       Événement: ev?.event_number ?? "",
                       "Type événement": typeLabel(ev?.event_type ?? null),
-                      Direction: i.direction,
-                      Lot: i.lot_id ? lotMap.get(i.lot_id) ?? "" : "",
+                      Direction: i.direction ?? "",
+                      Lot: i.inventory_lot_id ? lotMap.get(i.inventory_lot_id) ?? "" : "",
                       "Quantité (g)": i.quantity_grams ?? "",
                       Unités: i.units ?? "",
-                      Note: i.note ?? "",
-                      "Date": fmtDate(i.created_at),
                     };
                   }),
                 },
               ]);
+
             }}
           >
             <Download className="mr-1 h-4 w-4" /> Exporter Excel
