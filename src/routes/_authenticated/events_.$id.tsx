@@ -222,7 +222,7 @@ function EventDetailPage() {
         </CardContent>
       </Card>
 
-      <EventItemsSection eventId={event.id} />
+      <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       <EditEventDialog
         key={event.id}
