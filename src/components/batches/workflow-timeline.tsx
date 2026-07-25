@@ -480,6 +480,7 @@ export function WorkflowTimeline({
                 if (step.code === "curing") askFinishCuring();
                 else {
                   setFinishEndedAt(toLocalDatetimeInput(new Date()));
+                  setFinishConfirmed(false);
                   setConfirmFinish(step);
                 }
               }}
