@@ -201,8 +201,8 @@ function Dashboard() {
           .not("parent_lot_id", "is", null),
         supabase
           .from("inventory_lots")
-          .select("quantity_grams")
-          .eq("product_type", "sample")
+          .select("quantity_grams, lot_kind" as any)
+          .in("lot_kind" as any, ["sample", "retention"])
           .eq("status", "available"),
         supabase
           .from("excise_reels")
