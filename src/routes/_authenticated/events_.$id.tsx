@@ -348,7 +348,7 @@ function EventDetailPage() {
             <AlertDialogTitle>Supprimer cet événement ?</AlertDialogTitle>
             <AlertDialogDescription>
               Cette action est définitive. Elle n'est possible que si
-              l'événement ne contient aucun mouvement de stock.
+              l'événement ne contient aucun mouvement de stock ni de timbres.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
