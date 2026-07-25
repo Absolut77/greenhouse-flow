@@ -110,19 +110,21 @@ export function PackagedLotsSection({
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
-    const { error } = await supabase
-      .from("inventory_lots")
-      .delete()
-      .eq("id", toDelete.id);
+    const { error } = await supabase.rpc("delete_packaged_lot", {
+      _lot_id: toDelete.id,
+    });
     setDeleting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(`Suppression bloquée : ${error.message}`);
       return;
     }
-    toast.success("Lot fini supprimé");
+    toast.success(
+      `Lot fini supprimé — ${toDelete.quantity_grams ?? 0} g restitué(s) au lot source`,
+    );
     setToDelete(null);
     load();
   };
+
 
   return (
     <Card>
@@ -142,10 +144,11 @@ export function PackagedLotsSection({
         {locked && (
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
             <Lock className="h-4 w-4" />
-            Événement verrouillé — les lots finis ne peuvent plus être créés
-            ou supprimés.
+            L'événement doit être « Ouvert » pour créer ou supprimer des lots
+            finis.
           </div>
         )}
+
         {!locked && sourceItems.length === 0 && (
           <p className="text-sm italic text-muted-foreground">
             Ajoute d'abord un item bulk en sortie (direction « Sortie ») pour
@@ -196,8 +199,19 @@ export function PackagedLotsSection({
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {source ? source.lot_number : "—"}
+                        {source ? (
+                          <Link
+                            to="/inventory/$id"
+                            params={{ id: source.id }}
+                            className="inline-flex items-center gap-1 hover:underline"
+                          >
+                            ← {source.lot_number}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
+
                       <TableCell>{l.format ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {l.quantity_grams ?? "—"}
@@ -246,8 +260,21 @@ export function PackagedLotsSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce lot fini ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Le lot d'inventaire sera supprimé. Le stock du lot source n'est
-              pas restitué automatiquement — ajuste l'item bulk si nécessaire.
+              {toDelete && (
+                <>
+                  Supprimer ce lot va restituer{" "}
+                  <span className="font-medium text-foreground">
+                    {toDelete.quantity_grams ?? 0} g
+                  </span>{" "}
+                  au lot source{" "}
+                  <span className="font-medium text-foreground">
+                    {toDelete.parent_lot_id
+                      ? sourceLots[toDelete.parent_lot_id]?.lot_number ?? "—"
+                      : "—"}
+                  </span>
+                  . Continuer ?
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -259,6 +286,7 @@ export function PackagedLotsSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </Card>
   );
 }
@@ -442,14 +470,36 @@ function PackagedLotDialog({
               </SelectContent>
             </Select>
             {selectedSourceLot && (
-              <p className="text-xs text-muted-foreground">
-                Sorti : <span className="font-medium">{totalOutForSource} g</span>{" "}
-                • Déjà packagé :{" "}
-                <span className="font-medium">{alreadyPackaged} g</span> •
-                Restant :{" "}
-                <span className="font-medium">{remaining} g</span>
-              </p>
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>
+                    Sorti :{" "}
+                    <span className="font-medium text-foreground">
+                      {totalOutForSource} g
+                    </span>
+                  </span>
+                  <span>
+                    Déjà packagé :{" "}
+                    <span className="font-medium text-foreground">
+                      {alreadyPackaged} g
+                    </span>
+                  </span>
+                  <span>
+                    Restant packagable :{" "}
+                    <span
+                      className={
+                        remaining > 0
+                          ? "font-semibold text-primary"
+                          : "font-semibold text-destructive"
+                      }
+                    >
+                      {remaining} g
+                    </span>
+                  </span>
+                </div>
+              </div>
             )}
+
           </div>
           <div className="grid gap-2">
             <Label>Format *</Label>
