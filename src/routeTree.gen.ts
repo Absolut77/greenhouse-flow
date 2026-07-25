@@ -18,6 +18,8 @@ import { Route as AuthenticatedInventoryRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticated/batches'
+import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
+import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -63,6 +65,16 @@ const AuthenticatedBatchesRoute = AuthenticatedBatchesRouteImport.update({
   path: '/batches',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBatchesNewRoute = AuthenticatedBatchesNewRouteImport.update({
+  id: '/batches_/new',
+  path: '/batches/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
+  id: '/batches_/$id',
+  path: '/batches/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +85,8 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamps': typeof AuthenticatedStampsRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRoute
+  '/batches/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,6 +97,8 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stamps': typeof AuthenticatedStampsRoute
+  '/batches/$id': typeof AuthenticatedBatchesIdRoute
+  '/batches/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,6 +111,8 @@ export interface FileRoutesById {
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stamps': typeof AuthenticatedStampsRoute
+  '/_authenticated/batches_/$id': typeof AuthenticatedBatchesIdRoute
+  '/_authenticated/batches_/new': typeof AuthenticatedBatchesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,6 +125,8 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/stamps'
+    | '/batches/$id'
+    | '/batches/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -117,6 +137,8 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/stamps'
+    | '/batches/$id'
+    | '/batches/new'
   id:
     | '__root__'
     | '/'
@@ -128,6 +150,8 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory'
     | '/_authenticated/settings'
     | '/_authenticated/stamps'
+    | '/_authenticated/batches_/$id'
+    | '/_authenticated/batches_/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -201,6 +225,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/batches_/new': {
+      id: '/_authenticated/batches_/new'
+      path: '/batches/new'
+      fullPath: '/batches/new'
+      preLoaderRoute: typeof AuthenticatedBatchesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/batches_/$id': {
+      id: '/_authenticated/batches_/$id'
+      path: '/batches/$id'
+      fullPath: '/batches/$id'
+      preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -211,6 +249,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStampsRoute: typeof AuthenticatedStampsRoute
+  AuthenticatedBatchesIdRoute: typeof AuthenticatedBatchesIdRoute
+  AuthenticatedBatchesNewRoute: typeof AuthenticatedBatchesNewRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -220,6 +260,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStampsRoute: AuthenticatedStampsRoute,
+  AuthenticatedBatchesIdRoute: AuthenticatedBatchesIdRoute,
+  AuthenticatedBatchesNewRoute: AuthenticatedBatchesNewRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
