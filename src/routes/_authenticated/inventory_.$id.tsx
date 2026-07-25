@@ -231,6 +231,8 @@ function LotDetailPage() {
         </CardContent>
       </Card>
 
+      {lot.batch_id && <PackagingBagsSection batchId={lot.batch_id} />}
+
       <EditLotDialog
         key={lot.id}
         lot={lot}
