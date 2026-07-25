@@ -284,42 +284,49 @@ export function WorkflowTimeline({
     return true;
   };
 
-  const startNext = async (currentCode: StageCode) => {
+  const startNext = async (currentCode: StageCode, startedAt: string) => {
     const idx = STAGE_ORDER.indexOf(currentCode);
     const nextCode = STAGE_ORDER[idx + 1];
     if (!nextCode) return;
     const nextRow = findStage(stages ?? [], nextCode);
     await upsertStage(nextCode, nextRow, {
       status: "in_progress",
-      started_at: nextRow?.started_at ?? new Date().toISOString(),
+      started_at: startedAt,
       ended_at: null,
     } as any);
   };
 
-  const finishStage = async (step: WorkflowStep) => {
+  const finishStage = async (step: WorkflowStep, endedAtIso?: string) => {
     setBusy(step.code);
+    const startedAt = step.row?.started_at ?? new Date().toISOString();
+    const endedAt = endedAtIso ?? new Date().toISOString();
+    if (new Date(endedAt).getTime() < new Date(startedAt).getTime()) {
+      toast.error("La date de fin ne peut pas être antérieure à la date de début.");
+      setBusy(null);
+      return;
+    }
     if (step.code === "bulk_packaging") {
       const ok = await finalizeBulkPackaging(step);
       if (!ok) { setBusy(null); return; }
     }
     const updated = await upsertStage(step.code, step.row, {
       status: "done",
-      started_at: step.row?.started_at ?? new Date().toISOString(),
-      ended_at: new Date().toISOString(),
+      started_at: startedAt,
+      ended_at: endedAt,
     } as any);
     if (!updated) { setBusy(null); return; }
 
     if (step.code === "bulk_packaging") {
       const { error } = await supabase
         .from("batches")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .update({ status: "closed", closed_at: endedAt })
         .eq("id", batchId);
       if (error) toast.error(error.message);
       else toast.success("Bulk Packaging validé — batch fermée.");
       onBatchClosed?.();
     } else {
       toast.success(`${step.label} terminée — étape suivante démarrée.`);
-      await startNext(step.code);
+      await startNext(step.code, endedAt);
     }
     setBusy(null);
     await load();
