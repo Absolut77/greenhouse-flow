@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Loader2, FileText, ChevronDown, ChevronRight, Sparkles, Skull } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PhotoThumbs } from "@/components/batches/photo-uploader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
