@@ -54,6 +54,14 @@ export const EVENT_TYPES = [
   { value: "transfer", label: "Transfert" },
 ];
 
+// Types créables manuellement depuis /events/new (les autres passent par
+// leurs flux dédiés — /receptions/new, /shipments/new, workflow batch, etc.).
+export const CREATABLE_EVENT_TYPES = [
+  { value: "packaging", label: "Packaging" },
+  { value: "destruction", label: "Destruction" },
+  { value: "rework", label: "Rework" },
+];
+
 export const RECEPTION_KINDS = [
   { value: "cannabis_bulk", label: "Cannabis bulk" },
   { value: "cannabis_batch", label: "Nouvelle batch cannabis" },

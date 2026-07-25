@@ -119,7 +119,7 @@ function NewBatchPage() {
               <Input id="plant_count" type="number" min="0" value={form.plant_count} onChange={update("plant_count")} />
             </div>
             <div>
-              <Label htmlFor="total_harvest_weight">Poids total de la récolte (g)</Label>
+              <Label htmlFor="total_harvest_weight">Poids total de la récolte humide (g)</Label>
               <Input
                 id="total_harvest_weight"
                 type="number"

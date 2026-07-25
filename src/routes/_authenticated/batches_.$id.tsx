@@ -305,7 +305,7 @@ function BatchDetailPage() {
           <Info label="Strain" value={batch.strain} />
           <Info label="Nombre de plants" value={batch.plant_count?.toString()} />
           <Info
-            label="Poids total de la récolte (g)"
+            label="Poids total de la récolte humide (g)"
             value={batch.weight_per_plant?.toString()}
           />
           <Info
@@ -483,7 +483,7 @@ function EditBatchDialog({
               />
             </div>
             <div>
-              <Label>Poids total de la récolte (g)</Label>
+              <Label>Poids total de la récolte humide (g)</Label>
               <Input
                 type="number"
                 step="0.01"
