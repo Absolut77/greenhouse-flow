@@ -5,15 +5,6 @@ import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +35,6 @@ import {
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
 
-const NONE = "__none__";
 
 export const Route = createFileRoute("/_authenticated/inventory_/$id")({
   head: () => ({ meta: [{ title: "Lot — ONO Cannabis" }] }),
