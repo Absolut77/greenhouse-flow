@@ -96,6 +96,8 @@ export function ContainersSection({
   const { roles } = useAuth();
   const readOnly = roles.length > 0 && roles.every((r) => r === "viewer");
 
+  const { formats: allFormats } = usePackagingFormats(false);
+  const formatMap = indexFormats(allFormats);
   const [containers, setContainers] = useState<StockContainer[] | null>(null);
   const [cartons, setCartons] = useState<StockCarton[]>([]);
   const [editing, setEditing] = useState<StockContainer | null>(null);
@@ -453,6 +455,22 @@ function ContainerDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Format de packaging</Label>
+            <Select value={formatId} onValueChange={applyFormat}>
+              <SelectTrigger>
+                <SelectValue placeholder="Aucun / vrac" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                {formats.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name} ({formatNetGrams(f)} g)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label>Master Case</Label>
