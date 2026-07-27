@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
-import { formatZonedDate } from "@/lib/dates";
+
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
