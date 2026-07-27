@@ -180,6 +180,7 @@ export function EventItemsSection({
               <TableHeader>
                 <TableRow>
                   <TableHead>Lot</TableHead>
+                  <TableHead>Sac</TableHead>
                   <TableHead>Quantité (g)</TableHead>
                   <TableHead>Unités</TableHead>
                   <TableHead>Direction</TableHead>
@@ -191,10 +192,23 @@ export function EventItemsSection({
               <TableBody>
                 {items.map((it) => {
                   const lot = it.inventory_lot_id ? lotMap[it.inventory_lot_id] : null;
+                  const container = (it as any).container_id
+                    ? containerMap[(it as any).container_id]
+                    : null;
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="font-medium">
                         {lot ? lot.lot_number : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {container ? (
+                          <span>
+                            {container.container_code} ·{" "}
+                            {containerTypeLabel(container.container_type)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>{it.quantity_grams ?? "—"}</TableCell>
                       <TableCell>{it.units ?? "—"}</TableCell>
