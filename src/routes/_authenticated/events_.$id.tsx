@@ -46,6 +46,7 @@ import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
 import { useAuth } from "@/hooks/use-auth";
+import { formatZonedDate, formatZonedDateTime } from "@/lib/dates";
 
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
@@ -244,7 +245,7 @@ function EventDetailPage() {
             <EventStatusBadge status={event.status} />
             <span>{typeLabel}</span>
             <span>
-              Créé le {new Date(event.created_at).toLocaleDateString("fr-CA")}
+              Créé le {formatZonedDate(event.created_at)}
             </span>
           </div>
         </div>
@@ -327,7 +328,7 @@ function EventDetailPage() {
           </Info>
           <Info label="Complété le">
             {event.completed_at
-              ? new Date(event.completed_at).toLocaleString("fr-CA")
+              ? formatZonedDateTime(event.completed_at)
               : "—"}
           </Info>
           <Info label="Créé par">
@@ -416,7 +417,7 @@ function EventDetailPage() {
               />
               {event?.created_at && (
                 <p className="text-xs text-muted-foreground">
-                  Créé le {new Date(event.created_at).toLocaleString("fr-CA")}
+                  Créé le {formatZonedDateTime(event.created_at)}
                 </p>
               )}
             </div>

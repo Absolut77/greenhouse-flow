@@ -27,6 +27,7 @@ import {
   type CartonDraft,
 } from "@/components/inventory/carton-builder";
 import { Switch } from "@/components/ui/switch";
+import { formatZonedDate } from "@/lib/dates";
 
 type Batch = Tables<"batches">;
 type EventRow = Tables<"events">;
@@ -840,7 +841,7 @@ function NewReceptionPage() {
                     <SelectItem value={NONE}>—</SelectItem>
                     {shipmentEvents.map((e) => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.event_number} — {new Date(e.created_at).toLocaleDateString("fr-CA")}
+                        {e.event_number} — {formatZonedDate(e.created_at)}
                       </SelectItem>
                     ))}
                   </SelectContent>

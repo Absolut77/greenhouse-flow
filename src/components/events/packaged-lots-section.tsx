@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/use-auth";
+import { formatZonedDate } from "@/lib/dates";
 
 type Lot = Tables<"inventory_lots">;
 type EventItem = Tables<"event_items">;
@@ -220,7 +221,7 @@ export function PackagedLotsSection({
                         {l.units ?? "—"}
                       </TableCell>
                       <TableCell>
-                        {new Date(l.created_at).toLocaleDateString("fr-CA")}
+                        {formatZonedDate(l.created_at)}
                       </TableCell>
                       {!readOnly && (
                         <TableCell className="text-right">

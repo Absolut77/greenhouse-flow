@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { ContainersSection } from "@/components/inventory/containers-section";
 import {
+import { formatZonedDate } from "@/lib/dates";
   LotStatusBadge,
   PRODUCT_TYPES,
   FLOWER_SIZES,
@@ -167,7 +168,7 @@ function LotDetailPage() {
           <h1 className="text-2xl font-semibold">{lot.lot_number}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <LotStatusBadge status={lot.status} />
-            <span>Créé le {new Date(lot.created_at).toLocaleDateString("fr-CA")}</span>
+            <span>Créé le {formatZonedDate(lot.created_at)}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

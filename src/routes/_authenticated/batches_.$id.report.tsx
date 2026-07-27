@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { formatZonedDateTime } from "@/lib/dates";
 
 export const Route = createFileRoute("/_authenticated/batches_/$id/report")({
   component: BatchReport,
@@ -15,7 +16,7 @@ function fmt(v: any) {
 }
 function fmtDate(v: any) {
   if (!v) return "—";
-  try { return new Date(v).toLocaleString("fr-CA"); } catch { return "—"; }
+  try { return formatZonedDateTime(v); } catch { return "—"; }
 }
 
 function BatchReport() {
@@ -88,7 +89,7 @@ function BatchReport() {
             <p className="text-sm text-muted-foreground print:text-gray-600">Variété : {fmt(batch.strain)}</p>
           </div>
           <div className="text-right text-xs text-muted-foreground print:text-gray-600">
-            <div>Généré le {new Date().toLocaleString("fr-CA")}</div>
+            <div>Généré le {formatZonedDateTime()}</div>
             <div>Statut : {batch.status}</div>
           </div>
         </header>

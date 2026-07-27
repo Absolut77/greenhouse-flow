@@ -28,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatDateOnly, formatZonedDate } from "@/lib/dates";
 
 type Batch = Tables<"batches">;
 
@@ -226,14 +227,14 @@ function BatchesPage() {
                 <TableCell>{b.strain ?? "—"}</TableCell>
                 <TableCell>
                   {b.harvest_date
-                    ? new Date(b.harvest_date).toLocaleDateString("fr-CA")
+                    ? formatDateOnly(b.harvest_date)
                     : "—"}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={b.status} />
                 </TableCell>
                 <TableCell>
-                  {new Date(b.created_at).toLocaleDateString("fr-CA")}
+                  {formatZonedDate(b.created_at)}
                 </TableCell>
               </TableRow>
             ))}
