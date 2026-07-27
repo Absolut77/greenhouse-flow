@@ -44,6 +44,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   containerTypeLabel,
   fetchContainersForLots,
+  isBlockedContainer,
   fmtG,
   isUsableContainer,
   type StockContainer,
@@ -370,8 +371,12 @@ function ItemDialog({
 
   const selectedLot = currentLot;
   const editingContainerId = (editing as any)?.container_id ?? null;
-  const containerChoices = containers.filter(
-    (c) => isUsableContainer(c) || c.id === editingContainerId,
+  // On a return (direction "in") an emptied bag must stay selectable so stock can
+  // be reintegrated into the exact bag it left from. Retention stays blocked.
+  const containerChoices = containers.filter((c) =>
+    direction === "in"
+      ? !isBlockedContainer(c) || c.id === editingContainerId
+      : isUsableContainer(c) || c.id === editingContainerId,
   );
   const selectedContainer =
     containerId !== NO_CONTAINER ? containers.find((c) => c.id === containerId) ?? null : null;

@@ -37,7 +37,7 @@ export const emptyBag = (i: number, type = "bulk"): BagDraft => ({
 });
 
 export const emptyCarton = (i: number, type = "bulk"): CartonDraft => ({
-  code: `CARTON-${i}`,
+  code: `MC-${i}`,
   location: "",
   bags: [emptyBag(1, type)],
 });
@@ -123,7 +123,7 @@ export function CartonBuilder({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Boxes className="h-4 w-4" /> Cartons &amp; sacs reçus
+          <Boxes className="h-4 w-4" /> Master Cases &amp; sacs reçus
         </div>
         <Button
           type="button"
@@ -131,13 +131,13 @@ export function CartonBuilder({
           variant="outline"
           onClick={() => onChange([...cartons, emptyCarton(cartons.length + 1, defaultType)])}
         >
-          <Plus className="mr-1 h-4 w-4" /> Ajouter un carton
+          <Plus className="mr-1 h-4 w-4" /> Ajouter un Master Case
         </Button>
       </div>
 
       {cartons.length === 0 && (
         <p className="text-sm italic text-muted-foreground">
-          Aucun carton : la réception sera enregistrée en un seul sac global.
+          Aucun Master Case : la réception sera enregistrée en un seul sac global.
         </p>
       )}
 
@@ -147,7 +147,7 @@ export function CartonBuilder({
           <div key={ci} className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div className="grid gap-1.5">
-                <Label className="text-xs">Identifiant du carton</Label>
+                <Label className="text-xs">Identifiant du Master Case</Label>
                 <Input
                   value={c.code}
                   onChange={(e) => patchCarton(ci, { code: e.target.value })}
