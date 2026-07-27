@@ -76,13 +76,15 @@ export type CartonDraft = {
   bags: BagDraft[];
 };
 
+export const defaultWeightForType = (type: string) => (type === "bulk" ? "1000" : "");
+
 export const emptyBag = (i: number, type = "bulk"): BagDraft => ({
   code: String(i),
   type,
   copies: "1",
   units: "1",
   unitWeight: "",
-  weight: "",
+  weight: defaultWeightForType(type),
   gross: "",
   formatId: NO_FORMAT,
   flowerSize: NO_SIZE,
@@ -321,7 +323,15 @@ export function CartonBuilder({
                     </div>
                     <div className="grid w-40 gap-1.5">
                       <Label className="text-xs">Type</Label>
-                      <Select value={b.type} onValueChange={(v) => patchBag(ci, bi, { type: v })}>
+                      <Select
+                        value={b.type}
+                        onValueChange={(v) =>
+                          patchBag(ci, bi, {
+                            type: v,
+                            weight: v === "bulk" && !b.weight.trim() ? "1000" : b.weight,
+                          })
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
