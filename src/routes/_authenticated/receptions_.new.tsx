@@ -382,11 +382,20 @@ function NewReceptionPage() {
         if (linkedShipmentId === NONE) {
           throw new Error("Sélectionner l'expédition d'origine");
         }
-        const hasReceived = varianceLines.some(
-          (l) => Number(l.received_grams) > 0 || Number(l.received_units) > 0
-        );
-        if (!hasReceived) throw new Error("Saisir les quantités reçues");
+        if (subMode) {
+          const t = cartonTotals(subCartons);
+          if (t.bags === 0 || t.grams <= 0)
+            throw new Error("Saisissez au moins un sac reçu avec un poids > 0");
+          if (subBatchId === NEW_SUB && !subNumber.trim())
+            throw new Error("Numéro de sous-batch requis (ex: NU001)");
+        } else {
+          const hasReceived = varianceLines.some(
+            (l) => Number(l.received_grams) > 0 || Number(l.received_units) > 0
+          );
+          if (!hasReceived) throw new Error("Saisir les quantités reçues");
+        }
       }
+
 
       // --- Create the event ---
       const completedAt = new Date(`${receivedDate}T12:00:00`).toISOString();
