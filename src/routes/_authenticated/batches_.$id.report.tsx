@@ -89,7 +89,7 @@ function BatchReport() {
             <p className="text-sm text-muted-foreground print:text-gray-600">Variété : {fmt(batch.strain)}</p>
           </div>
           <div className="text-right text-xs text-muted-foreground print:text-gray-600">
-            <div>Généré le {formatZonedDateTime()}</div>
+            <div>Généré le {formatZonedDateTime(new Date().toISOString())}</div>
             <div>Statut : {batch.status}</div>
           </div>
         </header>
