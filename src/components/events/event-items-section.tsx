@@ -68,6 +68,8 @@ export function EventItemsSection({
   const locked = eventStatus === "completed" || eventStatus === "cancelled";
   const readOnly = isViewerOnly || locked;
 
+  const { formats: allFormats } = usePackagingFormats(false);
+  const formatMap = indexFormats(allFormats);
   const [items, setItems] = useState<EventItem[] | null>(null);
   const [availableLots, setAvailableLots] = useState<Lot[]>([]);
   const [lotMap, setLotMap] = useState<Record<string, Lot>>({});
@@ -320,6 +322,8 @@ function ItemDialog({
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
+  const { formats: dlgFormats } = usePackagingFormats(false);
+  const dlgFormatMap = indexFormats(dlgFormats);
   const [lotId, setLotId] = useState("");
   const [containerId, setContainerId] = useState<string>(NO_CONTAINER);
   const [containers, setContainers] = useState<StockContainer[]>([]);
