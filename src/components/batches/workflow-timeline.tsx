@@ -376,14 +376,33 @@ export function WorkflowTimeline({
     if (!updated) { setBusy(null); return; }
 
     if (step.code === "bulk_packaging") {
+      // Verrouille le plafond de stock = poids sec total réellement packagé
+      // (tous les sacs de l'étape : bulk, trim, samples, lab samples, rétention…)
+      const { data: allBags } = await (supabase as any)
+        .from("packaging_bags")
+        .select("net_weight_grams,bag_count")
+        .eq("batch_id", batchId);
+      const dryCap = ((allBags ?? []) as any[]).reduce(
+        (s, b) => s + Number(b.net_weight_grams ?? 0) * Number(b.bag_count ?? 0),
+        0,
+      );
       const { error } = await supabase
         .from("batches")
-        .update({ status: "closed", closed_at: endedAt })
+        .update({
+          status: "closed",
+          closed_at: endedAt,
+          dry_cap_grams: dryCap,
+          dry_cap_locked_at: endedAt,
+        } as any)
         .eq("id", batchId);
       if (error) toast.error(error.message);
-      else toast.success("Bulk Packaging validé — batch fermée.");
+      else
+        toast.success(
+          `Bulk Packaging validé — batch fermée. Plafond de stock verrouillé à ${dryCap.toFixed(2)} g.`,
+        );
       onBatchClosed?.();
     } else {
+
       toast.success(`${step.label} terminée — étape suivante démarrée.`);
       await startNext(step.code, endedAt);
     }
@@ -415,9 +434,14 @@ export function WorkflowTimeline({
     }
     // If batch was closed, reopen it
     if (batch.status === "closed") {
-      await supabase.from("batches").update({ status: "in_progress", closed_at: null }).eq("id", batchId);
+      // Réouverture : le plafond de stock sec est déverrouillé (il sera recalculé à la clôture)
+      await supabase
+        .from("batches")
+        .update({ status: "in_progress", closed_at: null, dry_cap_grams: null, dry_cap_locked_at: null } as any)
+        .eq("id", batchId);
       onBatchClosed?.();
     }
+
     setBusy(null);
     setConfirmRevert(null);
     await load();

@@ -324,6 +324,29 @@ function BatchDetailPage() {
             label="Créée le"
             value={formatZonedDateTime(batch.created_at)}
           />
+          <div className="sm:col-span-2 rounded-md border p-3">
+            <div className="text-xs uppercase text-muted-foreground">
+              Plafond de stock (poids sec bulk packaging)
+            </div>
+            {(batch as any).dry_cap_grams != null ? (
+              <>
+                <div className="text-lg font-semibold text-emerald-400">
+                  {Number((batch as any).dry_cap_grams).toFixed(2)} g
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Verrouillé le {formatZonedDateTime((batch as any).dry_cap_locked_at)}. L'inventaire total
+                  rattaché à cette batch ne peut jamais dépasser ce poids (le poids humide de récolte n'est
+                  pas un plafond).
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Non verrouillé — sera calculé à la clôture du Bulk Packaging (somme de tous les sacs secs
+                créés : bulk, trim, samples, laboratory samples, rétention).
+              </p>
+            )}
+          </div>
+
         </CardContent>
       </Card>
 

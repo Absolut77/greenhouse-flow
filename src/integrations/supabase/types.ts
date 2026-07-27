@@ -115,6 +115,8 @@ export type Database = {
           closed_at: string | null
           created_at: string
           created_by: string | null
+          dry_cap_grams: number | null
+          dry_cap_locked_at: string | null
           drying_location: string | null
           external_processor: string | null
           harvest_date: string | null
@@ -131,6 +133,8 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          dry_cap_grams?: number | null
+          dry_cap_locked_at?: string | null
           drying_location?: string | null
           external_processor?: string | null
           harvest_date?: string | null
@@ -147,6 +151,8 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          dry_cap_grams?: number | null
+          dry_cap_locked_at?: string | null
           drying_location?: string | null
           external_processor?: string | null
           harvest_date?: string | null
