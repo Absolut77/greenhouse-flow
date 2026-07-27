@@ -33,6 +33,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsIdRouteImport } from './routes/_authenticated/events_.$id'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
 import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
+import { Route as AuthenticatedInventoryIdEditRouteImport } from './routes/_authenticated/inventory_.$id.edit'
 import { Route as AuthenticatedBatchesIdReportRouteImport } from './routes/_authenticated/batches_.$id.report'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -160,6 +161,12 @@ const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
   path: '/batches/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInventoryIdEditRoute =
+  AuthenticatedInventoryIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedInventoryIdRoute,
+  } as any)
 const AuthenticatedBatchesIdReportRoute =
   AuthenticatedBatchesIdReportRouteImport.update({
     id: '/report',
@@ -183,7 +190,7 @@ export interface FileRoutesByFullPath {
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
-  '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/$id': typeof AuthenticatedInventoryIdRouteWithChildren
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -209,7 +217,7 @@ export interface FileRoutesByTo {
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
-  '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/$id': typeof AuthenticatedInventoryIdRouteWithChildren
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -237,7 +246,7 @@ export interface FileRoutesById {
   '/_authenticated/batches_/new': typeof AuthenticatedBatchesNewRoute
   '/_authenticated/events_/$id': typeof AuthenticatedEventsIdRoute
   '/_authenticated/events_/new': typeof AuthenticatedEventsNewRoute
-  '/_authenticated/inventory_/$id': typeof AuthenticatedInventoryIdRoute
+  '/_authenticated/inventory_/$id': typeof AuthenticatedInventoryIdRouteWithChildren
   '/_authenticated/inventory_/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/receptions_/new': typeof AuthenticatedReceptionsNewRoute
   '/_authenticated/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -246,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
   '/_authenticated/batches_/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/_authenticated/inventory_/$id/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/stamps/$id'
     | '/stamps/new'
     | '/batches/$id/report'
+    | '/inventory/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/stamps/$id'
     | '/stamps/new'
     | '/batches/$id/report'
+    | '/inventory/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stamps_/$id'
     | '/_authenticated/stamps_/new'
     | '/_authenticated/batches_/$id/report'
+    | '/_authenticated/inventory_/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -506,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory_/$id/edit': {
+      id: '/_authenticated/inventory_/$id/edit'
+      path: '/edit'
+      fullPath: '/inventory/$id/edit'
+      preLoaderRoute: typeof AuthenticatedInventoryIdEditRouteImport
+      parentRoute: typeof AuthenticatedInventoryIdRoute
+    }
     '/_authenticated/batches_/$id/report': {
       id: '/_authenticated/batches_/$id/report'
       path: '/report'
@@ -545,6 +565,20 @@ const AuthenticatedBatchesIdRouteWithChildren =
     AuthenticatedBatchesIdRouteChildren,
   )
 
+interface AuthenticatedInventoryIdRouteChildren {
+  AuthenticatedInventoryIdEditRoute: typeof AuthenticatedInventoryIdEditRoute
+}
+
+const AuthenticatedInventoryIdRouteChildren: AuthenticatedInventoryIdRouteChildren =
+  {
+    AuthenticatedInventoryIdEditRoute: AuthenticatedInventoryIdEditRoute,
+  }
+
+const AuthenticatedInventoryIdRouteWithChildren =
+  AuthenticatedInventoryIdRoute._addFileChildren(
+    AuthenticatedInventoryIdRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
   AuthenticatedBatchesRoute: typeof AuthenticatedBatchesRoute
@@ -558,7 +592,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBatchesNewRoute: typeof AuthenticatedBatchesNewRoute
   AuthenticatedEventsIdRoute: typeof AuthenticatedEventsIdRoute
   AuthenticatedEventsNewRoute: typeof AuthenticatedEventsNewRoute
-  AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
+  AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRouteWithChildren
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedReceptionsNewRoute: typeof AuthenticatedReceptionsNewRoute
   AuthenticatedShipmentsNewRoute: typeof AuthenticatedShipmentsNewRoute
@@ -579,7 +613,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBatchesNewRoute: AuthenticatedBatchesNewRoute,
   AuthenticatedEventsIdRoute: AuthenticatedEventsIdRoute,
   AuthenticatedEventsNewRoute: AuthenticatedEventsNewRoute,
-  AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
+  AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRouteWithChildren,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedReceptionsNewRoute: AuthenticatedReceptionsNewRoute,
   AuthenticatedShipmentsNewRoute: AuthenticatedShipmentsNewRoute,

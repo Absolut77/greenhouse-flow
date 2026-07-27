@@ -187,9 +187,12 @@ function LotDetailPage() {
               <SelectItem value="destroyed">Détruit</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="mr-1 h-4 w-4" /> Modifier
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/inventory/$id/edit" params={{ id: lot.id }}>
+              <Pencil className="mr-1 h-4 w-4" /> Modifier
+            </Link>
           </Button>
+
           <Button
             variant="outline"
             size="sm"
