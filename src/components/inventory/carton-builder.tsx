@@ -18,6 +18,35 @@ import {
 } from "@/lib/packaging-formats";
 
 export const NO_FORMAT = "__no_format__";
+const NO_SIZE = "__no_size__";
+
+/** Tailles de fleur (miroir de FLOWER_SIZES côté inventaire). */
+const FLOWER_SIZES = [
+  { value: "big", label: "Big" },
+  { value: "medium", label: "Medium" },
+  { value: "small", label: "Small" },
+  { value: "hand_trim", label: "Hand Trim" },
+  { value: "mix", label: "Mix" },
+];
+
+/** Types saisis en poids simple (pas de format / unités). */
+const SIMPLE_TYPES = ["bulk", "trim", "sample", "lab_sample", "retention", "other"];
+/** Types où la taille de fleur est pertinente. */
+const FLOWER_TYPES = ["bulk", "trim"];
+
+export const isSimpleType = (t: string) => SIMPLE_TYPES.includes(t);
+
+/** A, B, ... Z, AA, AB... */
+export const cartonLetter = (i: number) => {
+  let n = Math.max(i, 1);
+  let s = "";
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+};
 
 export type BagDraft = {
   code: string;
@@ -25,8 +54,11 @@ export type BagDraft = {
   copies: string;
   units: string;
   unitWeight: string;
+  /** Poids net saisi directement (types simples). */
+  weight: string;
   gross: string;
   formatId: string;
+  flowerSize: string;
 };
 
 export type CartonDraft = {
@@ -36,17 +68,19 @@ export type CartonDraft = {
 };
 
 export const emptyBag = (i: number, type = "bulk"): BagDraft => ({
-  code: `SAC-${String(i).padStart(2, "0")}`,
+  code: String(i),
   type,
   copies: "1",
   units: "1",
   unitWeight: "",
+  weight: "",
   gross: "",
   formatId: NO_FORMAT,
+  flowerSize: NO_SIZE,
 });
 
 export const emptyCarton = (i: number, type = "bulk"): CartonDraft => ({
-  code: `MC-${i}`,
+  code: cartonLetter(i),
   location: "",
   bags: [emptyBag(1, type)],
 });
@@ -54,8 +88,11 @@ export const emptyCarton = (i: number, type = "bulk"): CartonDraft => ({
 const num = (v: string) => Number(v) || 0;
 
 export function bagNet(b: BagDraft) {
-  return num(b.units) * num(b.unitWeight);
+  return isSimpleType(b.type) ? num(b.weight) : num(b.units) * num(b.unitWeight);
 }
+
+const bagUnits = (b: BagDraft) => (isSimpleType(b.type) ? 1 : Math.round(num(b.units)));
+const bagCopies = (b: BagDraft) => (isSimpleType(b.type) ? 1 : Math.max(num(b.copies), 0));
 
 export function cartonTotals(cartons: CartonDraft[]) {
   let bags = 0;
@@ -63,9 +100,9 @@ export function cartonTotals(cartons: CartonDraft[]) {
   let grams = 0;
   for (const c of cartons) {
     for (const b of c.bags) {
-      const copies = Math.max(num(b.copies), 0);
+      const copies = bagCopies(b);
       bags += copies;
-      units += copies * num(b.units);
+      units += copies * bagUnits(b);
       grams += copies * bagNet(b);
     }
   }
@@ -84,21 +121,29 @@ export function expandCartons(cartons: CartonDraft[]) {
       gross_weight_grams: number | null;
       location: string | null;
       format_id: string | null;
+      notes: string | null;
     }[] = [];
     let seq = 1;
     for (const b of c.bags) {
-      const copies = Math.max(Math.round(num(b.copies)), 0);
+      const copies = Math.max(Math.round(bagCopies(b)), 0);
+      const net = bagNet(b);
+      const units = bagUnits(b);
+      const sizeLabel =
+        b.flowerSize && b.flowerSize !== NO_SIZE
+          ? (FLOWER_SIZES.find((s) => s.value === b.flowerSize)?.label ?? b.flowerSize)
+          : null;
       for (let i = 0; i < copies; i++) {
-        const suffix = copies > 1 ? `-${String(i + 1).padStart(2, "0")}` : "";
+        const suffix = copies > 1 ? `-${i + 1}` : "";
         bags.push({
-          container_code: `${c.code}/${b.code || `SAC-${seq}`}${suffix}`,
+          container_code: `${c.code}/${b.code || seq}${suffix}`,
           container_type: b.type,
-          unit_count: Math.round(num(b.units)),
-          unit_weight_grams: num(b.unitWeight),
-          net_weight_grams: bagNet(b),
+          unit_count: units,
+          unit_weight_grams: units > 0 ? net / units : net,
+          net_weight_grams: net,
           gross_weight_grams: b.gross.trim() ? num(b.gross) : null,
           location: c.location.trim() || null,
           format_id: b.formatId && b.formatId !== NO_FORMAT ? b.formatId : null,
+          notes: sizeLabel ? `Taille : ${sizeLabel}` : null,
         });
         seq++;
       }
@@ -147,7 +192,7 @@ export function CartonBuilder({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Boxes className="h-4 w-4" /> Master Cases &amp; sacs reçus
+          <Boxes className="h-4 w-4" /> Cartons &amp; sacs
         </div>
         <Button
           type="button"
@@ -155,13 +200,13 @@ export function CartonBuilder({
           variant="outline"
           onClick={() => onChange([...cartons, emptyCarton(cartons.length + 1, defaultType)])}
         >
-          <Plus className="mr-1 h-4 w-4" /> Ajouter un Master Case
+          <Plus className="mr-1 h-4 w-4" /> Ajouter un carton
         </Button>
       </div>
 
       {cartons.length === 0 && (
         <p className="text-sm italic text-muted-foreground">
-          Aucun Master Case : la réception sera enregistrée en un seul sac global.
+          Aucun carton : la saisie sera enregistrée en un seul sac global.
         </p>
       )}
 
@@ -171,10 +216,10 @@ export function CartonBuilder({
           <div key={ci} className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div className="grid gap-1.5">
-                <Label className="text-xs">Identifiant du Master Case</Label>
+                <Label className="text-xs">Carton</Label>
                 <Input
                   value={c.code}
-                  onChange={(e) => patchCarton(ci, { code: e.target.value })}
+                  onChange={(e) => patchCarton(ci, { code: e.target.value.toUpperCase() })}
                 />
               </div>
               <div className="grid gap-1.5">
@@ -182,7 +227,7 @@ export function CartonBuilder({
                 <Input
                   value={c.location}
                   onChange={(e) => patchCarton(ci, { location: e.target.value })}
-                  placeholder="Vault A..."
+                  placeholder="Voute - 155..."
                 />
               </div>
               <Button
@@ -196,113 +241,162 @@ export function CartonBuilder({
             </div>
 
             <div className="space-y-2">
-              {c.bags.map((b, bi) => (
-                <div
-                  key={bi}
-                  className="grid gap-2 rounded-md border border-border/40 bg-background/40 p-2 sm:grid-cols-[1.1fr_0.9fr_1.1fr_0.6fr_0.7fr_0.8fr_0.8fr_auto] sm:items-end"
-                >
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Sac</Label>
-                    <Input value={b.code} onChange={(e) => patchBag(ci, bi, { code: e.target.value })} />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Type</Label>
-                    <Select value={b.type} onValueChange={(v) => patchBag(ci, bi, { type: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONTAINER_TYPES.map((t2) => (
-                          <SelectItem key={t2.value} value={t2.value}>
-                            {t2.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Format</Label>
-                    <Select
-                      value={b.formatId || NO_FORMAT}
-                      onValueChange={(v) => applyFormat(ci, bi, v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_FORMAT}>Aucun / Bulk</SelectItem>
-                        {formats.map((f) => (
-                          <SelectItem key={f.id} value={f.id}>
-                            {f.name} ({formatNetGrams(f)} g)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Nb sacs</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={b.copies}
-                      onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Unités / sac</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={b.units}
-                      onChange={(e) => patchBag(ci, bi, { units: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Poids / unité (g)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={b.unitWeight}
-                      onChange={(e) => patchBag(ci, bi, { unitWeight: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Net / sac (g)</Label>
-                    <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
-                      {fmtG(bagNet(b))}
+              {c.bags.map((b, bi) => {
+                const simple = isSimpleType(b.type);
+                const withSize = FLOWER_TYPES.includes(b.type);
+                return (
+                  <div
+                    key={bi}
+                    className="flex flex-wrap items-end gap-2 rounded-md border border-border/40 bg-background/40 p-2"
+                  >
+                    <div className="grid w-16 gap-1.5">
+                      <Label className="text-xs">Sac</Label>
+                      <Input
+                        value={b.code}
+                        onChange={(e) => patchBag(ci, bi, { code: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid w-40 gap-1.5">
+                      <Label className="text-xs">Type</Label>
+                      <Select value={b.type} onValueChange={(v) => patchBag(ci, bi, { type: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTAINER_TYPES.map((t2) => (
+                            <SelectItem key={t2.value} value={t2.value}>
+                              {t2.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {withSize && (
+                      <div className="grid w-36 gap-1.5">
+                        <Label className="text-xs">Type / taille de fleur</Label>
+                        <Select
+                          value={b.flowerSize || NO_SIZE}
+                          onValueChange={(v) => patchBag(ci, bi, { flowerSize: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_SIZE}>—</SelectItem>
+                            {FLOWER_SIZES.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {simple ? (
+                      <div className="grid w-28 gap-1.5">
+                        <Label className="text-xs">Poids (g)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={b.weight}
+                          onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid w-44 gap-1.5">
+                          <Label className="text-xs">Format</Label>
+                          <Select
+                            value={b.formatId || NO_FORMAT}
+                            onValueChange={(v) => applyFormat(ci, bi, v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Format" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NO_FORMAT}>Aucun / Bulk</SelectItem>
+                              {formats.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.name} ({formatNetGrams(f)} g)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid w-20 gap-1.5">
+                          <Label className="text-xs">Nb sacs</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={b.copies}
+                            onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid w-24 gap-1.5">
+                          <Label className="text-xs">Unités / sac</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={b.units}
+                            onChange={(e) => patchBag(ci, bi, { units: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid w-28 gap-1.5">
+                          <Label className="text-xs">Poids / unité (g)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={b.unitWeight}
+                            onChange={(e) => patchBag(ci, bi, { unitWeight: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="grid w-24 gap-1.5">
+                      <Label className="text-xs">Net / sac (g)</Label>
+                      <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
+                        {fmtG(bagNet(b))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        title="Dupliquer la ligne"
+                        onClick={() =>
+                          patchCarton(ci, {
+                            bags: [
+                              ...c.bags.slice(0, bi + 1),
+                              { ...b, code: String(c.bags.length + 1) },
+                              ...c.bags.slice(bi + 1),
+                            ],
+                          })
+                        }
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={c.bags.length === 1}
+                        onClick={() =>
+                          patchCarton(ci, { bags: c.bags.filter((_, j) => j !== bi) })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      title="Dupliquer la ligne"
-                      onClick={() =>
-                        patchCarton(ci, {
-                          bags: [
-                            ...c.bags.slice(0, bi + 1),
-                            { ...b, code: `${b.code}-B` },
-                            ...c.bags.slice(bi + 1),
-                          ],
-                        })
-                      }
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={c.bags.length === 1}
-                      onClick={() => patchCarton(ci, { bags: c.bags.filter((_, j) => j !== bi) })}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               <Button
                 type="button"
                 size="sm"
@@ -311,7 +405,7 @@ export function CartonBuilder({
                   patchCarton(ci, { bags: [...c.bags, emptyBag(c.bags.length + 1, defaultType)] })
                 }
               >
-                <Plus className="mr-1 h-4 w-4" /> Ligne de sacs
+                <Plus className="mr-1 h-4 w-4" /> Ajouter un sac
               </Button>
             </div>
 
@@ -325,7 +419,7 @@ export function CartonBuilder({
 
       {cartons.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 p-3 text-sm">
-          <span className="text-muted-foreground">Total réception</span>
+          <span className="text-muted-foreground">Total</span>
           <span className="font-semibold tabular-nums">
             {totals.bags} sacs · {totals.units} unités · {fmtG(totals.grams)} g
           </span>
