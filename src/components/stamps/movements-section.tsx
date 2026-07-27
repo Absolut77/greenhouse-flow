@@ -186,7 +186,7 @@ export function StampMovementsSection({
                   return (
                     <TableRow key={m.id}>
                       <TableCell>
-                        {new Date(m.moved_at).toLocaleDateString("fr-CA")}
+                        {formatZonedDate(m.moved_at)}
                       </TableCell>
                       <TableCell>{typeBadge(m.movement_type)}</TableCell>
                       <TableCell className="text-right font-medium">

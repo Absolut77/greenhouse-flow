@@ -188,7 +188,7 @@ function ReelDetailPage() {
             <span>{reel.province ?? "—"}</span>
             {reel.received_at && (
               <span>
-                Reçu le {new Date(reel.received_at).toLocaleDateString("fr-CA")}
+                Reçu le {formatDateOnly(reel.received_at)}
               </span>
             )}
           </div>
@@ -247,9 +247,7 @@ function ReelDetailPage() {
           <Info label="Province">{reel.province ?? "—"}</Info>
           <Info label="Box ID">{reel.box_id ?? "—"}</Info>
           <Info label="Reçu le">
-            {reel.received_at
-              ? new Date(reel.received_at).toLocaleDateString("fr-CA")
-              : "—"}
+            {formatDateOnly(reel.received_at)}
           </Info>
           <Info label="Quantité originale">{reel.original_quantity ?? "—"}</Info>
           <Info label="Spoiled à la réception">

@@ -210,7 +210,7 @@ export function EventStampsSection({
                   return (
                     <TableRow key={m.id}>
                       <TableCell>
-                        {new Date(m.moved_at).toLocaleDateString("fr-CA")}
+                        {formatZonedDate(m.moved_at)}
                       </TableCell>
                       <TableCell className="font-medium">
                         {reel ? (
