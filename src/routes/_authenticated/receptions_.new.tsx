@@ -357,16 +357,48 @@ function NewReceptionPage() {
       // --- Kind-specific post-processing (event_items / non_cannabis) ---
       if (kind === "cannabis_bulk" || kind === "cannabis_batch") {
         if (inventoryLotForBulk) {
-          const g = Number(grams);
-          const u = units ? Number(units) : null;
           const { error: iErr } = await supabase.from("event_items").insert({
             event_id: event.id,
             inventory_lot_id: inventoryLotForBulk,
             direction: "in",
-            quantity_grams: g,
-            units: u,
+            quantity_grams: effGrams,
+            units: effUnits,
           } as never);
           if (iErr) throw iErr;
+
+          if (useCartons) {
+            for (const { carton, bags } of expandCartons(cartons)) {
+              if (bags.length === 0) continue;
+              const { data: ct, error: cErr } = await supabase
+                .from("stock_cartons")
+                .insert({
+                  lot_id: inventoryLotForBulk,
+                  event_id: event.id,
+                  carton_code: carton.code.trim() || "CARTON",
+                  location: carton.location.trim() || null,
+                  created_by: userId,
+                } as never)
+                .select()
+                .single();
+              if (cErr) throw cErr;
+              const { error: bErr2 } = await supabase.from("stock_containers").insert(
+                bags.map((b) => ({
+                  lot_id: inventoryLotForBulk,
+                  carton_id: ct.id,
+                  container_code: b.container_code,
+                  container_type: b.container_type,
+                  unit_count: b.unit_count,
+                  unit_weight_grams: b.unit_weight_grams,
+                  net_weight_grams: b.net_weight_grams,
+                  gross_weight_grams: b.gross_weight_grams,
+                  location: b.location ?? location.trim() ?? null,
+                  status: "available",
+                  created_by: userId,
+                })) as never,
+              );
+              if (bErr2) throw bErr2;
+            }
+          }
         }
       } else if (kind === "non_cannabis") {
         const rows = items
