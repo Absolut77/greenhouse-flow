@@ -545,6 +545,49 @@ function NewReceptionPage() {
           .from("non_cannabis_receptions")
           .insert(rows as never);
         if (nErr) throw nErr;
+      } else if (kind === "transformation_return" && subMode && subLotId) {
+        const t = cartonTotals(subCartons);
+        const { error: iErr } = await supabase.from("event_items").insert({
+          event_id: event.id,
+          inventory_lot_id: subLotId,
+          direction: "in",
+          quantity_grams: t.grams,
+          units: t.units,
+        } as never);
+        if (iErr) throw iErr;
+
+        for (const { carton, bags } of expandCartons(subCartons)) {
+          if (bags.length === 0) continue;
+          const { data: ct, error: cErr } = await supabase
+            .from("stock_cartons")
+            .insert({
+              lot_id: subLotId,
+              event_id: event.id,
+              carton_code: carton.code.trim() || "MASTER CASE",
+              location: carton.location.trim() || location.trim() || null,
+              created_by: userId,
+            } as never)
+            .select()
+            .single();
+          if (cErr) throw cErr;
+          const { error: bErr3 } = await supabase.from("stock_containers").insert(
+            bags.map((b) => ({
+              lot_id: subLotId,
+              carton_id: ct.id,
+              container_code: b.container_code,
+              container_type: b.container_type,
+              unit_count: b.unit_count,
+              unit_weight_grams: b.unit_weight_grams,
+              net_weight_grams: b.net_weight_grams,
+              gross_weight_grams: b.gross_weight_grams,
+              location: b.location ?? location.trim() ?? null,
+              format_id: b.format_id,
+              status: "available",
+              created_by: userId,
+            })) as never,
+          );
+          if (bErr3) throw bErr3;
+        }
       } else if (kind === "transformation_return") {
         const eiRows = varianceLines
           .filter(
@@ -562,6 +605,7 @@ function NewReceptionPage() {
           if (rErr) throw rErr;
         }
       }
+
 
       toast.success("Réception créée");
       navigate({ to: "/events/$id", params: { id: event.id } });
