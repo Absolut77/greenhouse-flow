@@ -6,10 +6,12 @@ export type StockCarton = Tables<"stock_cartons">;
 
 export const CONTAINER_TYPES = [
   { value: "bulk", label: "Bulk" },
+  { value: "sample", label: "Sample" },
+  { value: "lab_sample", label: "Laboratory Sample" },
+  { value: "master_case", label: "Master Case" },
+  { value: "preroll", label: "Pre-roll" },
   { value: "packaged", label: "Packagé" },
-  { value: "preroll", label: "Pré-roulé" },
   { value: "trim", label: "Trim" },
-  { value: "sample", label: "Échantillon" },
   { value: "retention", label: "Rétention" },
   { value: "other", label: "Autre" },
 ] as const;
@@ -20,9 +22,12 @@ export const CONTAINER_TYPE_CLASS: Record<string, string> = {
   preroll: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30",
   trim: "bg-lime-500/15 text-lime-400 border-lime-500/30",
   sample: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+  lab_sample: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  master_case: "bg-slate-500/15 text-slate-300 border-slate-500/30",
   retention: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   other: "bg-muted text-muted-foreground",
 };
+
 
 export const CONTAINER_STATUSES = [
   { value: "available", label: "Disponible" },

@@ -35,6 +35,10 @@ type EventItem = Tables<"event_items">;
 type Lot = Tables<"inventory_lots">;
 
 const NONE = "__none__";
+const NEW_SUB = "__new_sub__";
+
+type ShipmentProgress = { sentG: number; sentU: number; recG: number; recU: number };
+
 
 export const Route = createFileRoute("/_authenticated/receptions_/new")({
   head: () => ({
@@ -116,6 +120,13 @@ function NewReceptionPage() {
   const [shipmentItems, setShipmentItems] = useState<EventItem[]>([]);
   const [shipmentLots, setShipmentLots] = useState<Record<string, Lot>>({});
   const [varianceLines, setVarianceLines] = useState<VarianceLine[]>([]);
+  // Progression par expédition : envoyé / déjà reçu / reste attendu
+  const [progress, setProgress] = useState<Record<string, ShipmentProgress>>({});
+  // Réception partielle en sous-batch (Nuance)
+  const [subMode, setSubMode] = useState(false);
+  const [subBatchId, setSubBatchId] = useState<string>(NEW_SUB);
+  const [subNumber, setSubNumber] = useState("");
+  const [subCartons, setSubCartons] = useState<CartonDraft[]>([emptyCarton(1, "preroll")]);
 
   useEffect(() => {
     (async () => {
@@ -132,7 +143,53 @@ function NewReceptionPage() {
         .in("event_type", ["shipment", "transfer", "b2b"])
         .order("created_at", { ascending: false })
         .limit(100);
-      setShipmentEvents(data ?? []);
+      const evts = data ?? [];
+      setShipmentEvents(evts);
+      if (evts.length) {
+        const ids = evts.map((e) => e.id);
+        // Quantités envoyées
+        const { data: outs } = await supabase
+          .from("event_items")
+          .select("event_id,quantity_grams,units,direction")
+          .in("event_id", ids)
+          .eq("direction", "out");
+        // Réceptions déjà rattachées à ces expéditions
+        const { data: recs } = await supabase
+          .from("events")
+          .select("id,linked_shipment_event_id")
+          .in("linked_shipment_event_id", ids);
+        const recEventIds = (recs ?? []).map((r) => r.id);
+        let ins: { event_id: string; quantity_grams: number | null; units: number | null }[] = [];
+        if (recEventIds.length) {
+          const { data: inRows } = await supabase
+            .from("event_items")
+            .select("event_id,quantity_grams,units,direction")
+            .in("event_id", recEventIds)
+            .eq("direction", "in");
+          ins = (inRows ?? []) as typeof ins;
+        }
+        const recToShipment: Record<string, string> = {};
+        (recs ?? []).forEach((r) => {
+          if (r.linked_shipment_event_id) recToShipment[r.id] = r.linked_shipment_event_id;
+        });
+        const map: Record<string, ShipmentProgress> = {};
+        ids.forEach((id) => (map[id] = { sentG: 0, sentU: 0, recG: 0, recU: 0 }));
+        (outs ?? []).forEach((o) => {
+          const p = map[o.event_id];
+          if (!p) return;
+          p.sentG += Number(o.quantity_grams) || 0;
+          p.sentU += Number(o.units) || 0;
+        });
+        ins.forEach((i) => {
+          const shipId = recToShipment[i.event_id];
+          const p = shipId ? map[shipId] : null;
+          if (!p) return;
+          p.recG += Number(i.quantity_grams) || 0;
+          p.recU += Number(i.units) || 0;
+        });
+        setProgress(map);
+      }
+
     })();
   }, []);
 
@@ -231,6 +288,8 @@ function NewReceptionPage() {
 
       // --- Kind-specific pre-processing (creating batches / lots) ---
       let inventoryLotForBulk: string | null = null;
+      let subLotId: string | null = null;
+
       const useCartons =
         structured && (kind === "cannabis_bulk" || kind === "cannabis_batch");
       const totals = cartonTotals(cartons);
@@ -325,11 +384,79 @@ function NewReceptionPage() {
         if (linkedShipmentId === NONE) {
           throw new Error("Sélectionner l'expédition d'origine");
         }
-        const hasReceived = varianceLines.some(
-          (l) => Number(l.received_grams) > 0 || Number(l.received_units) > 0
-        );
-        if (!hasReceived) throw new Error("Saisir les quantités reçues");
+        if (subMode) {
+          const t = cartonTotals(subCartons);
+          if (t.bags === 0 || t.grams <= 0)
+            throw new Error("Saisissez au moins un sac reçu avec un poids > 0");
+          if (subBatchId === NEW_SUB && !subNumber.trim())
+            throw new Error("Numéro de sous-batch requis (ex: NU001)");
+
+          const shipment = shipmentEvents.find((e) => e.id === linkedShipmentId) ?? null;
+          const sourceBatchId = shipment?.related_batch_id ?? null;
+          const sourceBatch = batches.find((b) => b.id === sourceBatchId) ?? null;
+
+          if (subBatchId === NEW_SUB) {
+            const { data: sub, error: sErr } = await supabase
+              .from("batches")
+              .insert({
+                batch_number: subNumber.trim(),
+                strain: sourceBatch?.strain ?? null,
+                parent_batch_id: sourceBatchId,
+                external_processor: supplier.trim() || "Nuance",
+                status: "in_progress",
+                created_by: userId,
+              } as never)
+              .select()
+              .single();
+            if (sErr) throw sErr;
+            relatedBatchId = sub.id;
+          } else {
+            relatedBatchId = subBatchId;
+          }
+
+          // Un lot par sous-batch : réutilise le lot existant s'il y en a un.
+          const { data: existing } = await supabase
+            .from("inventory_lots")
+            .select("*")
+            .eq("batch_id", relatedBatchId)
+            .order("created_at", { ascending: true })
+            .limit(1);
+          if (existing && existing.length > 0) {
+            subLotId = existing[0].id;
+          } else {
+            const subBatchNumber =
+              subBatchId === NEW_SUB
+                ? subNumber.trim()
+                : batches.find((b) => b.id === subBatchId)?.batch_number ?? subNumber.trim();
+            const { data: lot, error: lotErr } = await supabase
+              .from("inventory_lots")
+              .insert({
+                lot_number: subBatchNumber,
+                batch_id: relatedBatchId,
+                product_type: "preroll",
+                quantity_grams: 0,
+                units: 0,
+                location: location.trim() || null,
+                status: "available",
+                lot_kind: "bulk",
+                notes: `Sous-batch reçue de ${supplier || "transformateur externe"} — source : ${
+                  sourceBatch?.batch_number ?? "n/d"
+                }`,
+              } as never)
+              .select()
+              .single();
+            if (lotErr) throw lotErr;
+            subLotId = lot.id;
+          }
+        } else {
+
+          const hasReceived = varianceLines.some(
+            (l) => Number(l.received_grams) > 0 || Number(l.received_units) > 0
+          );
+          if (!hasReceived) throw new Error("Saisir les quantités reçues");
+        }
       }
+
 
       // --- Create the event ---
       const completedAt = new Date(`${receivedDate}T12:00:00`).toISOString();
@@ -418,6 +545,49 @@ function NewReceptionPage() {
           .from("non_cannabis_receptions")
           .insert(rows as never);
         if (nErr) throw nErr;
+      } else if (kind === "transformation_return" && subMode && subLotId) {
+        const t = cartonTotals(subCartons);
+        const { error: iErr } = await supabase.from("event_items").insert({
+          event_id: event.id,
+          inventory_lot_id: subLotId,
+          direction: "in",
+          quantity_grams: t.grams,
+          units: t.units,
+        } as never);
+        if (iErr) throw iErr;
+
+        for (const { carton, bags } of expandCartons(subCartons)) {
+          if (bags.length === 0) continue;
+          const { data: ct, error: cErr } = await supabase
+            .from("stock_cartons")
+            .insert({
+              lot_id: subLotId,
+              event_id: event.id,
+              carton_code: carton.code.trim() || "MASTER CASE",
+              location: carton.location.trim() || location.trim() || null,
+              created_by: userId,
+            } as never)
+            .select()
+            .single();
+          if (cErr) throw cErr;
+          const { error: bErr3 } = await supabase.from("stock_containers").insert(
+            bags.map((b) => ({
+              lot_id: subLotId,
+              carton_id: ct.id,
+              container_code: b.container_code,
+              container_type: b.container_type,
+              unit_count: b.unit_count,
+              unit_weight_grams: b.unit_weight_grams,
+              net_weight_grams: b.net_weight_grams,
+              gross_weight_grams: b.gross_weight_grams,
+              location: b.location ?? location.trim() ?? null,
+              format_id: b.format_id,
+              status: "available",
+              created_by: userId,
+            })) as never,
+          );
+          if (bErr3) throw bErr3;
+        }
       } else if (kind === "transformation_return") {
         const eiRows = varianceLines
           .filter(
@@ -435,6 +605,7 @@ function NewReceptionPage() {
           if (rErr) throw rErr;
         }
       }
+
 
       toast.success("Réception créée");
       navigate({ to: "/events/$id", params: { id: event.id } });
@@ -839,16 +1010,125 @@ function NewReceptionPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>—</SelectItem>
-                    {shipmentEvents.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.event_number} — {formatZonedDate(e.created_at)}
-                      </SelectItem>
-                    ))}
+                    {shipmentEvents.map((e) => {
+                      const p = progress[e.id];
+                      const rest = p ? p.sentG - p.recG : 0;
+                      return (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.event_number} — {formatZonedDate(e.created_at)}
+                          {p && p.sentG > 0
+                            ? ` · reste ${rest.toFixed(2)} g${rest <= 0.01 ? " (complet)" : ""}`
+                            : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Les envois en attente chez le transformateur (Nuance…) affichent le reste à
+                  recevoir.
+                </p>
               </div>
 
-              {varianceLines.length > 0 && (
+              {linkedShipmentId !== NONE && progress[linkedShipmentId] && (
+                <div className="grid gap-3 rounded-md border border-border/60 bg-muted/20 p-3 sm:grid-cols-3">
+                  {(() => {
+                    const p = progress[linkedShipmentId];
+                    const restG = p.sentG - p.recG;
+                    const restU = p.sentU - p.recU;
+                    return (
+                      <>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Quantité envoyée</p>
+                          <p className="font-semibold tabular-nums">
+                            {p.sentG.toFixed(2)} g · {p.sentU} u
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Déjà reçu</p>
+                          <p className="font-semibold tabular-nums">
+                            {p.recG.toFixed(2)} g · {p.recU} u
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Reste attendu</p>
+                          <p
+                            className={`font-semibold tabular-nums ${
+                              restG > 0.01 ? "text-amber-500" : "text-emerald-500"
+                            }`}
+                          >
+                            {restG.toFixed(2)} g · {restU} u
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">
+                      Réception partielle en sous-batch (pré-roulés Nuance)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Le produit reçu entre sous un numéro de sous-batch (NU…) rattaché à la batch
+                      source, avec ses Master Cases → sacs → unités.
+                    </p>
+                  </div>
+                  <Switch checked={subMode} onCheckedChange={setSubMode} />
+                </div>
+
+                {subMode && (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label>Sous-batch</Label>
+                        <Select value={subBatchId} onValueChange={setSubBatchId}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NEW_SUB}>+ Créer une nouvelle sous-batch</SelectItem>
+                            {batches
+                              .filter((b) => b.parent_batch_id)
+                              .map((b) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                  {b.batch_number}
+                                  {b.strain ? ` — ${b.strain}` : ""}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {subBatchId === NEW_SUB && (
+                        <div className="grid gap-2">
+                          <Label>Numéro de sous-batch *</Label>
+                          <Input
+                            value={subNumber}
+                            onChange={(e) => setSubNumber(e.target.value)}
+                            placeholder="NU001"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <CartonBuilder
+                      cartons={subCartons}
+                      onChange={setSubCartons}
+                      defaultType="preroll"
+                    />
+                    <p className="text-sm tabular-nums">
+                      Reçu : <strong>{cartonTotals(subCartons).bags}</strong> sac(s) ·{" "}
+                      <strong>{cartonTotals(subCartons).units}</strong> unité(s) ·{" "}
+                      <strong>{cartonTotals(subCartons).grams.toFixed(2)} g</strong>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {!subMode && varianceLines.length > 0 && (
+
                 <div className="rounded-md border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
