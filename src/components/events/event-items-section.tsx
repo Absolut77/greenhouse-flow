@@ -277,6 +277,8 @@ function ItemDialog({
   onSaved: () => void;
 }) {
   const [lotId, setLotId] = useState("");
+  const [containerId, setContainerId] = useState<string>(NO_CONTAINER);
+  const [containers, setContainers] = useState<StockContainer[]>([]);
   const [quantity, setQuantity] = useState("");
   const [units, setUnits] = useState("");
   const [direction, setDirection] = useState<string>("out");
@@ -286,16 +288,34 @@ function ItemDialog({
     if (!open) return;
     if (editing) {
       setLotId(editing.inventory_lot_id ?? "");
+      setContainerId((editing as any).container_id ?? NO_CONTAINER);
       setQuantity(editing.quantity_grams?.toString() ?? "");
       setUnits(editing.units?.toString() ?? "");
       setDirection(editing.direction ?? "out");
     } else {
       setLotId("");
+      setContainerId(NO_CONTAINER);
       setQuantity("");
       setUnits("");
       setDirection("out");
     }
   }, [open, editing]);
+
+  // Load the structured containers (sacs) of the selected lot.
+  useEffect(() => {
+    if (!open || !lotId) {
+      setContainers([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const list = await fetchContainersForLots([lotId]).catch(() => []);
+      if (!cancelled) setContainers(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, lotId]);
 
   // In edit mode, ensure the currently linked lot appears in the select even if
   // no longer available.
@@ -310,6 +330,13 @@ function ItemDialog({
   })();
 
   const selectedLot = currentLot;
+  const editingContainerId = (editing as any)?.container_id ?? null;
+  const containerChoices = containers.filter(
+    (c) => isUsableContainer(c) || c.id === editingContainerId,
+  );
+  const selectedContainer =
+    containerId !== NO_CONTAINER ? containers.find((c) => c.id === containerId) ?? null : null;
+
   // For edit: baseline stock excludes the current row's effect, since DB trigger
   // reverses OLD then applies NEW.
   const baseG = (() => {
@@ -331,6 +358,26 @@ function ItemDialog({
     return u;
   })();
 
+  // Container-level baseline (same reversal logic).
+  const containerBaseG = (() => {
+    if (!selectedContainer) return 0;
+    let g = Number(selectedContainer.net_weight_grams ?? 0);
+    if (editing && editingContainerId === selectedContainer.id) {
+      if (editing.direction === "out") g += editing.quantity_grams ?? 0;
+      else if (editing.direction === "in") g -= editing.quantity_grams ?? 0;
+    }
+    return g;
+  })();
+  const containerBaseU = (() => {
+    if (!selectedContainer) return 0;
+    let u = Number(selectedContainer.unit_count ?? 0);
+    if (editing && editingContainerId === selectedContainer.id) {
+      if (editing.direction === "out") u += editing.units ?? 0;
+      else if (editing.direction === "in") u -= editing.units ?? 0;
+    }
+    return u;
+  })();
+
   const q = Number(quantity);
   const u = units.trim() ? Number(units) : 0;
   const overStock =
@@ -338,10 +385,25 @@ function ItemDialog({
     selectedLot &&
     ((!Number.isNaN(q) && q > baseG) ||
       (units.trim() && !Number.isNaN(u) && u > baseU));
+  const overContainer =
+    direction === "out" &&
+    selectedContainer &&
+    ((!Number.isNaN(q) && q > containerBaseG + 1e-6) ||
+      (units.trim() && !Number.isNaN(u) && u > containerBaseU));
+
+  const takeWholeContainer = () => {
+    if (!selectedContainer) return;
+    setQuantity(String(containerBaseG));
+    setUnits(String(containerBaseU));
+  };
 
   const submit = async () => {
     if (!lotId) {
       toast.error("Sélectionne un lot");
+      return;
+    }
+    if (containers.length > 0 && containerId === NO_CONTAINER) {
+      toast.error("Sélectionne le sac concerné");
       return;
     }
     if (!quantity || Number.isNaN(q) || q <= 0) {
@@ -368,10 +430,15 @@ function ItemDialog({
         return;
       }
     }
+    if (overContainer) {
+      toast.error("La quantité dépasse le contenu du sac sélectionné.");
+      return;
+    }
     setSaving(true);
     const payload = {
       event_id: eventId,
       inventory_lot_id: lotId,
+      container_id: containerId === NO_CONTAINER ? null : containerId,
       quantity_grams: q,
       units: uVal,
       direction,
@@ -398,7 +465,13 @@ function ItemDialog({
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label>Lot *</Label>
-            <Select value={lotId} onValueChange={setLotId}>
+            <Select
+              value={lotId}
+              onValueChange={(v) => {
+                setLotId(v);
+                setContainerId(NO_CONTAINER);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un lot" />
               </SelectTrigger>
@@ -425,6 +498,46 @@ function ItemDialog({
               </p>
             )}
           </div>
+
+          {lotId && (
+            <div className="grid gap-2">
+              <Label>Sac / contenant {containers.length > 0 ? "*" : ""}</Label>
+              <Select value={containerId} onValueChange={setContainerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un sac" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_CONTAINER}>
+                    {containers.length > 0 ? "— Aucun (non réparti)" : "Lot non réparti en sacs"}
+                  </SelectItem>
+                  {containerChoices.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.container_code} · {containerTypeLabel(c.container_type)} ·{" "}
+                      {fmtG(Number(c.net_weight_grams ?? 0))} g · {c.unit_count} u
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {containerChoices.length === 0 && containers.length > 0 && (
+                <p className="text-xs text-amber-400">
+                  Aucun sac disponible sur ce lot (vides ou en rétention).
+                </p>
+              )}
+              {selectedContainer && (
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Contenu du sac : {fmtG(containerBaseG)} g · {containerBaseU} unité
+                    {containerBaseU > 1 ? "s" : ""}
+                    {selectedContainer.location ? ` · ${selectedContainer.location}` : ""}
+                  </span>
+                  <Button type="button" size="sm" variant="outline" onClick={takeWholeContainer}>
+                    Sac complet
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Quantité (g) *</Label>
@@ -460,12 +573,17 @@ function ItemDialog({
               La quantité demandée dépasse le stock disponible.
             </p>
           )}
+          {overContainer && (
+            <p className="text-xs text-destructive">
+              La quantité demandée dépasse le contenu du sac sélectionné.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button onClick={submit} disabled={saving || !!overStock}>
+          <Button onClick={submit} disabled={saving || !!overStock || !!overContainer}>
             {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             {editing ? "Enregistrer" : "Ajouter"}
           </Button>
