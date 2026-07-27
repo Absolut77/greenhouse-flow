@@ -231,6 +231,7 @@ function NewShipmentPage() {
     const rows = lines.map((l) => ({
       event_id: ev.id,
       inventory_lot_id: l.lot_id,
+      container_id: l.container_id === NO_CONTAINER ? null : l.container_id,
       quantity_grams: Number(l.grams),
       units: l.units.trim() ? Number(l.units) : null,
       direction: "out",
