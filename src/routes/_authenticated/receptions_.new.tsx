@@ -374,7 +374,7 @@ function NewReceptionPage() {
                 .insert({
                   lot_id: inventoryLotForBulk,
                   event_id: event.id,
-                  carton_code: carton.code.trim() || "CARTON",
+                  carton_code: carton.code.trim() || "MASTER CASE",
                   location: carton.location.trim() || null,
                   created_by: userId,
                 } as never)
@@ -966,9 +966,9 @@ function StructuredToggle({
     <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium">Saisie par cartons / sacs</p>
+          <p className="text-sm font-medium">Saisie par Master Cases / sacs</p>
           <p className="text-xs text-muted-foreground">
-            Recommandé pour les pré-roulés et réceptions multi-cartons : chaque sac devient
+            Recommandé pour les pré-roulés et réceptions multi-Master Cases : chaque sac devient
             une unité de stock traçable.
           </p>
         </div>

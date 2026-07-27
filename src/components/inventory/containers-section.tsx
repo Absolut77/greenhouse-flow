@@ -187,7 +187,7 @@ export function ContainersSection({
         {!readOnly && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setCartonOpen(true)}>
-              <Package className="mr-1 h-4 w-4" /> Carton
+              <Package className="mr-1 h-4 w-4" /> Master Case
             </Button>
             <Button size="sm" onClick={() => setCreating(true)}>
               <Plus className="mr-1 h-4 w-4" /> Sac
@@ -211,7 +211,7 @@ export function ContainersSection({
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Package className="h-4 w-4 text-muted-foreground" />
-                  {carton ? carton.carton_code : "Hors carton"}
+                  {carton ? carton.carton_code : "Hors Master Case"}
                   {carton?.location && (
                     <span className="text-xs text-muted-foreground">· {carton.location}</span>
                   )}
@@ -427,13 +427,13 @@ function ContainerDialog({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Carton</Label>
+            <Label>Master Case</Label>
             <Select value={cartonId} onValueChange={setCartonId}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_CARTON}>Hors carton</SelectItem>
+                <SelectItem value={NO_CARTON}>Hors Master Case</SelectItem>
                 {cartons.map((k) => (
                   <SelectItem key={k.id} value={k.id}>
                     {k.carton_code}
@@ -539,7 +539,7 @@ function CartonDialog({
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!code.trim()) return toast.error("Identifiant du carton requis");
+    if (!code.trim()) return toast.error("Identifiant du Master Case requis");
     setSaving(true);
     const { error } = await supabase.from("stock_cartons").insert({
       lot_id: lotId,
@@ -548,7 +548,7 @@ function CartonDialog({
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Carton créé");
+    toast.success("Master Case créé");
     setCode("");
     setLocation("");
     onOpenChange(false);
@@ -559,12 +559,12 @@ function CartonDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau carton</DialogTitle>
+          <DialogTitle>Nouveau Master Case</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label>Identifiant du carton *</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="CARTON-1" />
+            <Label>Identifiant du Master Case *</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MC-1" />
           </div>
           <div className="grid gap-2">
             <Label>Emplacement</Label>
