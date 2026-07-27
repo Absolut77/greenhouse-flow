@@ -76,13 +76,15 @@ export type CartonDraft = {
   bags: BagDraft[];
 };
 
+export const defaultWeightForType = (type: string) => (type === "bulk" ? "1000" : "");
+
 export const emptyBag = (i: number, type = "bulk"): BagDraft => ({
   code: String(i),
   type,
   copies: "1",
   units: "1",
   unitWeight: "",
-  weight: "",
+  weight: defaultWeightForType(type),
   gross: "",
   formatId: NO_FORMAT,
   flowerSize: NO_SIZE,
