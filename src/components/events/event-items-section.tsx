@@ -69,6 +69,7 @@ export function EventItemsSection({
   const [items, setItems] = useState<EventItem[] | null>(null);
   const [availableLots, setAvailableLots] = useState<Lot[]>([]);
   const [lotMap, setLotMap] = useState<Record<string, Lot>>({});
+  const [containerMap, setContainerMap] = useState<Record<string, StockContainer>>({});
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EventItem | null>(null);
