@@ -35,7 +35,7 @@ type Container = Tables<"stock_containers">;
 
 const NONE = "__none__";
 
-export const Route = createFileRoute("/_authenticated/inventory_/$id/edit")({
+export const Route = createFileRoute("/_authenticated/inventory_/$id_/edit")({
   head: () => ({
     meta: [
       { title: "Modifier le lot — ONO Cannabis" },
