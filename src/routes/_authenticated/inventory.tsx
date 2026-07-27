@@ -120,6 +120,7 @@ function InventoryPage() {
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
+  const [containers, setContainers] = useState<Record<string, StockContainer[]>>({});
   const [error, setError] = useState<string | null>(null);
 
   const setStatusFilter = (v: string) =>
