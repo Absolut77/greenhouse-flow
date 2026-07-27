@@ -34,8 +34,8 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { ContainersSection } from "@/components/inventory/containers-section";
-import {
 import { formatZonedDate } from "@/lib/dates";
+import {
   LotStatusBadge,
   PRODUCT_TYPES,
   FLOWER_SIZES,
