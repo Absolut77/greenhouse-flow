@@ -390,7 +390,66 @@ function NewReceptionPage() {
             throw new Error("Saisissez au moins un sac reçu avec un poids > 0");
           if (subBatchId === NEW_SUB && !subNumber.trim())
             throw new Error("Numéro de sous-batch requis (ex: NU001)");
+
+          const shipment = shipmentEvents.find((e) => e.id === linkedShipmentId) ?? null;
+          const sourceBatchId = shipment?.related_batch_id ?? null;
+          const sourceBatch = batches.find((b) => b.id === sourceBatchId) ?? null;
+
+          if (subBatchId === NEW_SUB) {
+            const { data: sub, error: sErr } = await supabase
+              .from("batches")
+              .insert({
+                batch_number: subNumber.trim(),
+                strain: sourceBatch?.strain ?? null,
+                parent_batch_id: sourceBatchId,
+                external_processor: supplier.trim() || "Nuance",
+                status: "in_progress",
+                created_by: userId,
+              } as never)
+              .select()
+              .single();
+            if (sErr) throw sErr;
+            relatedBatchId = sub.id;
+          } else {
+            relatedBatchId = subBatchId;
+          }
+
+          // Un lot par sous-batch : réutilise le lot existant s'il y en a un.
+          const { data: existing } = await supabase
+            .from("inventory_lots")
+            .select("*")
+            .eq("batch_id", relatedBatchId)
+            .order("created_at", { ascending: true })
+            .limit(1);
+          if (existing && existing.length > 0) {
+            subLotId = existing[0].id;
+          } else {
+            const subBatchNumber =
+              subBatchId === NEW_SUB
+                ? subNumber.trim()
+                : batches.find((b) => b.id === subBatchId)?.batch_number ?? subNumber.trim();
+            const { data: lot, error: lotErr } = await supabase
+              .from("inventory_lots")
+              .insert({
+                lot_number: subBatchNumber,
+                batch_id: relatedBatchId,
+                product_type: "preroll",
+                quantity_grams: 0,
+                units: 0,
+                location: location.trim() || null,
+                status: "available",
+                lot_kind: "bulk",
+                notes: `Sous-batch reçue de ${supplier || "transformateur externe"} — source : ${
+                  sourceBatch?.batch_number ?? "n/d"
+                }`,
+              } as never)
+              .select()
+              .single();
+            if (lotErr) throw lotErr;
+            subLotId = lot.id;
+          }
         } else {
+
           const hasReceived = varianceLines.some(
             (l) => Number(l.received_grams) > 0 || Number(l.received_units) > 0
           );
