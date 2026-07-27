@@ -434,9 +434,14 @@ export function WorkflowTimeline({
     }
     // If batch was closed, reopen it
     if (batch.status === "closed") {
-      await supabase.from("batches").update({ status: "in_progress", closed_at: null }).eq("id", batchId);
+      // Réouverture : le plafond de stock sec est déverrouillé (il sera recalculé à la clôture)
+      await supabase
+        .from("batches")
+        .update({ status: "in_progress", closed_at: null, dry_cap_grams: null, dry_cap_locked_at: null } as any)
+        .eq("id", batchId);
       onBatchClosed?.();
     }
+
     setBusy(null);
     setConfirmRevert(null);
     await load();
