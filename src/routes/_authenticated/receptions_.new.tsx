@@ -276,9 +276,14 @@ function NewReceptionPage() {
         if (!newBatchNumber.trim() || !newBatchStrain.trim()) {
           throw new Error("Numéro de batch et variété requis");
         }
-        const g = Number(grams);
-        if (!grams || Number.isNaN(g) || g <= 0) {
-          throw new Error("Quantité (g) > 0 requise");
+        if (useCartons) {
+          if (totals.bags === 0 || totals.grams <= 0)
+            throw new Error("Saisissez au moins un sac avec un poids > 0");
+        } else {
+          const g = Number(grams);
+          if (!grams || Number.isNaN(g) || g <= 0) {
+            throw new Error("Quantité (g) > 0 requise");
+          }
         }
         // Create the batch (received from elsewhere → closed)
         const { data: b, error: bErr } = await supabase
