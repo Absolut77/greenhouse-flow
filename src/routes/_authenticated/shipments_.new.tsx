@@ -55,8 +55,6 @@ export const Route = createFileRoute("/_authenticated/shipments_/new")({
 });
 
 function todayISODate() {
-  const { formats: shipFormats } = usePackagingFormats(false);
-  const formatMap = indexFormats(shipFormats);
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -72,6 +70,8 @@ const productLabel = (v: string | null | undefined) =>
   PRODUCT_TYPES.find((p) => p.value === v)?.label ?? v ?? "—";
 
 function NewShipmentPage() {
+  const { formats: shipFormats } = usePackagingFormats(false);
+  const formatMap = indexFormats(shipFormats);
   const navigate = useNavigate();
 
   const [kind, setKind] = useState<string>("out_of_facility");
