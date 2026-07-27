@@ -34,18 +34,23 @@ function SettingsPage() {
             </Card>
           </Link>
         )}
-        <Card className="h-full opacity-60">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                <Package className="h-5 w-5" />
+        <Link to="/settings/packaging">
+          <Card className="h-full transition-colors hover:border-primary/60">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Package className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-lg">Formats de packaging</CardTitle>
               </div>
-              <CardTitle className="text-lg">Formats d'emballage</CardTitle>
-            </div>
-            <CardDescription>À venir.</CardDescription>
-          </CardHeader>
-          <CardContent />
-        </Card>
+              <CardDescription>
+                Fleur et pré-roulés : nom, unités, poids, activation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent />
+          </Card>
+        </Link>
+
         <Card className="h-full opacity-60">
           <CardHeader>
             <div className="flex items-center gap-3">

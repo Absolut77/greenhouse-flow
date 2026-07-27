@@ -38,6 +38,7 @@ import {
 import { StatusBadge } from "./batches";
 import { EventStatusBadge } from "./events";
 import { computeBalance } from "./stamps";
+import { formatDateOnly } from "@/lib/dates";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -591,7 +592,7 @@ function Dashboard() {
                       <TableCell>{b.strain ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {b.harvest_date
-                          ? new Date(b.harvest_date).toLocaleDateString("fr-CA")
+                          ? formatDateOnly(b.harvest_date)
                           : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">

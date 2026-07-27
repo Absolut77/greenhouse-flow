@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2, Plus, Trash2, Truck } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,8 @@ const productLabel = (v: string | null | undefined) =>
   PRODUCT_TYPES.find((p) => p.value === v)?.label ?? v ?? "—";
 
 function NewShipmentPage() {
+  const { formats: shipFormats } = usePackagingFormats(false);
+  const formatMap = indexFormats(shipFormats);
   const navigate = useNavigate();
 
   const [kind, setKind] = useState<string>("out_of_facility");
@@ -436,8 +439,11 @@ function NewShipmentPage() {
                               <SelectContent>
                                 {lotContainers.map((c) => (
                                   <SelectItem key={c.id} value={c.id}>
-                                    {c.container_code} · {containerTypeLabel(c.container_type)} ·{" "}
-                                    {fmtG(c.net_weight_grams)}g
+                                    {c.container_code} · {containerTypeLabel(c.container_type)}
+                                    {c.format_id && formatMap[c.format_id]
+                                      ? ` · ${formatMap[c.format_id].name}`
+                                      : ""}{" "}
+                                    · {fmtG(c.net_weight_grams)}g
                                     {c.unit_count != null ? ` · ${c.unit_count}u` : ""}
                                   </SelectItem>
                                 ))}

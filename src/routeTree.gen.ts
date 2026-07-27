@@ -25,6 +25,7 @@ import { Route as AuthenticatedStampsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedStampsIdRouteImport } from './routes/_authenticated/stamps_.$id'
 import { Route as AuthenticatedShipmentsNewRouteImport } from './routes/_authenticated/shipments_.new'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
+import { Route as AuthenticatedSettingsPackagingRouteImport } from './routes/_authenticated/settings.packaging'
 import { Route as AuthenticatedReceptionsNewRouteImport } from './routes/_authenticated/receptions_.new'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory_.new'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory_.$id'
@@ -115,6 +116,12 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsPackagingRoute =
+  AuthenticatedSettingsPackagingRouteImport.update({
+    id: '/packaging',
+    path: '/packaging',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedReceptionsNewRoute =
   AuthenticatedReceptionsNewRouteImport.update({
     id: '/receptions_/new',
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
+  '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
+  '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/shipments/new': typeof AuthenticatedShipmentsNewRoute
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory_/$id': typeof AuthenticatedInventoryIdRoute
   '/_authenticated/inventory_/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/receptions_/new': typeof AuthenticatedReceptionsNewRoute
+  '/_authenticated/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/shipments_/new': typeof AuthenticatedShipmentsNewRoute
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/new'
     | '/receptions/new'
+    | '/settings/packaging'
     | '/settings/users'
     | '/shipments/new'
     | '/stamps/$id'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/new'
     | '/receptions/new'
+    | '/settings/packaging'
     | '/settings/users'
     | '/shipments/new'
     | '/stamps/$id'
@@ -309,6 +321,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory_/$id'
     | '/_authenticated/inventory_/new'
     | '/_authenticated/receptions_/new'
+    | '/_authenticated/settings/packaging'
     | '/_authenticated/settings/users'
     | '/_authenticated/shipments_/new'
     | '/_authenticated/stamps_/$id'
@@ -437,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/packaging': {
+      id: '/_authenticated/settings/packaging'
+      path: '/packaging'
+      fullPath: '/settings/packaging'
+      preLoaderRoute: typeof AuthenticatedSettingsPackagingRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/receptions_/new': {
       id: '/_authenticated/receptions_/new'
       path: '/receptions/new'
@@ -497,10 +517,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsPackagingRoute: typeof AuthenticatedSettingsPackagingRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
 }
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsPackagingRoute: AuthenticatedSettingsPackagingRoute,
   AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
 }
 

@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatDateOnly, todayInputValue } from "@/lib/dates";
 
 type DryingLog = Tables<"drying_logs">;
 type Sample = Tables<"samples">;
@@ -116,7 +117,7 @@ export function DryingStepContent({
               <TableBody>
                 {logs.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell>{new Date(l.log_date).toLocaleDateString("fr-CA")}</TableCell>
+                    <TableCell>{formatDateOnly(l.log_date)}</TableCell>
                     <TableCell>{l.room_number ?? "—"}</TableCell>
                     <TableCell>{fmtTH(l.temp_current, l.humidity_current)}</TableCell>
                     <TableCell>{fmtTH(l.temp_external, l.humidity_external)}</TableCell>
@@ -173,7 +174,7 @@ export function DryingStepContent({
                     className="cursor-pointer"
                     title="Double-cliquez pour saisir/modifier les résultats"
                   >
-                    <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
+                    <TableCell>{formatDateOnly(s.sample_date)}</TableCell>
                     <TableCell>{s.weight_grams ?? "—"}</TableCell>
                     <TableCell className="max-w-[180px] truncate">{s.notes ?? "—"}</TableCell>
                     <TableCell className="max-w-[260px]"><AnalysisCell sample={s} /></TableCell>
@@ -274,7 +275,7 @@ function DryingLogDialog({
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInputValue();
   const [logDate, setLogDate] = useState(log?.log_date ?? today);
   const [room, setRoom] = useState(log?.room_number ?? "");
   const [tempCur, setTempCur] = useState(log?.temp_current?.toString() ?? "");
@@ -408,7 +409,7 @@ export function SampleDialog({
     if (stageCode === "curing" && !containerId) return toast.error("Sélectionnez un conteneur");
     setSaving(true);
     const { data: u } = await supabase.auth.getUser();
-    const nowIso = new Date().toISOString().slice(0, 10);
+    const nowIso = todayInputValue();
     const { error: sErr } = await supabase.from("samples").insert({
       batch_id: batchId,
       stage_id: stageId,

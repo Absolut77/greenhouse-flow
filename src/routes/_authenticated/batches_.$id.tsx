@@ -32,6 +32,7 @@ import { StatusBadge } from "./batches";
 import { WorkflowTimeline } from "@/components/batches/workflow-timeline";
 import { DestructionsSection } from "@/components/batches/destructions-section";
 import { useAuth } from "@/hooks/use-auth";
+import { formatDateOnly, formatZonedDateTime } from "@/lib/dates";
 
 type Batch = Tables<"batches">;
 
@@ -315,13 +316,13 @@ function BatchDetailPage() {
           />
           <Info
             label="Date de récolte"
-            value={batch.harvest_date ? new Date(batch.harvest_date).toLocaleDateString("fr-CA") : null}
+            value={batch.harvest_date ? formatDateOnly(batch.harvest_date) : null}
           />
           <Info label="Salle de récolte" value={batch.harvest_room} />
           <Info label="Emplacement de séchage" value={batch.drying_location} />
           <Info
             label="Créée le"
-            value={new Date(batch.created_at).toLocaleString("fr-CA")}
+            value={formatZonedDateTime(batch.created_at)}
           />
         </CardContent>
       </Card>

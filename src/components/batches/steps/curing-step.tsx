@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { SampleDialog, AnalysisDialog, AnalysisCell } from "./drying-step";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatDateOnly } from "@/lib/dates";
 
 type Container = {
   id: string;
@@ -245,7 +246,7 @@ export function CuringStepContent({
                   className="cursor-pointer"
                   title="Double-cliquez pour saisir/modifier les résultats"
                 >
-                  <TableCell>{new Date(s.sample_date).toLocaleDateString("fr-CA")}</TableCell>
+                  <TableCell>{formatDateOnly(s.sample_date)}</TableCell>
                   <TableCell>{containerLabel(s.container_id)}</TableCell>
                   <TableCell className="text-right">{s.weight_grams ?? "—"}</TableCell>
                   <TableCell className="max-w-[220px] truncate">{s.notes ?? "—"}</TableCell>

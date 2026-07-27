@@ -27,6 +27,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatZonedDate } from "@/lib/dates";
 
 type Event = Tables<"events">;
 type Batch = Tables<"batches">;
@@ -384,11 +385,11 @@ function EventsPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {new Date(e.created_at).toLocaleDateString("fr-CA")}
+                    {formatZonedDate(e.created_at)}
                   </TableCell>
                   <TableCell>
                     {e.completed_at
-                      ? new Date(e.completed_at).toLocaleDateString("fr-CA")
+                      ? formatZonedDate(e.completed_at)
                       : "—"}
                   </TableCell>
                   <TableCell>

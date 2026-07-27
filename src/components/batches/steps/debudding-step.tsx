@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDuration, type Stage } from "@/lib/batch-workflow";
+import { formatZonedDateTime } from "@/lib/dates";
 
 type DebuddingMeta = {
   hand_trim?: boolean;
@@ -106,8 +107,8 @@ export function DebuddingStepContent({
           <div className="text-base font-medium">{durationLabel}</div>
         </div>
         <div className="text-xs text-muted-foreground text-right">
-          <div>Début : {stage?.started_at ? new Date(stage.started_at).toLocaleString("fr-CA") : "—"}</div>
-          <div>Fin : {stage?.ended_at ? new Date(stage.ended_at).toLocaleString("fr-CA") : "en cours"}</div>
+          <div>Début : {stage?.started_at ? formatZonedDateTime(stage.started_at) : "—"}</div>
+          <div>Fin : {stage?.ended_at ? formatZonedDateTime(stage.ended_at) : "en cours"}</div>
         </div>
       </div>
 

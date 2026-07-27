@@ -511,6 +511,7 @@ export type Database = {
           created_at: string
           flower_size: string | null
           format: string | null
+          format_id: string | null
           id: string
           location: string | null
           lot_kind: string
@@ -527,6 +528,7 @@ export type Database = {
           created_at?: string
           flower_size?: string | null
           format?: string | null
+          format_id?: string | null
           id?: string
           location?: string | null
           lot_kind?: string
@@ -543,6 +545,7 @@ export type Database = {
           created_at?: string
           flower_size?: string | null
           format?: string | null
+          format_id?: string | null
           id?: string
           location?: string | null
           lot_kind?: string
@@ -560,6 +563,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_lots_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_formats"
             referencedColumns: ["id"]
           },
           {
@@ -644,6 +654,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           flower_type: string
+          format_id: string | null
           gross_weight_grams: number | null
           id: string
           inventory_lot_id: string | null
@@ -660,6 +671,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           flower_type: string
+          format_id?: string | null
           gross_weight_grams?: number | null
           id?: string
           inventory_lot_id?: string | null
@@ -676,6 +688,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           flower_type?: string
+          format_id?: string | null
           gross_weight_grams?: number | null
           id?: string
           inventory_lot_id?: string | null
@@ -691,6 +704,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packaging_bags_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_formats"
             referencedColumns: ["id"]
           },
           {
@@ -711,22 +731,40 @@ export type Database = {
       }
       packaging_formats: {
         Row: {
+          created_at: string
+          format_type: string
           id: string
           is_active: boolean
           name: string
           net_weight_grams: number | null
+          sort_order: number
+          unit_weight_grams: number
+          units_per_pack: number
+          updated_at: string
         }
         Insert: {
+          created_at?: string
+          format_type?: string
           id?: string
           is_active?: boolean
           name: string
           net_weight_grams?: number | null
+          sort_order?: number
+          unit_weight_grams?: number
+          units_per_pack?: number
+          updated_at?: string
         }
         Update: {
+          created_at?: string
+          format_type?: string
           id?: string
           is_active?: boolean
           name?: string
           net_weight_grams?: number | null
+          sort_order?: number
+          unit_weight_grams?: number
+          units_per_pack?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -940,6 +978,7 @@ export type Database = {
           container_type: string
           created_at: string
           created_by: string | null
+          format_id: string | null
           gross_weight_grams: number | null
           id: string
           location: string | null
@@ -957,6 +996,7 @@ export type Database = {
           container_type?: string
           created_at?: string
           created_by?: string | null
+          format_id?: string | null
           gross_weight_grams?: number | null
           id?: string
           location?: string | null
@@ -974,6 +1014,7 @@ export type Database = {
           container_type?: string
           created_at?: string
           created_by?: string | null
+          format_id?: string | null
           gross_weight_grams?: number | null
           id?: string
           location?: string | null
@@ -991,6 +1032,13 @@ export type Database = {
             columns: ["carton_id"]
             isOneToOne: false
             referencedRelation: "stock_cartons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_containers_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_formats"
             referencedColumns: ["id"]
           },
           {

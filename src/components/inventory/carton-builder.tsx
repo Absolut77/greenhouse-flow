@@ -11,6 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CONTAINER_TYPES, fmtG } from "@/lib/containers";
+import {
+  formatNetGrams,
+  usePackagingFormats,
+  type PackagingFormat,
+} from "@/lib/packaging-formats";
+
+export const NO_FORMAT = "__no_format__";
 
 export type BagDraft = {
   code: string;
@@ -19,6 +26,7 @@ export type BagDraft = {
   units: string;
   unitWeight: string;
   gross: string;
+  formatId: string;
 };
 
 export type CartonDraft = {
@@ -34,6 +42,7 @@ export const emptyBag = (i: number, type = "bulk"): BagDraft => ({
   units: "1",
   unitWeight: "",
   gross: "",
+  formatId: NO_FORMAT,
 });
 
 export const emptyCarton = (i: number, type = "bulk"): CartonDraft => ({
@@ -74,6 +83,7 @@ export function expandCartons(cartons: CartonDraft[]) {
       net_weight_grams: number;
       gross_weight_grams: number | null;
       location: string | null;
+      format_id: string | null;
     }[] = [];
     let seq = 1;
     for (const b of c.bags) {
@@ -88,6 +98,7 @@ export function expandCartons(cartons: CartonDraft[]) {
           net_weight_grams: bagNet(b),
           gross_weight_grams: b.gross.trim() ? num(b.gross) : null,
           location: c.location.trim() || null,
+          format_id: b.formatId && b.formatId !== NO_FORMAT ? b.formatId : null,
         });
         seq++;
       }
@@ -116,6 +127,19 @@ export function CartonBuilder({
           : c,
       ),
     );
+
+  const { formats } = usePackagingFormats();
+
+  const applyFormat = (ci: number, bi: number, formatId: string) => {
+    if (formatId === NO_FORMAT) return patchBag(ci, bi, { formatId });
+    const f = formats.find((x: PackagingFormat) => x.id === formatId);
+    if (!f) return patchBag(ci, bi, { formatId });
+    patchBag(ci, bi, {
+      formatId,
+      units: String(f.units_per_pack),
+      unitWeight: String(Number(f.unit_weight_grams)),
+    });
+  };
 
   const totals = cartonTotals(cartons);
 
@@ -175,7 +199,7 @@ export function CartonBuilder({
               {c.bags.map((b, bi) => (
                 <div
                   key={bi}
-                  className="grid gap-2 rounded-md border border-border/40 bg-background/40 p-2 sm:grid-cols-[1.2fr_1fr_0.7fr_0.8fr_0.9fr_0.9fr_auto] sm:items-end"
+                  className="grid gap-2 rounded-md border border-border/40 bg-background/40 p-2 sm:grid-cols-[1.1fr_0.9fr_1.1fr_0.6fr_0.7fr_0.8fr_0.8fr_auto] sm:items-end"
                 >
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Sac</Label>
@@ -191,6 +215,25 @@ export function CartonBuilder({
                         {CONTAINER_TYPES.map((t2) => (
                           <SelectItem key={t2.value} value={t2.value}>
                             {t2.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Format</Label>
+                    <Select
+                      value={b.formatId || NO_FORMAT}
+                      onValueChange={(v) => applyFormat(ci, bi, v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                        {formats.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.name} ({formatNetGrams(f)} g)
                           </SelectItem>
                         ))}
                       </SelectContent>

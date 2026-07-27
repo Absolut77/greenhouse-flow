@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
+import { formatZonedDate } from "@/lib/dates";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -407,7 +408,7 @@ function InventoryPage() {
                     <LotStatusBadge status={l.status} />
                   </TableCell>
                   <TableCell>
-                    {new Date(l.created_at).toLocaleDateString("fr-CA")}
+                    {formatZonedDate(l.created_at)}
                   </TableCell>
                 </TableRow>
               ))}

@@ -54,6 +54,13 @@ import {
   type StockCarton,
   type StockContainer,
 } from "@/lib/containers";
+import {
+  formatNetGrams,
+  indexFormats,
+  usePackagingFormats,
+} from "@/lib/packaging-formats";
+
+const NO_FORMAT = "__no_format__";
 
 export function ContainerTypeBadge({ type }: { type: string | null }) {
   return (
@@ -89,6 +96,8 @@ export function ContainersSection({
   const { roles } = useAuth();
   const readOnly = roles.length > 0 && roles.every((r) => r === "viewer");
 
+  const { formats: allFormats } = usePackagingFormats(false);
+  const formatMap = indexFormats(allFormats);
   const [containers, setContainers] = useState<StockContainer[] | null>(null);
   const [cartons, setCartons] = useState<StockCarton[]>([]);
   const [editing, setEditing] = useState<StockContainer | null>(null);
@@ -227,6 +236,7 @@ export function ContainersSection({
                       <TableRow>
                         <TableHead>Sac</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Format</TableHead>
                         <TableHead className="text-right">Unités</TableHead>
                         <TableHead className="text-right">Poids / unité</TableHead>
                         <TableHead className="text-right">Net (g)</TableHead>
@@ -249,6 +259,13 @@ export function ContainersSection({
                           </TableCell>
                           <TableCell>
                             <ContainerTypeBadge type={c.container_type} />
+                          </TableCell>
+                          <TableCell>
+                            {c.format_id && formatMap[c.format_id] ? (
+                              <Badge variant="outline">{formatMap[c.format_id].name}</Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Vrac</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">{c.unit_count}</TableCell>
                           <TableCell className="text-right tabular-nums">
@@ -360,7 +377,19 @@ function ContainerDialog({
   );
   const [location, setLocation] = useState(container?.location ?? "");
   const [status, setStatus] = useState(container?.status ?? "available");
+  const [formatId, setFormatId] = useState(container?.format_id ?? NO_FORMAT);
+  const { formats } = usePackagingFormats();
   const [saving, setSaving] = useState(false);
+
+  /** Choix d'un format : pré-remplit unités et poids unitaire (net recalculé). */
+  const applyFormat = (v: string) => {
+    setFormatId(v);
+    const f = formats.find((x) => x.id === v);
+    if (!f) return;
+    setUnitCount(String(f.units_per_pack));
+    setUnitWeight(String(Number(f.unit_weight_grams)));
+    setNet("");
+  };
 
   const computedNet = (Number(unitCount) || 0) * (Number(unitWeight) || 0);
   const effectiveNet = net.trim() ? Number(net) : computedNet;
@@ -382,6 +411,7 @@ function ContainerDialog({
       gross_weight_grams: gross.trim() ? Number(gross) : null,
       location: location.trim() || null,
       status,
+      format_id: formatId === NO_FORMAT ? null : formatId,
     };
     const { error } = container
       ? await supabase.from("stock_containers").update(payload).eq("id", container.id)
@@ -425,6 +455,22 @@ function ContainerDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Format de packaging</Label>
+            <Select value={formatId} onValueChange={applyFormat}>
+              <SelectTrigger>
+                <SelectValue placeholder="Aucun / vrac" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                {formats.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name} ({formatNetGrams(f)} g)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label>Master Case</Label>

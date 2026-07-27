@@ -52,6 +52,7 @@ import { DebuddingStepContent } from "./steps/debudding-step";
 import { CuringStepContent, CuringFinishDialog } from "./steps/curing-step";
 import { BulkPackagingStepContent } from "./steps/bulk-packaging-step";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatZonedDateTime } from "@/lib/dates";
 
 type Batch = Tables<"batches">;
 
@@ -445,7 +446,7 @@ export function WorkflowTimeline({
               <StatusPill status="done" />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Batch initialisée le {new Date(batch.created_at).toLocaleString("fr-CA")} —
+              Batch initialisée le {formatZonedDateTime(batch.created_at)} —
               séchage démarré automatiquement à cette date.
             </p>
           </div>
@@ -515,7 +516,7 @@ export function WorkflowTimeline({
             />
             {confirmFinish?.row?.started_at && (
               <p className="text-xs text-muted-foreground">
-                Démarrée le {new Date(confirmFinish.row.started_at).toLocaleString("fr-CA")}
+                Démarrée le {formatZonedDateTime(confirmFinish.row.started_at)}
               </p>
             )}
           </div>
@@ -686,4 +687,4 @@ function StepCard({
 }
 
 const fmt = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
+  iso ? formatZonedDateTime(iso) : "—";

@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { DestructionFormDialog } from "./destruction-form-dialog";
 import { STAGE_LABELS, STAGE_ORDER, isFreshStage, type StageCode } from "@/lib/batch-workflow";
+import { formatZonedDate } from "@/lib/dates";
 
 type DestructionRow = {
   id: string;
@@ -311,7 +312,7 @@ function GroupBlock({
               {group.list.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap">
-                    {new Date(r.created_at).toLocaleDateString("fr-CA")}
+                    {formatZonedDate(r.created_at)}
                   </TableCell>
                   {!isSanitation && <TableCell>{r.weight_grams}</TableCell>}
                   {isSanitation && <TableCell><TypePill type={r.sanitation_type} /></TableCell>}
