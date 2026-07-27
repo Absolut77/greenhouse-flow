@@ -94,6 +94,8 @@ function NewReceptionPage() {
   const [grams, setGrams] = useState("");
   const [units, setUnits] = useState("");
   const [location, setLocation] = useState("");
+  const [structured, setStructured] = useState(false);
+  const [cartons, setCartons] = useState<CartonDraft[]>([emptyCarton(1)]);
   const [existingLotIdBulk, setExistingLotIdBulk] = useState<string>(NONE);
   const [batchLots, setBatchLots] = useState<Lot[]>([]);
 
