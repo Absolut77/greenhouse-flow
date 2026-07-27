@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 
+import { formatDateOnly } from "@/lib/dates";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,7 +189,7 @@ function ReelDetailPage() {
             <span>{reel.province ?? "—"}</span>
             {reel.received_at && (
               <span>
-                Reçu le {new Date(reel.received_at).toLocaleDateString("fr-CA")}
+                Reçu le {formatDateOnly(reel.received_at)}
               </span>
             )}
           </div>
@@ -247,9 +248,7 @@ function ReelDetailPage() {
           <Info label="Province">{reel.province ?? "—"}</Info>
           <Info label="Box ID">{reel.box_id ?? "—"}</Info>
           <Info label="Reçu le">
-            {reel.received_at
-              ? new Date(reel.received_at).toLocaleDateString("fr-CA")
-              : "—"}
+            {formatDateOnly(reel.received_at)}
           </Info>
           <Info label="Quantité originale">{reel.original_quantity ?? "—"}</Info>
           <Info label="Spoiled à la réception">

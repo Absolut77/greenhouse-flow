@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Loader2, Trash2, Pencil, Lock } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { formatZonedDate, toDateInputValue, todayInputValue, dateInputToTimestamp } from "@/lib/dates";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +211,7 @@ export function EventStampsSection({
                   return (
                     <TableRow key={m.id}>
                       <TableCell>
-                        {new Date(m.moved_at).toLocaleDateString("fr-CA")}
+                        {formatZonedDate(m.moved_at)}
                       </TableCell>
                       <TableCell className="font-medium">
                         {reel ? (
@@ -326,6 +327,7 @@ function StampDialog({
   const [quantity, setQuantity] = useState("");
   const [lotId, setLotId] = useState<string>(NONE);
   const [comments, setComments] = useState("");
+  const [movedAt, setMovedAt] = useState(todayInputValue());
   const [reels, setReels] = useState<Reel[]>([]);
   const [lots, setLots] = useState<Lot[]>([]);
   const [reelMovements, setReelMovements] = useState<Movement[]>([]);
@@ -339,12 +341,14 @@ function StampDialog({
       setQuantity(editing.quantity?.toString() ?? "");
       setLotId(editing.lot_id ?? NONE);
       setComments(editing.comments ?? "");
+      setMovedAt(toDateInputValue(editing.moved_at));
     } else {
       setReelId("");
       setType("used");
       setQuantity("");
       setLotId(NONE);
       setComments("");
+      setMovedAt(todayInputValue());
     }
     (async () => {
       const [{ data: rs }, { data: ls }] = await Promise.all([
@@ -434,6 +438,7 @@ function StampDialog({
       quantity: q,
       lot_id: lotId === NONE ? null : lotId,
       comments: comments.trim() || null,
+      moved_at: dateInputToTimestamp(movedAt) ?? new Date().toISOString(),
     };
     const { error } = editing
       ? await supabase
@@ -512,6 +517,14 @@ function StampDialog({
                 onChange={(e) => setQuantity(e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Date du mouvement</Label>
+            <Input
+              type="date"
+              value={movedAt}
+              onChange={(e) => setMovedAt(e.target.value)}
+            />
           </div>
           <div className="grid gap-2">
             <Label>Lot lié</Label>

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Download } from "lucide-react";
+import { formatDateOnly, formatZonedDate } from "@/lib/dates";
 import { exportXlsx } from "@/lib/export-xlsx";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -306,7 +307,7 @@ function StampsPage() {
                           <ReelStatusBadge status={r.status} />
                         </TableCell>
                         <TableCell>
-                          {r.received_at ? new Date(r.received_at).toLocaleDateString("fr-CA") : "—"}
+                          {formatDateOnly(r.received_at)}
                         </TableCell>
                       </TableRow>
                     );
@@ -377,7 +378,7 @@ function PackagingRunsTable() {
             )}
             {rows?.map((r) => (
               <TableRow key={r.id}>
-                <TableCell>{new Date(r.created_at).toLocaleDateString("fr-CA")}</TableCell>
+                <TableCell>{formatZonedDate(r.moved_at ?? r.created_at)}</TableCell>
                 <TableCell>
                   {r.event ? (
                     <Link to="/events/$id" params={{ id: r.event.id }} className="hover:underline">
