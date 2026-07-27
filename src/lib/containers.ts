@@ -11,10 +11,12 @@ export const CONTAINER_TYPES = [
   { value: "master_case", label: "Master Case" },
   { value: "preroll", label: "Pre-roll" },
   { value: "packaged", label: "Packagé" },
-  { value: "trim", label: "Trim" },
   { value: "retention", label: "Rétention" },
   { value: "other", label: "Autre" },
 ] as const;
+
+/** Libellés historiques (types retirés du sélecteur mais présents en base). */
+const LEGACY_TYPE_LABELS: Record<string, string> = { trim: "Trim" };
 
 export const CONTAINER_TYPE_CLASS: Record<string, string> = {
   bulk: "bg-blue-500/15 text-blue-400 border-blue-500/30",
@@ -44,7 +46,8 @@ export const CONTAINER_STATUS_CLASS: Record<string, string> = {
 };
 
 export const containerTypeLabel = (v: string | null | undefined) =>
-  CONTAINER_TYPES.find((t) => t.value === v)?.label ?? v ?? "—";
+  CONTAINER_TYPES.find((t) => t.value === v)?.label ??
+  (v ? (LEGACY_TYPE_LABELS[v] ?? v) : "—");
 
 export const containerStatusLabel = (v: string | null | undefined) =>
   CONTAINER_STATUSES.find((t) => t.value === v)?.label ?? v ?? "—";
