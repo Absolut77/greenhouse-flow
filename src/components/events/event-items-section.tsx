@@ -41,9 +41,18 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  containerTypeLabel,
+  fetchContainersForLots,
+  fmtG,
+  isUsableContainer,
+  type StockContainer,
+} from "@/lib/containers";
 
 type EventItem = Tables<"event_items">;
 type Lot = Tables<"inventory_lots">;
+
+const NO_CONTAINER = "__no_container__";
 
 export function EventItemsSection({
   eventId,
