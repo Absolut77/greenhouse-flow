@@ -107,6 +107,21 @@ export function EventItemsSection({
       (extra ?? []).forEach((l) => (m[l.id] = l));
     }
     setLotMap(m);
+
+    const containerIds = rows
+      .map((r) => (r as any).container_id as string | null)
+      .filter((id): id is string => !!id);
+    if (containerIds.length > 0) {
+      const { data: cs } = await supabase
+        .from("stock_containers")
+        .select("*")
+        .in("id", containerIds);
+      const cm: Record<string, StockContainer> = {};
+      (cs ?? []).forEach((c) => (cm[c.id] = c));
+      setContainerMap(cm);
+    } else {
+      setContainerMap({});
+    }
   };
 
   useEffect(() => {
