@@ -28,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
+import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -120,6 +121,7 @@ function InventoryPage() {
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
+  const [containers, setContainers] = useState<Record<string, StockContainer[]>>({});
   const [error, setError] = useState<string | null>(null);
 
   const setStatusFilter = (v: string) =>
@@ -159,6 +161,22 @@ function InventoryPage() {
       }
       const rows = data ?? [];
       setLots(rows);
+      const lotIds = rows.map((r) => r.id);
+      if (lotIds.length > 0) {
+        const { data: cs } = await supabase
+          .from("stock_containers")
+          .select("*")
+          .in("lot_id", lotIds);
+        if (!cancelled) {
+          const grouped: Record<string, StockContainer[]> = {};
+          (cs ?? []).forEach((c) => {
+            grouped[c.lot_id] = [...(grouped[c.lot_id] ?? []), c];
+          });
+          setContainers(grouped);
+        }
+      } else {
+        setContainers({});
+      }
       const ids = Array.from(
         new Set(rows.map((r) => r.batch_id).filter((x): x is string => !!x)),
       );
@@ -292,6 +310,7 @@ function InventoryPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Format</TableHead>
                 <TableHead>Taille</TableHead>
+                <TableHead>Sacs dispo.</TableHead>
                 <TableHead>Quantité (g)</TableHead>
                 <TableHead>Unités</TableHead>
                 <TableHead>Emplacement</TableHead>
@@ -302,7 +321,7 @@ function InventoryPage() {
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-destructive">
+                  <TableCell colSpan={12} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -311,7 +330,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(11)].map((_, j) => (
+                      {[...Array(12)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -323,7 +342,7 @@ function InventoryPage() {
               {lots && lots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={11}
+                    colSpan={12}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
@@ -366,6 +385,21 @@ function InventoryPage() {
                   <TableCell>{labelOf(PRODUCT_TYPES, l.product_type)}</TableCell>
                   <TableCell>{l.format ?? "—"}</TableCell>
                   <TableCell>{labelOf(FLOWER_SIZES, l.flower_size)}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const s = summarizeContainers(containers[l.id] ?? []);
+                      if (s.total === 0)
+                        return <span className="text-muted-foreground">—</span>;
+                      return (
+                        <span className="tabular-nums">
+                          {s.available}/{s.total}
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({fmtG(s.availableGrams)} g)
+                          </span>
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>{l.quantity_grams ?? "—"}</TableCell>
                   <TableCell>{l.units ?? "—"}</TableCell>
                   <TableCell>{l.location ?? "—"}</TableCell>

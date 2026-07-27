@@ -344,6 +344,7 @@ export type Database = {
       }
       event_items: {
         Row: {
+          container_id: string | null
           direction: string | null
           event_id: string
           id: string
@@ -352,6 +353,7 @@ export type Database = {
           units: number | null
         }
         Insert: {
+          container_id?: string | null
           direction?: string | null
           event_id: string
           id?: string
@@ -360,6 +362,7 @@ export type Database = {
           units?: number | null
         }
         Update: {
+          container_id?: string | null
           direction?: string | null
           event_id?: string
           id?: string
@@ -368,6 +371,13 @@ export type Database = {
           units?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "event_items_container_id_fkey"
+            columns: ["container_id"]
+            isOneToOne: false
+            referencedRelation: "stock_containers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "event_items_event_id_fkey"
             columns: ["event_id"]
@@ -872,6 +882,126 @@ export type Database = {
           },
         ]
       }
+      stock_cartons: {
+        Row: {
+          carton_code: string
+          created_at: string
+          created_by: string | null
+          event_id: string | null
+          id: string
+          location: string | null
+          lot_id: string | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          carton_code: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          location?: string | null
+          lot_id?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          carton_code?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          location?: string | null
+          lot_id?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_cartons_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_cartons_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_containers: {
+        Row: {
+          carton_id: string | null
+          container_code: string
+          container_type: string
+          created_at: string
+          created_by: string | null
+          gross_weight_grams: number | null
+          id: string
+          location: string | null
+          lot_id: string
+          net_weight_grams: number
+          notes: string | null
+          status: string
+          unit_count: number
+          unit_weight_grams: number
+          updated_at: string
+        }
+        Insert: {
+          carton_id?: string | null
+          container_code: string
+          container_type?: string
+          created_at?: string
+          created_by?: string | null
+          gross_weight_grams?: number | null
+          id?: string
+          location?: string | null
+          lot_id: string
+          net_weight_grams?: number
+          notes?: string | null
+          status?: string
+          unit_count?: number
+          unit_weight_grams?: number
+          updated_at?: string
+        }
+        Update: {
+          carton_id?: string | null
+          container_code?: string
+          container_type?: string
+          created_at?: string
+          created_by?: string | null
+          gross_weight_grams?: number | null
+          id?: string
+          location?: string | null
+          lot_id?: string
+          net_weight_grams?: number
+          notes?: string | null
+          status?: string
+          unit_count?: number
+          unit_weight_grams?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_containers_carton_id_fkey"
+            columns: ["carton_id"]
+            isOneToOne: false
+            referencedRelation: "stock_cartons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_containers_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -936,10 +1066,38 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      lot_container_summary: {
+        Row: {
+          available_containers: number | null
+          available_grams: number | null
+          available_units: number | null
+          container_type: string | null
+          lot_id: string | null
+          total_containers: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_containers_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_count: { Args: never; Returns: number }
+      apply_event_item_container: {
+        Args: {
+          _container_id: string
+          _direction: string
+          _grams: number
+          _sign: number
+          _units: number
+        }
+        Returns: undefined
+      }
       apply_event_item_stock: {
         Args: {
           _direction: string

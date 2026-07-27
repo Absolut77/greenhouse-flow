@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { ContainersSection } from "@/components/inventory/containers-section";
 import {
   LotStatusBadge,
   PRODUCT_TYPES,
@@ -230,6 +231,12 @@ function LotDetailPage() {
           <Info label="Lot parent">{lot.parent_lot_id ?? "—"}</Info>
         </CardContent>
       </Card>
+
+      <ContainersSection
+        lotId={lot.id}
+        defaultType={(lot as any).lot_kind ?? "bulk"}
+        onChanged={load}
+      />
 
       {lot.batch_id && <PackagingBagsSection batchId={lot.batch_id} />}
 

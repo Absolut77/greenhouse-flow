@@ -28,12 +28,22 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { SHIPMENT_KINDS } from "./events";
 import { PRODUCT_TYPES } from "./inventory";
+import {
+  containerTypeLabel,
+  fetchContainersForLots,
+  fmtG,
+  isUsableContainer,
+  type StockContainer,
+} from "@/lib/containers";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
 
+const NO_CONTAINER = "__no_container__";
+
 type Line = {
   lot_id: string;
+  container_id: string;
   grams: string;
   units: string;
 };
@@ -72,7 +82,8 @@ function NewShipmentPage() {
 
   const [lots, setLots] = useState<Lot[]>([]);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
-  const [lines, setLines] = useState<Line[]>([{ lot_id: "", grams: "", units: "" }]);
+  const [containersByLot, setContainersByLot] = useState<Record<string, StockContainer[]>>({});
+  const [lines, setLines] = useState<Line[]>([{ lot_id: "", container_id: NO_CONTAINER, grams: "", units: "" }]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,6 +98,15 @@ function NewShipmentPage() {
         return;
       }
       setLots(data ?? []);
+      const lotIds = (data ?? []).map((l) => l.id);
+      if (lotIds.length > 0) {
+        const cs = await fetchContainersForLots(lotIds).catch(() => []);
+        const cm: Record<string, StockContainer[]> = {};
+        cs.forEach((c) => {
+          cm[c.lot_id] = [...(cm[c.lot_id] ?? []), c];
+        });
+        setContainersByLot(cm);
+      }
       const bIds = Array.from(
         new Set((data ?? []).map((l) => l.batch_id).filter((x): x is string => !!x)),
       );
@@ -98,6 +118,26 @@ function NewShipmentPage() {
       }
     })();
   }, []);
+
+  const containersOf = (lotId: string) =>
+    (containersByLot[lotId] ?? []).filter(isUsableContainer);
+
+  /** Remaining stock for a line, container-aware. */
+  const remainingForLine = (ln: Line, exceptIndex: number) => {
+    if (ln.container_id !== NO_CONTAINER) {
+      const c = (containersByLot[ln.lot_id] ?? []).find((x) => x.id === ln.container_id);
+      if (!c) return { g: 0, u: 0, hasUnits: true };
+      let g = Number(c.net_weight_grams ?? 0);
+      let u = Number(c.unit_count ?? 0);
+      lines.forEach((other, i) => {
+        if (i === exceptIndex || other.container_id !== ln.container_id) return;
+        g -= Number(other.grams) || 0;
+        u -= Number(other.units) || 0;
+      });
+      return { g, u, hasUnits: true };
+    }
+    return remainingFor(ln.lot_id, exceptIndex);
+  };
 
   const filteredLots = useMemo(() => {
     return lots.filter((l) => {
@@ -133,7 +173,7 @@ function NewShipmentPage() {
   const updateLine = (i: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((ln, idx) => (idx === i ? { ...ln, ...patch } : ln)));
   };
-  const addLine = () => setLines((p) => [...p, { lot_id: "", grams: "", units: "" }]);
+  const addLine = () => setLines((p) => [...p, { lot_id: "", container_id: NO_CONTAINER, grams: "", units: "" }]);
   const removeLine = (i: number) =>
     setLines((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
@@ -145,11 +185,13 @@ function NewShipmentPage() {
     if (lines.length === 0) return toast.error("Ajoutez au moins une ligne");
     for (const [i, ln] of lines.entries()) {
       if (!ln.lot_id) return toast.error(`Ligne ${i + 1} : sélectionnez un lot`);
+      if (containersOf(ln.lot_id).length > 0 && ln.container_id === NO_CONTAINER)
+        return toast.error(`Ligne ${i + 1} : sélectionnez le sac à expédier`);
       const g = Number(ln.grams);
       if (!g || g <= 0) return toast.error(`Ligne ${i + 1} : quantité (g) > 0 requise`);
-      const rem = remainingFor(ln.lot_id, i);
+      const rem = remainingForLine(ln, i);
       if (g > rem.g + 1e-6)
-        return toast.error(`Ligne ${i + 1} : stock insuffisant (${rem.g}g dispo)`);
+        return toast.error(`Ligne ${i + 1} : stock insuffisant (${fmtG(rem.g)}g dispo)`);
       if (ln.units.trim()) {
         const u = Number(ln.units);
         if (Number.isNaN(u) || u < 0)
@@ -189,6 +231,7 @@ function NewShipmentPage() {
     const rows = lines.map((l) => ({
       event_id: ev.id,
       inventory_lot_id: l.lot_id,
+      container_id: l.container_id === NO_CONTAINER ? null : l.container_id,
       quantity_grams: Number(l.grams),
       units: l.units.trim() ? Number(l.units) : null,
       direction: "out",
@@ -312,6 +355,7 @@ function NewShipmentPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[280px]">Lot</TableHead>
+                  <TableHead className="min-w-[220px]">Sac</TableHead>
                   <TableHead className="w-[140px]">Quantité (g)</TableHead>
                   <TableHead className="w-[120px]">Unités</TableHead>
                   <TableHead className="w-[200px]">Restant après</TableHead>
@@ -321,7 +365,8 @@ function NewShipmentPage() {
               <TableBody>
                 {lines.map((ln, i) => {
                   const lot = lots.find((l) => l.id === ln.lot_id);
-                  const rem = ln.lot_id ? remainingFor(ln.lot_id, i) : null;
+                  const lotContainers = ln.lot_id ? containersOf(ln.lot_id) : [];
+                  const rem = ln.lot_id ? remainingForLine(ln, i) : null;
                   const g = Number(ln.grams) || 0;
                   const u = Number(ln.units) || 0;
                   const remAfterG = rem ? rem.g - g : 0;
@@ -332,7 +377,14 @@ function NewShipmentPage() {
                       <TableCell>
                         <Select
                           value={ln.lot_id}
-                          onValueChange={(v) => updateLine(i, { lot_id: v })}
+                          onValueChange={(v) =>
+                            updateLine(i, {
+                              lot_id: v,
+                              container_id: NO_CONTAINER,
+                              grams: "",
+                              units: "",
+                            })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionner un lot" />
@@ -357,6 +409,43 @@ function NewShipmentPage() {
                             <Badge variant="outline">{productLabel(lot.product_type)}</Badge>
                             {lot.location && <Badge variant="outline">{lot.location}</Badge>}
                             {lot.parent_lot_id && <Badge variant="outline">packagé</Badge>}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {lotContainers.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            {ln.lot_id ? "Aucun sac — lot en vrac" : "—"}
+                          </span>
+                        ) : (
+                          <div className="space-y-1">
+                            <Select
+                              value={ln.container_id}
+                              onValueChange={(v) => {
+                                const c = lotContainers.find((x) => x.id === v);
+                                updateLine(i, {
+                                  container_id: v,
+                                  grams: c ? String(c.net_weight_grams ?? "") : "",
+                                  units: c?.unit_count != null ? String(c.unit_count) : "",
+                                });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un sac" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {lotContainers.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.container_code} · {containerTypeLabel(c.container_type)} ·{" "}
+                                    {fmtG(c.net_weight_grams)}g
+                                    {c.unit_count != null ? ` · ${c.unit_count}u` : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              {lotContainers.length} sac(s) disponible(s)
+                            </p>
                           </div>
                         )}
                       </TableCell>

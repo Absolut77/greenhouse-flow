@@ -19,6 +19,14 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { PRODUCT_TYPES, FLOWER_SIZES } from "./inventory";
 import { RECEPTION_KINDS } from "./events";
+import {
+  CartonBuilder,
+  cartonTotals,
+  emptyCarton,
+  expandCartons,
+  type CartonDraft,
+} from "@/components/inventory/carton-builder";
+import { Switch } from "@/components/ui/switch";
 
 type Batch = Tables<"batches">;
 type EventRow = Tables<"events">;
@@ -86,6 +94,8 @@ function NewReceptionPage() {
   const [grams, setGrams] = useState("");
   const [units, setUnits] = useState("");
   const [location, setLocation] = useState("");
+  const [structured, setStructured] = useState(false);
+  const [cartons, setCartons] = useState<CartonDraft[]>([emptyCarton(1)]);
   const [existingLotIdBulk, setExistingLotIdBulk] = useState<string>(NONE);
   const [batchLots, setBatchLots] = useState<Lot[]>([]);
 
@@ -220,11 +230,21 @@ function NewReceptionPage() {
 
       // --- Kind-specific pre-processing (creating batches / lots) ---
       let inventoryLotForBulk: string | null = null;
+      const useCartons =
+        structured && (kind === "cannabis_bulk" || kind === "cannabis_batch");
+      const totals = cartonTotals(cartons);
+      const effGrams = useCartons ? totals.grams : Number(grams);
+      const effUnits = useCartons ? totals.units : units ? Number(units) : null;
 
       if (kind === "cannabis_bulk") {
-        const g = Number(grams);
-        if (!grams || Number.isNaN(g) || g <= 0) {
-          throw new Error("Quantité (g) > 0 requise");
+        if (useCartons) {
+          if (totals.bags === 0 || totals.grams <= 0)
+            throw new Error("Saisissez au moins un sac avec un poids > 0");
+        } else {
+          const g = Number(grams);
+          if (!grams || Number.isNaN(g) || g <= 0) {
+            throw new Error("Quantité (g) > 0 requise");
+          }
         }
         if (existingBatchId !== NONE) relatedBatchId = existingBatchId;
 
@@ -256,9 +276,14 @@ function NewReceptionPage() {
         if (!newBatchNumber.trim() || !newBatchStrain.trim()) {
           throw new Error("Numéro de batch et variété requis");
         }
-        const g = Number(grams);
-        if (!grams || Number.isNaN(g) || g <= 0) {
-          throw new Error("Quantité (g) > 0 requise");
+        if (useCartons) {
+          if (totals.bags === 0 || totals.grams <= 0)
+            throw new Error("Saisissez au moins un sac avec un poids > 0");
+        } else {
+          const g = Number(grams);
+          if (!grams || Number.isNaN(g) || g <= 0) {
+            throw new Error("Quantité (g) > 0 requise");
+          }
         }
         // Create the batch (received from elsewhere → closed)
         const { data: b, error: bErr } = await supabase
@@ -332,16 +357,48 @@ function NewReceptionPage() {
       // --- Kind-specific post-processing (event_items / non_cannabis) ---
       if (kind === "cannabis_bulk" || kind === "cannabis_batch") {
         if (inventoryLotForBulk) {
-          const g = Number(grams);
-          const u = units ? Number(units) : null;
           const { error: iErr } = await supabase.from("event_items").insert({
             event_id: event.id,
             inventory_lot_id: inventoryLotForBulk,
             direction: "in",
-            quantity_grams: g,
-            units: u,
+            quantity_grams: effGrams,
+            units: effUnits,
           } as never);
           if (iErr) throw iErr;
+
+          if (useCartons) {
+            for (const { carton, bags } of expandCartons(cartons)) {
+              if (bags.length === 0) continue;
+              const { data: ct, error: cErr } = await supabase
+                .from("stock_cartons")
+                .insert({
+                  lot_id: inventoryLotForBulk,
+                  event_id: event.id,
+                  carton_code: carton.code.trim() || "CARTON",
+                  location: carton.location.trim() || null,
+                  created_by: userId,
+                } as never)
+                .select()
+                .single();
+              if (cErr) throw cErr;
+              const { error: bErr2 } = await supabase.from("stock_containers").insert(
+                bags.map((b) => ({
+                  lot_id: inventoryLotForBulk,
+                  carton_id: ct.id,
+                  container_code: b.container_code,
+                  container_type: b.container_type,
+                  unit_count: b.unit_count,
+                  unit_weight_grams: b.unit_weight_grams,
+                  net_weight_grams: b.net_weight_grams,
+                  gross_weight_grams: b.gross_weight_grams,
+                  location: b.location ?? location.trim() ?? null,
+                  status: "available",
+                  created_by: userId,
+                })) as never,
+              );
+              if (bErr2) throw bErr2;
+            }
+          }
         }
       } else if (kind === "non_cannabis") {
         const rows = items
@@ -546,26 +603,37 @@ function NewReceptionPage() {
                     </div>
                   </>
                 )}
-                <div className="grid gap-2">
-                  <Label>Quantité reçue (g) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Unités reçues</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={units}
-                    onChange={(e) => setUnits(e.target.value)}
-                  />
-                </div>
+                {!structured && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Quantité reçue (g) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={grams}
+                        onChange={(e) => setGrams(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Unités reçues</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={units}
+                        onChange={(e) => setUnits(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+              <StructuredToggle
+                structured={structured}
+                onToggle={setStructured}
+                cartons={cartons}
+                onCartonsChange={setCartons}
+                defaultType={productType === "preroll" ? "preroll" : "bulk"}
+              />
             </div>
           )}
 
@@ -618,26 +686,37 @@ function NewReceptionPage() {
                   <Label>Emplacement</Label>
                   <Input value={location} onChange={(e) => setLocation(e.target.value)} />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Quantité (g) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Unités</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={units}
-                    onChange={(e) => setUnits(e.target.value)}
-                  />
-                </div>
+                {!structured && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Quantité (g) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={grams}
+                        onChange={(e) => setGrams(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Unités</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={units}
+                        onChange={(e) => setUnits(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+              <StructuredToggle
+                structured={structured}
+                onToggle={setStructured}
+                cartons={cartons}
+                onCartonsChange={setCartons}
+                defaultType={productType === "preroll" ? "preroll" : "bulk"}
+              />
             </div>
           )}
 
@@ -864,6 +943,51 @@ function NewReceptionPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/** Toggle between a simple total-weight entry and structured carton/bag entry. */
+function StructuredToggle({
+  structured,
+  onToggle,
+  cartons,
+  onCartonsChange,
+  defaultType,
+}: {
+  structured: boolean;
+  onToggle: (v: boolean) => void;
+  cartons: CartonDraft[];
+  onCartonsChange: (next: CartonDraft[]) => void;
+  defaultType?: string;
+}) {
+  const totals = cartonTotals(cartons);
+  return (
+    <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Saisie par cartons / sacs</p>
+          <p className="text-xs text-muted-foreground">
+            Recommandé pour les pré-roulés et réceptions multi-cartons : chaque sac devient
+            une unité de stock traçable.
+          </p>
+        </div>
+        <Switch checked={structured} onCheckedChange={onToggle} />
+      </div>
+      {structured && (
+        <>
+          <CartonBuilder
+            cartons={cartons}
+            onChange={onCartonsChange}
+            defaultType={defaultType}
+          />
+          <p className="text-sm tabular-nums">
+            Total : <strong>{totals.bags}</strong> sac(s) ·{" "}
+            <strong>{totals.units}</strong> unité(s) ·{" "}
+            <strong>{totals.grams.toFixed(2)} g</strong>
+          </p>
+        </>
+      )}
     </div>
   );
 }
