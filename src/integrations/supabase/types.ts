@@ -116,9 +116,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           drying_location: string | null
+          external_processor: string | null
           harvest_date: string | null
           harvest_room: string | null
           id: string
+          parent_batch_id: string | null
           plant_count: number | null
           status: string
           strain: string | null
@@ -130,9 +132,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           drying_location?: string | null
+          external_processor?: string | null
           harvest_date?: string | null
           harvest_room?: string | null
           id?: string
+          parent_batch_id?: string | null
           plant_count?: number | null
           status?: string
           strain?: string | null
@@ -144,15 +148,25 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           drying_location?: string | null
+          external_processor?: string | null
           harvest_date?: string | null
           harvest_room?: string | null
           id?: string
+          parent_batch_id?: string | null
           plant_count?: number | null
           status?: string
           strain?: string | null
           weight_per_plant?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "batches_parent_batch_id_fkey"
+            columns: ["parent_batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curing_containers: {
         Row: {
