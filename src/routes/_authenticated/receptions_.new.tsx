@@ -19,6 +19,14 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { PRODUCT_TYPES, FLOWER_SIZES } from "./inventory";
 import { RECEPTION_KINDS } from "./events";
+import {
+  CartonBuilder,
+  cartonTotals,
+  emptyCarton,
+  expandCartons,
+  type CartonDraft,
+} from "@/components/inventory/carton-builder";
+import { Switch } from "@/components/ui/switch";
 
 type Batch = Tables<"batches">;
 type EventRow = Tables<"events">;
