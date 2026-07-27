@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { ContainersSection } from "@/components/inventory/containers-section";
 import {
   LotStatusBadge,
   PRODUCT_TYPES,
