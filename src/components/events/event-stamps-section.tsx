@@ -327,6 +327,7 @@ function StampDialog({
   const [quantity, setQuantity] = useState("");
   const [lotId, setLotId] = useState<string>(NONE);
   const [comments, setComments] = useState("");
+  const [movedAt, setMovedAt] = useState(todayInputValue());
   const [reels, setReels] = useState<Reel[]>([]);
   const [lots, setLots] = useState<Lot[]>([]);
   const [reelMovements, setReelMovements] = useState<Movement[]>([]);
@@ -340,12 +341,14 @@ function StampDialog({
       setQuantity(editing.quantity?.toString() ?? "");
       setLotId(editing.lot_id ?? NONE);
       setComments(editing.comments ?? "");
+      setMovedAt(toDateInputValue(editing.moved_at));
     } else {
       setReelId("");
       setType("used");
       setQuantity("");
       setLotId(NONE);
       setComments("");
+      setMovedAt(todayInputValue());
     }
     (async () => {
       const [{ data: rs }, { data: ls }] = await Promise.all([
@@ -435,6 +438,7 @@ function StampDialog({
       quantity: q,
       lot_id: lotId === NONE ? null : lotId,
       comments: comments.trim() || null,
+      moved_at: dateInputToTimestamp(movedAt) ?? new Date().toISOString(),
     };
     const { error } = editing
       ? await supabase
@@ -513,6 +517,14 @@ function StampDialog({
                 onChange={(e) => setQuantity(e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Date du mouvement</Label>
+            <Input
+              type="date"
+              value={movedAt}
+              onChange={(e) => setMovedAt(e.target.value)}
+            />
           </div>
           <div className="grid gap-2">
             <Label>Lot lié</Label>

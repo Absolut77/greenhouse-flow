@@ -307,6 +307,7 @@ function MovementDialog({
   const [lotId, setLotId] = useState<string>(NONE);
   const [eventId, setEventId] = useState<string>(NONE);
   const [comments, setComments] = useState("");
+  const [movedAt, setMovedAt] = useState(todayInputValue());
   const [lots, setLots] = useState<Lot[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -319,12 +320,14 @@ function MovementDialog({
       setLotId(editing.lot_id ?? NONE);
       setEventId(editing.event_id ?? NONE);
       setComments(editing.comments ?? "");
+      setMovedAt(toDateInputValue(editing.moved_at));
     } else {
       setType("used");
       setQuantity("");
       setLotId(NONE);
       setEventId(NONE);
       setComments("");
+      setMovedAt(todayInputValue());
     }
     (async () => {
       const [{ data: ls }, { data: es }] = await Promise.all([
@@ -382,6 +385,7 @@ function MovementDialog({
       lot_id: lotId === NONE ? null : lotId,
       event_id: eventId === NONE ? null : eventId,
       comments: comments.trim() || null,
+      moved_at: dateInputToTimestamp(movedAt) ?? new Date().toISOString(),
     };
     const { error } = editing
       ? await supabase
@@ -437,6 +441,14 @@ function MovementDialog({
                 onChange={(e) => setQuantity(e.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Date du mouvement</Label>
+            <Input
+              type="date"
+              value={movedAt}
+              onChange={(e) => setMovedAt(e.target.value)}
+            />
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
