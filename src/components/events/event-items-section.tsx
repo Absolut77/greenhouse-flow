@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Loader2, Trash2, Pencil, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -206,6 +207,9 @@ export function EventItemsSection({
                           <span>
                             {container.container_code} ·{" "}
                             {containerTypeLabel(container.container_type)}
+                            {container.format_id && formatMap[container.format_id]
+                              ? ` · ${formatMap[container.format_id].name}`
+                              : ""}
                           </span>
                         ) : (
                           "—"
@@ -556,8 +560,11 @@ function ItemDialog({
                   </SelectItem>
                   {containerChoices.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.container_code} · {containerTypeLabel(c.container_type)} ·{" "}
-                      {fmtG(Number(c.net_weight_grams ?? 0))} g · {c.unit_count} u
+                      {c.container_code} · {containerTypeLabel(c.container_type)}
+                      {c.format_id && dlgFormatMap[c.format_id]
+                        ? ` · ${dlgFormatMap[c.format_id].name}`
+                        : ""}{" "}
+                      · {fmtG(Number(c.net_weight_grams ?? 0))} g · {c.unit_count} u
                     </SelectItem>
                   ))}
                 </SelectContent>
