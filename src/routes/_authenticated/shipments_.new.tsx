@@ -82,6 +82,7 @@ function NewShipmentPage() {
 
   const [lots, setLots] = useState<Lot[]>([]);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
+  const [containersByLot, setContainersByLot] = useState<Record<string, StockContainer[]>>({});
   const [lines, setLines] = useState<Line[]>([{ lot_id: "", container_id: NO_CONTAINER, grams: "", units: "" }]);
   const [saving, setSaving] = useState(false);
 
