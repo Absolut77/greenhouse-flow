@@ -323,7 +323,15 @@ export function CartonBuilder({
                     </div>
                     <div className="grid w-40 gap-1.5">
                       <Label className="text-xs">Type</Label>
-                      <Select value={b.type} onValueChange={(v) => patchBag(ci, bi, { type: v })}>
+                      <Select
+                        value={b.type}
+                        onValueChange={(v) =>
+                          patchBag(ci, bi, {
+                            type: v,
+                            weight: v === "bulk" && !b.weight.trim() ? "1000" : b.weight,
+                          })
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
