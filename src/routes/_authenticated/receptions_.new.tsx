@@ -288,6 +288,8 @@ function NewReceptionPage() {
 
       // --- Kind-specific pre-processing (creating batches / lots) ---
       let inventoryLotForBulk: string | null = null;
+      let subLotId: string | null = null;
+
       const useCartons =
         structured && (kind === "cannabis_bulk" || kind === "cannabis_batch");
       const totals = cartonTotals(cartons);
