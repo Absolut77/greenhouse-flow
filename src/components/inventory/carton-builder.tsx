@@ -1,4 +1,13 @@
-import { Boxes, Copy, Package, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Boxes,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Package,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,20 +197,46 @@ export function CartonBuilder({
 
   const totals = cartonTotals(cartons);
 
+  // Cartons repliés par défaut (saisie intensive : jusqu'à A → L).
+  const [open, setOpen] = useState<number[]>([]);
+  const isOpen = (i: number) => open.includes(i);
+  const toggle = (i: number) =>
+    setOpen((o) => (o.includes(i) ? o.filter((x) => x !== i) : [...o, i]));
+
+  const addCarton = () => {
+    onChange([...cartons, emptyCarton(cartons.length + 1, defaultType)]);
+    setOpen((o) => [...o, cartons.length]);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Boxes className="h-4 w-4" /> Cartons &amp; sacs
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => onChange([...cartons, emptyCarton(cartons.length + 1, defaultType)])}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Ajouter un carton
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={() => setOpen([])}
+          >
+            Tout réduire
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={() => setOpen(cartons.map((_, i) => i))}
+          >
+            Tout ouvrir
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-7" onClick={addCarton}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un carton
+          </Button>
+        </div>
       </div>
 
       {cartons.length === 0 && (
@@ -212,9 +247,45 @@ export function CartonBuilder({
 
       {cartons.map((c, ci) => {
         const t = cartonTotals([c]);
+        const opened = isOpen(ci);
         return (
-          <div key={ci} className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
-            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div key={ci} className="rounded-md border border-border/60 bg-muted/20">
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => toggle(ci)}
+                className="flex flex-1 items-center gap-2 text-left text-sm"
+              >
+                {opened ? (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="font-semibold">Carton {c.code || "—"}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t.bags} sac{t.bags > 1 ? "s" : ""} · {fmtG(t.grams)} g
+                </span>
+                {c.location.trim() && (
+                  <span className="truncate text-xs text-muted-foreground">· {c.location}</span>
+                )}
+              </button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => {
+                  onChange(cartons.filter((_, i) => i !== ci));
+                  setOpen([]);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+
+            {opened && (
+            <div className="space-y-2 border-t border-border/60 p-2">
+            <div className="grid gap-2 sm:grid-cols-2 sm:items-end">
               <div className="grid gap-1.5">
                 <Label className="text-xs">Carton</Label>
                 <Input
@@ -230,14 +301,6 @@ export function CartonBuilder({
                   placeholder="Voute - 155..."
                 />
               </div>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => onChange(cartons.filter((_, i) => i !== ci))}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
             </div>
 
             <div className="space-y-2">
@@ -247,7 +310,7 @@ export function CartonBuilder({
                 return (
                   <div
                     key={bi}
-                    className="flex flex-wrap items-end gap-2 rounded-md border border-border/40 bg-background/40 p-2"
+                    className="flex flex-wrap items-end gap-2 rounded-md border border-border/40 bg-background/40 p-1.5"
                   >
                     <div className="grid w-16 gap-1.5">
                       <Label className="text-xs">Sac</Label>
@@ -405,7 +468,7 @@ export function CartonBuilder({
                   patchCarton(ci, { bags: [...c.bags, emptyBag(c.bags.length + 1, defaultType)] })
                 }
               >
-                <Plus className="mr-1 h-4 w-4" /> Ajouter un sac
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un sac
               </Button>
             </div>
 
@@ -413,12 +476,14 @@ export function CartonBuilder({
               <Package className="h-3.5 w-3.5" />
               {t.bags} sac{t.bags > 1 ? "s" : ""} · {t.units} unités · {fmtG(t.grams)} g
             </div>
+            </div>
+            )}
           </div>
         );
       })}
 
       {cartons.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
           <span className="text-muted-foreground">Total</span>
           <span className="font-semibold tabular-nums">
             {totals.bags} sacs · {totals.units} unités · {fmtG(totals.grams)} g
