@@ -46,7 +46,8 @@ export const CONTAINER_STATUS_CLASS: Record<string, string> = {
 };
 
 export const containerTypeLabel = (v: string | null | undefined) =>
-  CONTAINER_TYPES.find((t) => t.value === v)?.label ?? v ?? "—";
+  CONTAINER_TYPES.find((t) => t.value === v)?.label ??
+  (v ? (LEGACY_TYPE_LABELS[v] ?? v) : "—");
 
 export const containerStatusLabel = (v: string | null | undefined) =>
   CONTAINER_STATUSES.find((t) => t.value === v)?.label ?? v ?? "—";
