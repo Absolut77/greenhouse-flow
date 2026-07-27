@@ -54,7 +54,7 @@ function NewLotPage() {
   const [batchId, setBatchId] = useState<string>(NONE);
   const [lotNumber, setLotNumber] = useState("");
   const [lotName, setLotName] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Voute - 155");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
