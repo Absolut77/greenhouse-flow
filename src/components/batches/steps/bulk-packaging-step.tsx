@@ -20,7 +20,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  formatNetGrams,
+  indexFormats,
+  usePackagingFormats,
+} from "@/lib/packaging-formats";
+
+const NO_FORMAT = "__no_format__";
 
 export type PackagingBag = {
   id: string;
@@ -34,6 +48,7 @@ export type PackagingBag = {
   location: string | null;
   notes: string | null;
   inventory_lot_id: string | null;
+  format_id: string | null;
   created_at: string;
 };
 
@@ -61,6 +76,8 @@ export function BulkPackagingStepContent({
   onChanged?: () => void;
 }) {
   const [rows, setRows] = useState<PackagingBag[] | null>(null);
+  const { formats } = usePackagingFormats();
+  const formatMap = indexFormats(formats);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PackagingBag | null>(null);
 
@@ -132,6 +149,7 @@ export function BulkPackagingStepContent({
             <TableHeader>
               <TableRow>
                 <TableHead>Type de fleur</TableHead>
+                <TableHead>Format</TableHead>
                 <TableHead className="text-right">Nb</TableHead>
                 <TableHead className="text-right">Net / sac (g)</TableHead>
                 <TableHead className="text-right">Brut / sac (g)</TableHead>
@@ -145,6 +163,13 @@ export function BulkPackagingStepContent({
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.flower_type}</TableCell>
+                  <TableCell>
+                    {r.format_id && formatMap[r.format_id] ? (
+                      <Badge variant="outline">{formatMap[r.format_id].name}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Vrac</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">{r.bag_count}</TableCell>
                   <TableCell className="text-right">{Number(r.net_weight_grams).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
@@ -252,7 +277,16 @@ function BagDialog({
   const [net, setNet] = useState(bag?.net_weight_grams?.toString() ?? "");
   const [gross, setGross] = useState(bag?.gross_weight_grams?.toString() ?? "");
   const [location, setLocation] = useState(bag?.location ?? "");
+  const [formatId, setFormatId] = useState(bag?.format_id ?? NO_FORMAT);
+  const { formats } = usePackagingFormats();
   const [saving, setSaving] = useState(false);
+
+  /** Sélection d'un format : pré-remplit le net par sac (calcul dynamique). */
+  const applyFormat = (v: string) => {
+    setFormatId(v);
+    const f = formats.find((x) => x.id === v);
+    if (f) setNet(String(formatNetGrams(f)));
+  };
 
   const submit = async () => {
     const c = Number(count);
@@ -267,6 +301,7 @@ function BagDialog({
       net_weight_grams: n,
       gross_weight_grams: gross.trim() === "" ? null : Number(gross),
       location: location.trim() || null,
+      format_id: formatId === NO_FORMAT ? null : formatId,
     };
     let error;
     if (bag) {
@@ -303,6 +338,25 @@ function BagDialog({
             >
               {FLOWER_TYPES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Format de packaging</Label>
+            <Select value={formatId} onValueChange={applyFormat}>
+              <SelectTrigger>
+                <SelectValue placeholder="Aucun / vrac" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                {formats.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name} ({formatNetGrams(f)} g)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Le net par sac est pré-rempli depuis le format et reste modifiable.
+            </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="grid gap-2">
