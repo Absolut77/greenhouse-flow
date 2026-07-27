@@ -31,7 +31,7 @@ const NO_SIZE = "__no_size__";
 
 /** Tailles de fleur (miroir de FLOWER_SIZES côté inventaire). */
 const FLOWER_SIZES = [
-  { value: "big", label: "Big" },
+  { value: "trim", label: "Trim" },
   { value: "medium", label: "Medium" },
   { value: "small", label: "Small" },
   { value: "hand_trim", label: "Hand Trim" },
