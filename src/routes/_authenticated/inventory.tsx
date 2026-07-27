@@ -306,23 +306,15 @@ function InventoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
-                <TableHead>Batch</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Format</TableHead>
-                <TableHead>Taille</TableHead>
-                <TableHead>Sacs dispo.</TableHead>
-                <TableHead>Quantité (g)</TableHead>
-                <TableHead>Unités</TableHead>
-                <TableHead>Emplacement</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Créé le</TableHead>
+                <TableHead>Nom de la batch</TableHead>
+                <TableHead className="text-right">Quantité disponible (g)</TableHead>
+                <TableHead className="text-right">Unités (sacs dispo.)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-destructive">
+                  <TableCell colSpan={4} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -331,7 +323,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(12)].map((_, j) => (
+                      {[...Array(4)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -343,79 +335,62 @@ function InventoryPage() {
               {lots && lots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={12}
+                    colSpan={4}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
                   </TableCell>
                 </TableRow>
               )}
-              {lots?.map((l) => (
-                <TableRow
-                  key={l.id}
-                  className="cursor-pointer"
-                  onClick={() =>
-                    navigate({ to: "/inventory/$id", params: { id: l.id } })
-                  }
-                >
-                  <TableCell className="font-medium">
-                    <Link
-                      to="/inventory/$id"
-                      params={{ id: l.id }}
-                      className="hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {l.lot_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {l.batch_id && batches[l.batch_id] ? (
+              {lots?.map((l) => {
+                const s = summarizeContainers(containers[l.id] ?? []);
+                const batch = l.batch_id ? batches[l.batch_id] : null;
+                return (
+                  <TableRow
+                    key={l.id}
+                    className="cursor-pointer"
+                    onClick={() =>
+                      navigate({ to: "/inventory/$id", params: { id: l.id } })
+                    }
+                  >
+                    <TableCell className="font-medium">
                       <Link
-                        to="/batches/$id"
-                        params={{ id: l.batch_id }}
-                        className="hover:underline text-muted-foreground"
+                        to="/inventory/$id"
+                        params={{ id: l.id }}
+                        className="hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {batches[l.batch_id].batch_number}
+                        {l.lot_number}
                       </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell><LotKindBadge kind={(l as any).lot_kind ?? null} /></TableCell>
-                  <TableCell>{labelOf(PRODUCT_TYPES, l.product_type)}</TableCell>
-                  <TableCell>{l.format ?? "—"}</TableCell>
-                  <TableCell>{labelOf(FLOWER_SIZES, l.flower_size)}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const s = summarizeContainers(containers[l.id] ?? []);
-                      if (s.total === 0)
-                        return <span className="text-muted-foreground">—</span>;
-                      return (
-                        <span className="tabular-nums">
-                          {s.available}/{s.total}
-                          <span className="ml-1 text-xs text-muted-foreground">
-                            ({fmtG(s.availableGrams)} g)
-                          </span>
-                        </span>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell>{l.quantity_grams ?? "—"}</TableCell>
-                  <TableCell>{l.units ?? "—"}</TableCell>
-                  <TableCell>{l.location ?? "—"}</TableCell>
-                  <TableCell>
-                    <LotStatusBadge status={l.status} />
-                  </TableCell>
-                  <TableCell>
-                    {formatZonedDate(l.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {batch ? (
+                        <Link
+                          to="/batches/$id"
+                          params={{ id: batch.id }}
+                          className="hover:underline text-muted-foreground"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {batch.strain || batch.batch_number}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtG(Number(l.quantity_grams ?? 0))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {s.total > 0 ? s.available : (l.units ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       </Card>
+
     </div>
   );
 }
