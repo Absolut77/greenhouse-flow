@@ -230,11 +230,21 @@ function NewReceptionPage() {
 
       // --- Kind-specific pre-processing (creating batches / lots) ---
       let inventoryLotForBulk: string | null = null;
+      const useCartons =
+        structured && (kind === "cannabis_bulk" || kind === "cannabis_batch");
+      const totals = cartonTotals(cartons);
+      const effGrams = useCartons ? totals.grams : Number(grams);
+      const effUnits = useCartons ? totals.units : units ? Number(units) : null;
 
       if (kind === "cannabis_bulk") {
-        const g = Number(grams);
-        if (!grams || Number.isNaN(g) || g <= 0) {
-          throw new Error("Quantité (g) > 0 requise");
+        if (useCartons) {
+          if (totals.bags === 0 || totals.grams <= 0)
+            throw new Error("Saisissez au moins un sac avec un poids > 0");
+        } else {
+          const g = Number(grams);
+          if (!grams || Number.isNaN(g) || g <= 0) {
+            throw new Error("Quantité (g) > 0 requise");
+          }
         }
         if (existingBatchId !== NONE) relatedBatchId = existingBatchId;
 
