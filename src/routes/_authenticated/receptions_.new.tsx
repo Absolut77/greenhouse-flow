@@ -1010,16 +1010,125 @@ function NewReceptionPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>—</SelectItem>
-                    {shipmentEvents.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.event_number} — {formatZonedDate(e.created_at)}
-                      </SelectItem>
-                    ))}
+                    {shipmentEvents.map((e) => {
+                      const p = progress[e.id];
+                      const rest = p ? p.sentG - p.recG : 0;
+                      return (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.event_number} — {formatZonedDate(e.created_at)}
+                          {p && p.sentG > 0
+                            ? ` · reste ${rest.toFixed(2)} g${rest <= 0.01 ? " (complet)" : ""}`
+                            : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Les envois en attente chez le transformateur (Nuance…) affichent le reste à
+                  recevoir.
+                </p>
               </div>
 
-              {varianceLines.length > 0 && (
+              {linkedShipmentId !== NONE && progress[linkedShipmentId] && (
+                <div className="grid gap-3 rounded-md border border-border/60 bg-muted/20 p-3 sm:grid-cols-3">
+                  {(() => {
+                    const p = progress[linkedShipmentId];
+                    const restG = p.sentG - p.recG;
+                    const restU = p.sentU - p.recU;
+                    return (
+                      <>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Quantité envoyée</p>
+                          <p className="font-semibold tabular-nums">
+                            {p.sentG.toFixed(2)} g · {p.sentU} u
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Déjà reçu</p>
+                          <p className="font-semibold tabular-nums">
+                            {p.recG.toFixed(2)} g · {p.recU} u
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Reste attendu</p>
+                          <p
+                            className={`font-semibold tabular-nums ${
+                              restG > 0.01 ? "text-amber-500" : "text-emerald-500"
+                            }`}
+                          >
+                            {restG.toFixed(2)} g · {restU} u
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">
+                      Réception partielle en sous-batch (pré-roulés Nuance)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Le produit reçu entre sous un numéro de sous-batch (NU…) rattaché à la batch
+                      source, avec ses Master Cases → sacs → unités.
+                    </p>
+                  </div>
+                  <Switch checked={subMode} onCheckedChange={setSubMode} />
+                </div>
+
+                {subMode && (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label>Sous-batch</Label>
+                        <Select value={subBatchId} onValueChange={setSubBatchId}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NEW_SUB}>+ Créer une nouvelle sous-batch</SelectItem>
+                            {batches
+                              .filter((b) => b.parent_batch_id)
+                              .map((b) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                  {b.batch_number}
+                                  {b.strain ? ` — ${b.strain}` : ""}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {subBatchId === NEW_SUB && (
+                        <div className="grid gap-2">
+                          <Label>Numéro de sous-batch *</Label>
+                          <Input
+                            value={subNumber}
+                            onChange={(e) => setSubNumber(e.target.value)}
+                            placeholder="NU001"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <CartonBuilder
+                      cartons={subCartons}
+                      onChange={setSubCartons}
+                      defaultType="preroll"
+                    />
+                    <p className="text-sm tabular-nums">
+                      Reçu : <strong>{cartonTotals(subCartons).bags}</strong> sac(s) ·{" "}
+                      <strong>{cartonTotals(subCartons).units}</strong> unité(s) ·{" "}
+                      <strong>{cartonTotals(subCartons).grams.toFixed(2)} g</strong>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {!subMode && varianceLines.length > 0 && (
+
                 <div className="rounded-md border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
