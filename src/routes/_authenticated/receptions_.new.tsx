@@ -116,6 +116,13 @@ function NewReceptionPage() {
   const [shipmentItems, setShipmentItems] = useState<EventItem[]>([]);
   const [shipmentLots, setShipmentLots] = useState<Record<string, Lot>>({});
   const [varianceLines, setVarianceLines] = useState<VarianceLine[]>([]);
+  // Progression par expédition : envoyé / déjà reçu / reste attendu
+  const [progress, setProgress] = useState<Record<string, ShipmentProgress>>({});
+  // Réception partielle en sous-batch (Nuance)
+  const [subMode, setSubMode] = useState(false);
+  const [subBatchId, setSubBatchId] = useState<string>(NEW_SUB);
+  const [subNumber, setSubNumber] = useState("");
+  const [subCartons, setSubCartons] = useState<CartonDraft[]>([emptyCarton(1, "preroll")]);
 
   useEffect(() => {
     (async () => {
@@ -132,7 +139,53 @@ function NewReceptionPage() {
         .in("event_type", ["shipment", "transfer", "b2b"])
         .order("created_at", { ascending: false })
         .limit(100);
-      setShipmentEvents(data ?? []);
+      const evts = data ?? [];
+      setShipmentEvents(evts);
+      if (evts.length) {
+        const ids = evts.map((e) => e.id);
+        // Quantités envoyées
+        const { data: outs } = await supabase
+          .from("event_items")
+          .select("event_id,quantity_grams,units,direction")
+          .in("event_id", ids)
+          .eq("direction", "out");
+        // Réceptions déjà rattachées à ces expéditions
+        const { data: recs } = await supabase
+          .from("events")
+          .select("id,linked_shipment_event_id")
+          .in("linked_shipment_event_id", ids);
+        const recEventIds = (recs ?? []).map((r) => r.id);
+        let ins: { event_id: string; quantity_grams: number | null; units: number | null }[] = [];
+        if (recEventIds.length) {
+          const { data: inRows } = await supabase
+            .from("event_items")
+            .select("event_id,quantity_grams,units,direction")
+            .in("event_id", recEventIds)
+            .eq("direction", "in");
+          ins = (inRows ?? []) as typeof ins;
+        }
+        const recToShipment: Record<string, string> = {};
+        (recs ?? []).forEach((r) => {
+          if (r.linked_shipment_event_id) recToShipment[r.id] = r.linked_shipment_event_id;
+        });
+        const map: Record<string, ShipmentProgress> = {};
+        ids.forEach((id) => (map[id] = { sentG: 0, sentU: 0, recG: 0, recU: 0 }));
+        (outs ?? []).forEach((o) => {
+          const p = map[o.event_id];
+          if (!p) return;
+          p.sentG += Number(o.quantity_grams) || 0;
+          p.sentU += Number(o.units) || 0;
+        });
+        ins.forEach((i) => {
+          const shipId = recToShipment[i.event_id];
+          const p = shipId ? map[shipId] : null;
+          if (!p) return;
+          p.recG += Number(i.quantity_grams) || 0;
+          p.recU += Number(i.units) || 0;
+        });
+        setProgress(map);
+      }
+
     })();
   }, []);
 
