@@ -185,11 +185,13 @@ function NewShipmentPage() {
     if (lines.length === 0) return toast.error("Ajoutez au moins une ligne");
     for (const [i, ln] of lines.entries()) {
       if (!ln.lot_id) return toast.error(`Ligne ${i + 1} : sélectionnez un lot`);
+      if (containersOf(ln.lot_id).length > 0 && ln.container_id === NO_CONTAINER)
+        return toast.error(`Ligne ${i + 1} : sélectionnez le sac à expédier`);
       const g = Number(ln.grams);
       if (!g || g <= 0) return toast.error(`Ligne ${i + 1} : quantité (g) > 0 requise`);
-      const rem = remainingFor(ln.lot_id, i);
+      const rem = remainingForLine(ln, i);
       if (g > rem.g + 1e-6)
-        return toast.error(`Ligne ${i + 1} : stock insuffisant (${rem.g}g dispo)`);
+        return toast.error(`Ligne ${i + 1} : stock insuffisant (${fmtG(rem.g)}g dispo)`);
       if (ln.units.trim()) {
         const u = Number(ln.units);
         if (Number.isNaN(u) || u < 0)
