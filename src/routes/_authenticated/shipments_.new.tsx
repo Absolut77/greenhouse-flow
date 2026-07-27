@@ -355,6 +355,7 @@ function NewShipmentPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[280px]">Lot</TableHead>
+                  <TableHead className="min-w-[220px]">Sac</TableHead>
                   <TableHead className="w-[140px]">Quantité (g)</TableHead>
                   <TableHead className="w-[120px]">Unités</TableHead>
                   <TableHead className="w-[200px]">Restant après</TableHead>
@@ -364,7 +365,8 @@ function NewShipmentPage() {
               <TableBody>
                 {lines.map((ln, i) => {
                   const lot = lots.find((l) => l.id === ln.lot_id);
-                  const rem = ln.lot_id ? remainingFor(ln.lot_id, i) : null;
+                  const lotContainers = ln.lot_id ? containersOf(ln.lot_id) : [];
+                  const rem = ln.lot_id ? remainingForLine(ln, i) : null;
                   const g = Number(ln.grams) || 0;
                   const u = Number(ln.units) || 0;
                   const remAfterG = rem ? rem.g - g : 0;
@@ -375,7 +377,14 @@ function NewShipmentPage() {
                       <TableCell>
                         <Select
                           value={ln.lot_id}
-                          onValueChange={(v) => updateLine(i, { lot_id: v })}
+                          onValueChange={(v) =>
+                            updateLine(i, {
+                              lot_id: v,
+                              container_id: NO_CONTAINER,
+                              grams: "",
+                              units: "",
+                            })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionner un lot" />
@@ -400,6 +409,43 @@ function NewShipmentPage() {
                             <Badge variant="outline">{productLabel(lot.product_type)}</Badge>
                             {lot.location && <Badge variant="outline">{lot.location}</Badge>}
                             {lot.parent_lot_id && <Badge variant="outline">packagé</Badge>}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {lotContainers.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            {ln.lot_id ? "Aucun sac — lot en vrac" : "—"}
+                          </span>
+                        ) : (
+                          <div className="space-y-1">
+                            <Select
+                              value={ln.container_id}
+                              onValueChange={(v) => {
+                                const c = lotContainers.find((x) => x.id === v);
+                                updateLine(i, {
+                                  container_id: v,
+                                  grams: c ? String(c.net_weight_grams ?? "") : "",
+                                  units: c?.unit_count != null ? String(c.unit_count) : "",
+                                });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un sac" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {lotContainers.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.container_code} · {containerTypeLabel(c.container_type)} ·{" "}
+                                    {fmtG(c.net_weight_grams)}g
+                                    {c.unit_count != null ? ` · ${c.unit_count}u` : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              {lotContainers.length} sac(s) disponible(s)
+                            </p>
                           </div>
                         )}
                       </TableCell>
