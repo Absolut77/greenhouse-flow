@@ -36,14 +36,30 @@ export function exportXlsx(baseName: string, sheets: Sheet[]) {
 
 export function fmtDate(v: string | null | undefined): string {
   if (!v) return "";
+  // Date pure "YYYY-MM-DD" : aucune conversion de fuseau (évite le -1 jour).
+  const m = /^(\d{4}-\d{2}-\d{2})$/.exec(v);
+  if (m) return m[1];
   const d = new Date(v);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("fr-CA");
+  return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 export function fmtDateTime(v: string | null | undefined): string {
   if (!v) return "";
   const d = new Date(v);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleString("fr-CA");
+  return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
+
