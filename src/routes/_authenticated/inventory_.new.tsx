@@ -165,7 +165,7 @@ function NewLotPage() {
               <Input
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
-                placeholder="ex: 3.5g, 14g, vrac..."
+                placeholder="ex: 3.5g, 14g, Bulk..."
               />
             </div>
             <div className="grid gap-2">

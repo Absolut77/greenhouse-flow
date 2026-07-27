@@ -167,7 +167,7 @@ export function BulkPackagingStepContent({
                     {r.format_id && formatMap[r.format_id] ? (
                       <Badge variant="outline">{formatMap[r.format_id].name}</Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Vrac</span>
+                      <span className="text-xs text-muted-foreground">Bulk</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">{r.bag_count}</TableCell>
@@ -343,10 +343,10 @@ function BagDialog({
             <Label>Format de packaging</Label>
             <Select value={formatId} onValueChange={applyFormat}>
               <SelectTrigger>
-                <SelectValue placeholder="Aucun / vrac" />
+                <SelectValue placeholder="Aucun / Bulk" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                <SelectItem value={NO_FORMAT}>Aucun / Bulk</SelectItem>
                 {formats.map((f) => (
                   <SelectItem key={f.id} value={f.id}>
                     {f.name} ({formatNetGrams(f)} g)

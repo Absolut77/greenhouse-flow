@@ -418,7 +418,7 @@ function NewShipmentPage() {
                       <TableCell>
                         {lotContainers.length === 0 ? (
                           <span className="text-xs text-muted-foreground">
-                            {ln.lot_id ? "Aucun sac — lot en vrac" : "—"}
+                            {ln.lot_id ? "Aucun sac — lot en Bulk" : "—"}
                           </span>
                         ) : (
                           <div className="space-y-1">
