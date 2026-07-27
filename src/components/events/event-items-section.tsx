@@ -44,6 +44,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   containerTypeLabel,
   fetchContainersForLots,
+  isBlockedContainer,
   fmtG,
   isUsableContainer,
   type StockContainer,
