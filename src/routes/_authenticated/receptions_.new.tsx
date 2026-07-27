@@ -675,26 +675,37 @@ function NewReceptionPage() {
                   <Label>Emplacement</Label>
                   <Input value={location} onChange={(e) => setLocation(e.target.value)} />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Quantité (g) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Unités</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={units}
-                    onChange={(e) => setUnits(e.target.value)}
-                  />
-                </div>
+                {!structured && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Quantité (g) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={grams}
+                        onChange={(e) => setGrams(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Unités</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={units}
+                        onChange={(e) => setUnits(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+              <StructuredToggle
+                structured={structured}
+                onToggle={setStructured}
+                cartons={cartons}
+                onCartonsChange={setCartons}
+                defaultType={productType === "preroll" ? "preroll" : "bulk"}
+              />
             </div>
           )}
 
