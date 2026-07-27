@@ -255,13 +255,6 @@ function LotDetailPage() {
 
       {lot.batch_id && <PackagingBagsSection batchId={lot.batch_id} />}
 
-      <EditLotDialog
-        key={lot.id}
-        lot={lot}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        onSaved={load}
-      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
