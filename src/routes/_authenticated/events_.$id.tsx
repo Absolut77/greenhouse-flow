@@ -711,11 +711,18 @@ function ShipmentDetailsSection({ event }: { event: Event }) {
   );
 }
 
-type SourceLotRow = {
+/** One returnable source line: a precise bag when the lot is structured, or the
+ *  whole lot when it isn't. */
+type SourceRow = {
+  key: string;
   lot_id: string;
   lot_number: string;
+  container_id: string | null;
+  container_code: string | null;
   out_grams: number;
+  out_units: number;
   return_grams: string;
+  return_units: string;
 };
 
 function CloseEventDialog({
@@ -735,12 +742,12 @@ function CloseEventDialog({
   const [processingLoss, setProcessingLoss] = useState("0");
   const [dryDestroyed, setDryDestroyed] = useState("0");
   const [completedAt, setCompletedAt] = useState("");
-  const [sourceLots, setSourceLots] = useState<SourceLotRow[]>([]);
+  const [sourceRows, setSourceRows] = useState<SourceRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [confirmed, setConfirmed] = useState(false);
 
-  const sourceOut = sourceLots.reduce((a, r) => a + r.out_grams, 0);
+  const sourceOut = sourceRows.reduce((a, r) => a + r.out_grams, 0);
 
   useEffect(() => {
     if (!open || !event) return;
@@ -755,26 +762,37 @@ function CloseEventDialog({
     (async () => {
       const { data } = await (supabase as any)
         .from("event_items")
-        .select("inventory_lot_id, quantity_grams, inventory_lots(lot_number)")
+        .select(
+          "inventory_lot_id, container_id, quantity_grams, units, inventory_lots(lot_number), stock_containers(container_code)",
+        )
         .eq("event_id", event.id)
         .eq("direction", "out");
-      const map = new Map<string, SourceLotRow>();
+      const map = new Map<string, SourceRow>();
       for (const r of (data ?? []) as any[]) {
         if (!r.inventory_lot_id) continue;
-        const prev = map.get(r.inventory_lot_id);
+        const containerId: string | null = r.container_id ?? null;
+        const key = `${r.inventory_lot_id}::${containerId ?? "lot"}`;
         const g = Number(r.quantity_grams || 0);
+        const un = Number(r.units || 0);
+        const prev = map.get(key);
         if (prev) {
           prev.out_grams += g;
+          prev.out_units += un;
         } else {
-          map.set(r.inventory_lot_id, {
+          map.set(key, {
+            key,
             lot_id: r.inventory_lot_id,
             lot_number: r.inventory_lots?.lot_number ?? r.inventory_lot_id.slice(0, 8),
+            container_id: containerId,
+            container_code: r.stock_containers?.container_code ?? null,
             out_grams: g,
+            out_units: un,
             return_grams: "0",
+            return_units: "0",
           });
         }
       }
-      setSourceLots(Array.from(map.values()));
+      setSourceRows(Array.from(map.values()));
     })();
   }, [open, event]);
 
@@ -787,37 +805,50 @@ function CloseEventDialog({
   const surplus = sourceOut - usedG - dry;
   const invalid = surplus < -0.001;
 
-  const returnedTotal = sourceLots.reduce((a, r) => a + (Number(r.return_grams) || 0), 0);
+  const returnedTotal = sourceRows.reduce((a, r) => a + (Number(r.return_grams) || 0), 0);
   const returnMismatch = surplus > 0.001 && Math.abs(returnedTotal - surplus) > 0.01;
-  const overReturn = sourceLots.some((r) => (Number(r.return_grams) || 0) > r.out_grams + 1e-6);
+  const overReturn = sourceRows.some(
+    (r) =>
+      (Number(r.return_grams) || 0) > r.out_grams + 1e-6 ||
+      (Number(r.return_units) || 0) > r.out_units,
+  );
+  const hasBags = sourceRows.some((r) => r.container_id);
 
-  const setReturn = (lot_id: string, v: string) => {
-    setSourceLots((rows) => rows.map((r) => (r.lot_id === lot_id ? { ...r, return_grams: v } : r)));
-  };
+  const patchRow = (key: string, patch: Partial<SourceRow>) =>
+    setSourceRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   const distributeProportional = () => {
     if (surplus <= 0 || sourceOut <= 0) return;
-    setSourceLots((rows) =>
-      rows.map((r) => ({
-        ...r,
-        return_grams: ((r.out_grams / sourceOut) * surplus).toFixed(2),
-      })),
+    setSourceRows((rows) =>
+      rows.map((r) => {
+        const ratio = r.out_grams / sourceOut;
+        return {
+          ...r,
+          return_grams: (ratio * surplus).toFixed(2),
+          return_units: String(Math.floor(r.out_units * ratio)),
+        };
+      }),
     );
   };
   const distributeToFirst = () => {
-    if (surplus <= 0 || sourceLots.length === 0) return;
-    setSourceLots((rows) => rows.map((r, i) => ({ ...r, return_grams: i === 0 ? surplus.toFixed(2) : "0" })));
+    if (surplus <= 0 || sourceRows.length === 0) return;
+    setSourceRows((rows) =>
+      rows.map((r, i) =>
+        i === 0
+          ? { ...r, return_grams: surplus.toFixed(2), return_units: String(r.out_units) }
+          : { ...r, return_grams: "0", return_units: "0" },
+      ),
+    );
   };
-  const clearReturns = () => {
-    setSourceLots((rows) => rows.map((r) => ({ ...r, return_grams: "0" })));
-  };
+  const clearReturns = () =>
+    setSourceRows((rows) => rows.map((r) => ({ ...r, return_grams: "0", return_units: "0" })));
 
   const validate = (): boolean => {
     if (!event) return false;
     if (!lotName.trim()) { toast.error("Nom du lot obligatoire"); return false; }
     if (u <= 0 || w <= 0) { toast.error("Unités et poids/unité > 0"); return false; }
     if (invalid) { toast.error("Utilisé + destruction dépasse la sortie totale."); return false; }
-    if (overReturn) { toast.error("Un retour dépasse la quantité sortie du lot."); return false; }
+    if (overReturn) { toast.error("Un retour dépasse la quantité sortie du sac / lot."); return false; }
     if (returnMismatch) {
       toast.error(`La répartition du surplus (${returnedTotal.toFixed(2)} g) doit égaler ${surplus.toFixed(2)} g.`);
       return false;
@@ -833,8 +864,13 @@ function CloseEventDialog({
 
   const submit = async () => {
     if (!event || !validate()) return;
-    const returns = sourceLots
-      .map((r) => ({ lot_id: r.lot_id, grams: Number(r.return_grams) || 0 }))
+    const returns = sourceRows
+      .map((r) => ({
+        lot_id: r.lot_id,
+        container_id: r.container_id,
+        grams: Number(r.return_grams) || 0,
+        units: Number(r.return_units) || 0,
+      }))
       .filter((r) => r.grams > 0);
     setSaving(true);
     const { error } = await (supabase as any).rpc("close_event", {
@@ -849,13 +885,12 @@ function CloseEventDialog({
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Événement clôturé — lot créé");
+    toast.success("Événement clôturé — lot créé, surplus réintégré");
     onOpenChange(false);
     onClosed();
   };
 
-
-  const surplusReturns = sourceLots.filter((r) => (Number(r.return_grams) || 0) > 0);
+  const surplusReturns = sourceRows.filter((r) => (Number(r.return_grams) || 0) > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -907,12 +942,14 @@ function CloseEventDialog({
               </div>
             </div>
 
-            {surplus > 0.001 && sourceLots.length > 0 && (
+            {surplus > 0.001 && sourceRows.length > 0 && (
               <div className="rounded-md border p-3 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-medium">Répartition du surplus par lot source</div>
+                  <div className="text-sm font-medium">
+                    Retour du surplus {hasBags ? "par sac source" : "par lot source"}
+                  </div>
                   <div className="flex gap-1">
-                    {sourceLots.length > 1 && (
+                    {sourceRows.length > 1 && (
                       <Button type="button" size="sm" variant="outline" onClick={distributeProportional}>
                         Proportionnel
                       </Button>
@@ -926,27 +963,62 @@ function CloseEventDialog({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {sourceLots.map((r) => {
+                  {sourceRows.map((r) => {
                     const rg = Number(r.return_grams) || 0;
-                    const over = rg > r.out_grams + 1e-6;
+                    const ru = Number(r.return_units) || 0;
+                    const over = rg > r.out_grams + 1e-6 || ru > r.out_units;
+                    const full = Math.abs(rg - r.out_grams) < 0.01;
                     return (
-                      <div key={r.lot_id} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
+                      <div
+                        key={r.key}
+                        className="grid gap-2 rounded-md border border-border/50 bg-muted/20 p-2 sm:grid-cols-[1.4fr_1fr_0.8fr_auto] sm:items-end"
+                      >
                         <div>
-                          <div className="text-sm font-medium">{r.lot_number}</div>
+                          <div className="text-sm font-medium">
+                            {r.container_code ?? r.lot_number}
+                          </div>
                           <div className="text-xs text-muted-foreground">
+                            {r.container_code ? `${r.lot_number} · ` : ""}
                             Sorti : {r.out_grams.toFixed(2)} g
+                            {r.out_units > 0 ? ` · ${r.out_units} u` : ""}
                           </div>
                         </div>
-                        <span className="text-xs text-muted-foreground">Retour (g)</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={r.out_grams}
-                          value={r.return_grams}
-                          onChange={(e) => setReturn(r.lot_id, e.target.value)}
-                          className={over ? "border-destructive" : ""}
-                        />
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Retour (g)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={r.out_grams}
+                            value={r.return_grams}
+                            onChange={(e) => patchRow(r.key, { return_grams: e.target.value })}
+                            className={over ? "border-destructive" : ""}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Unités</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={r.out_units}
+                            value={r.return_units}
+                            onChange={(e) => patchRow(r.key, { return_units: e.target.value })}
+                            className={ru > r.out_units ? "border-destructive" : ""}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={full ? "secondary" : "outline"}
+                          onClick={() =>
+                            patchRow(r.key, {
+                              return_grams: r.out_grams.toFixed(2),
+                              return_units: String(r.out_units),
+                            })
+                          }
+                        >
+                          {r.container_code ? "Sac complet" : "Tout"}
+                        </Button>
                       </div>
                     );
                   })}
@@ -957,7 +1029,7 @@ function CloseEventDialog({
                 </div>
                 {overReturn && (
                   <div className="text-xs text-destructive">
-                    Un retour dépasse la quantité sortie du lot correspondant.
+                    Un retour dépasse la quantité sortie du sac / lot correspondant.
                   </div>
                 )}
               </div>
@@ -996,12 +1068,17 @@ function CloseEventDialog({
 
               {surplusReturns.length > 0 && (
                 <div className="mt-2 space-y-1 rounded border border-border/60 bg-background/40 p-2">
-                  <div className="text-xs text-muted-foreground">Répartition sur lots source</div>
+                  <div className="text-xs text-muted-foreground">
+                    Réintégration {hasBags ? "sac par sac" : "par lot"}
+                  </div>
                   {surplusReturns.map((r) => (
-                    <div key={r.lot_id} className="flex justify-between text-xs">
-                      <span>{r.lot_number}</span>
+                    <div key={r.key} className="flex justify-between text-xs">
+                      <span>
+                        {r.container_code ? `${r.container_code} (${r.lot_number})` : r.lot_number}
+                      </span>
                       <span className="tabular-nums font-medium">
                         +{(Number(r.return_grams) || 0).toFixed(2)} g
+                        {Number(r.return_units) > 0 ? ` · ${Number(r.return_units)} u` : ""}
                       </span>
                     </div>
                   ))}
@@ -1052,4 +1129,5 @@ function CloseEventDialog({
     </Dialog>
   );
 }
+
 
