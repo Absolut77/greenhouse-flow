@@ -310,6 +310,7 @@ function InventoryPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Format</TableHead>
                 <TableHead>Taille</TableHead>
+                <TableHead>Sacs dispo.</TableHead>
                 <TableHead>Quantité (g)</TableHead>
                 <TableHead>Unités</TableHead>
                 <TableHead>Emplacement</TableHead>
