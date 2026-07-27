@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { PROVINCES } from "./stamps";
+import { todayInputValue } from "@/lib/dates";
 
 export const Route = createFileRoute("/_authenticated/stamps_/new")({
   head: () => ({ meta: [{ title: "Nouveau rouleau — ONO Cannabis" }] }),
@@ -31,7 +32,7 @@ function NewReelPage() {
   const [original, setOriginal] = useState("5000");
   const [spoiled, setSpoiled] = useState("0");
   const [receivedAt, setReceivedAt] = useState(
-    new Date().toISOString().slice(0, 10),
+    todayInputValue(),
   );
   const [saving, setSaving] = useState(false);
 

@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { formatDateOnly } from "@/lib/dates";
+import { formatDateOnly, todayInputValue } from "@/lib/dates";
 
 type DryingLog = Tables<"drying_logs">;
 type Sample = Tables<"samples">;
@@ -275,7 +275,7 @@ function DryingLogDialog({
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInputValue();
   const [logDate, setLogDate] = useState(log?.log_date ?? today);
   const [room, setRoom] = useState(log?.room_number ?? "");
   const [tempCur, setTempCur] = useState(log?.temp_current?.toString() ?? "");
@@ -409,7 +409,7 @@ export function SampleDialog({
     if (stageCode === "curing" && !containerId) return toast.error("Sélectionnez un conteneur");
     setSaving(true);
     const { data: u } = await supabase.auth.getUser();
-    const nowIso = new Date().toISOString().slice(0, 10);
+    const nowIso = todayInputValue();
     const { error: sErr } = await supabase.from("samples").insert({
       batch_id: batchId,
       stage_id: stageId,

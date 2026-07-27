@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { todayInputValue } from "@/lib/dates";
 
 export const Route = createFileRoute("/_authenticated/batches_/new")({
   head: () => ({ meta: [{ title: "Nouvelle Batch — ONO Cannabis" }] }),
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/batches_/new")({
 function NewBatchPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = todayInputValue();
   const [form, setForm] = useState({
     batch_number: "",
     strain: "",
