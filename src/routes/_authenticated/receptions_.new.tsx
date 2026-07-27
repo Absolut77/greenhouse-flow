@@ -392,6 +392,7 @@ function NewReceptionPage() {
                   net_weight_grams: b.net_weight_grams,
                   gross_weight_grams: b.gross_weight_grams,
                   location: b.location ?? location.trim() ?? null,
+                  format_id: b.format_id,
                   status: "available",
                   created_by: userId,
                 })) as never,
