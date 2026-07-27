@@ -58,6 +58,8 @@ export const cartonLetter = (i: number) => {
 };
 
 export type BagDraft = {
+  /** Id du contenant existant (édition). Absent = nouveau sac. */
+  id?: string | null;
   code: string;
   type: string;
   copies: string;
@@ -68,13 +70,20 @@ export type BagDraft = {
   gross: string;
   formatId: string;
   flowerSize: string;
+  /** Notes existantes conservées si aucune taille n'est choisie. */
+  notes?: string | null;
 };
 
 export type CartonDraft = {
+  /** Id du carton existant (édition). Absent = nouveau carton. */
+  id?: string | null;
+  /** true pour le groupe "sans carton" (contenants orphelins). */
+  noCarton?: boolean;
   code: string;
   location: string;
   bags: BagDraft[];
 };
+
 
 export const defaultWeightForType = (type: string) => (type === "bulk" ? "1000" : "");
 
