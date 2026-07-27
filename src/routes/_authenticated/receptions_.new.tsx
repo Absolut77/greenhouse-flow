@@ -35,6 +35,10 @@ type EventItem = Tables<"event_items">;
 type Lot = Tables<"inventory_lots">;
 
 const NONE = "__none__";
+const NEW_SUB = "__new_sub__";
+
+type ShipmentProgress = { sentG: number; sentU: number; recG: number; recU: number };
+
 
 export const Route = createFileRoute("/_authenticated/receptions_/new")({
   head: () => ({
