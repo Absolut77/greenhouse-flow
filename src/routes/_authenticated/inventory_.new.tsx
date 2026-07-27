@@ -173,7 +173,7 @@ function NewLotPage() {
             .from("stock_cartons")
             .insert({
               lot_id: lot.id,
-              carton_code: carton.code.trim() || "MASTER CASE",
+              carton_code: carton.code.trim() || "A",
               location: carton.location.trim() || location.trim() || null,
               created_by: userId,
             } as never)
@@ -192,6 +192,7 @@ function NewLotPage() {
               gross_weight_grams: b.gross_weight_grams,
               location: b.location ?? location.trim() ?? null,
               format_id: b.format_id,
+              notes: b.notes,
               status: "available",
               created_by: userId,
             })) as never,
@@ -332,9 +333,9 @@ function NewLotPage() {
           <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Ajouter les sacs maintenant</p>
+                <p className="text-sm font-medium">Création</p>
                 <p className="text-xs text-muted-foreground">
-                  Types disponibles : Bulk, Sample, Laboratory Sample, Master Case, Pre-roll.
+                  Cartons A, B, C… et sacs 1, 2, 3… — les champs s'adaptent au type de sac.
                 </p>
               </div>
               <Switch checked={withBags} onCheckedChange={setWithBags} />

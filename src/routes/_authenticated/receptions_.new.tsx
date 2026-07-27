@@ -502,7 +502,7 @@ function NewReceptionPage() {
                 .insert({
                   lot_id: inventoryLotForBulk,
                   event_id: event.id,
-                  carton_code: carton.code.trim() || "MASTER CASE",
+                  carton_code: carton.code.trim() || "A",
                   location: carton.location.trim() || null,
                   created_by: userId,
                 } as never)
@@ -521,6 +521,7 @@ function NewReceptionPage() {
                   gross_weight_grams: b.gross_weight_grams,
                   location: b.location ?? location.trim() ?? null,
                   format_id: b.format_id,
+                  notes: b.notes,
                   status: "available",
                   created_by: userId,
                 })) as never,
@@ -563,7 +564,7 @@ function NewReceptionPage() {
             .insert({
               lot_id: subLotId,
               event_id: event.id,
-              carton_code: carton.code.trim() || "MASTER CASE",
+              carton_code: carton.code.trim() || "A",
               location: carton.location.trim() || location.trim() || null,
               created_by: userId,
             } as never)
@@ -582,6 +583,7 @@ function NewReceptionPage() {
               gross_weight_grams: b.gross_weight_grams,
               location: b.location ?? location.trim() ?? null,
               format_id: b.format_id,
+              notes: b.notes,
               status: "available",
               created_by: userId,
             })) as never,
