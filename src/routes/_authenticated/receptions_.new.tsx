@@ -946,3 +946,48 @@ function NewReceptionPage() {
     </div>
   );
 }
+
+/** Toggle between a simple total-weight entry and structured carton/bag entry. */
+function StructuredToggle({
+  structured,
+  onToggle,
+  cartons,
+  onCartonsChange,
+  defaultType,
+}: {
+  structured: boolean;
+  onToggle: (v: boolean) => void;
+  cartons: CartonDraft[];
+  onCartonsChange: (next: CartonDraft[]) => void;
+  defaultType?: string;
+}) {
+  const totals = cartonTotals(cartons);
+  return (
+    <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Saisie par cartons / sacs</p>
+          <p className="text-xs text-muted-foreground">
+            Recommandé pour les pré-roulés et réceptions multi-cartons : chaque sac devient
+            une unité de stock traçable.
+          </p>
+        </div>
+        <Switch checked={structured} onCheckedChange={onToggle} />
+      </div>
+      {structured && (
+        <>
+          <CartonBuilder
+            cartons={cartons}
+            onChange={onCartonsChange}
+            defaultType={defaultType}
+          />
+          <p className="text-sm tabular-nums">
+            Total : <strong>{totals.bags}</strong> sac(s) ·{" "}
+            <strong>{totals.units}</strong> unité(s) ·{" "}
+            <strong>{totals.grams.toFixed(2)} g</strong>
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
