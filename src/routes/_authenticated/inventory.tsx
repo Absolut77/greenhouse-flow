@@ -159,6 +159,22 @@ function InventoryPage() {
       }
       const rows = data ?? [];
       setLots(rows);
+      const lotIds = rows.map((r) => r.id);
+      if (lotIds.length > 0) {
+        const { data: cs } = await supabase
+          .from("stock_containers")
+          .select("*")
+          .in("lot_id", lotIds);
+        if (!cancelled) {
+          const grouped: Record<string, StockContainer[]> = {};
+          (cs ?? []).forEach((c) => {
+            grouped[c.lot_id] = [...(grouped[c.lot_id] ?? []), c];
+          });
+          setContainers(grouped);
+        }
+      } else {
+        setContainers({});
+      }
       const ids = Array.from(
         new Set(rows.map((r) => r.batch_id).filter((x): x is string => !!x)),
       );
