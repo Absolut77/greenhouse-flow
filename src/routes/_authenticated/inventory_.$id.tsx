@@ -231,6 +231,12 @@ function LotDetailPage() {
         </CardContent>
       </Card>
 
+      <ContainersSection
+        lotId={lot.id}
+        defaultType={(lot as any).lot_kind ?? "bulk"}
+        onChanged={load}
+      />
+
       {lot.batch_id && <PackagingBagsSection batchId={lot.batch_id} />}
 
       <EditLotDialog
