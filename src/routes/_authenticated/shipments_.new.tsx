@@ -82,7 +82,7 @@ function NewShipmentPage() {
 
   const [lots, setLots] = useState<Lot[]>([]);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
-  const [lines, setLines] = useState<Line[]>([{ lot_id: "", grams: "", units: "" }]);
+  const [lines, setLines] = useState<Line[]>([{ lot_id: "", container_id: NO_CONTAINER, grams: "", units: "" }]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ function NewShipmentPage() {
   const updateLine = (i: number, patch: Partial<Line>) => {
     setLines((prev) => prev.map((ln, idx) => (idx === i ? { ...ln, ...patch } : ln)));
   };
-  const addLine = () => setLines((p) => [...p, { lot_id: "", grams: "", units: "" }]);
+  const addLine = () => setLines((p) => [...p, { lot_id: "", container_id: NO_CONTAINER, grams: "", units: "" }]);
   const removeLine = (i: number) =>
     setLines((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
