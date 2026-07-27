@@ -126,6 +126,7 @@ function NewReceptionPage() {
   const [subMode, setSubMode] = useState(false);
   const [subBatchId, setSubBatchId] = useState<string>(NEW_SUB);
   const [subNumber, setSubNumber] = useState("");
+  const [subParentId, setSubParentId] = useState<string>(NONE);
   const [subCartons, setSubCartons] = useState<CartonDraft[]>([emptyCarton(1, "preroll")]);
 
   useEffect(() => {
@@ -392,7 +393,8 @@ function NewReceptionPage() {
             throw new Error("Numéro de sous-batch requis (ex: NU001)");
 
           const shipment = shipmentEvents.find((e) => e.id === linkedShipmentId) ?? null;
-          const sourceBatchId = shipment?.related_batch_id ?? null;
+          const sourceBatchId =
+            subParentId !== NONE ? subParentId : (shipment?.related_batch_id ?? null);
           const sourceBatch = batches.find((b) => b.id === sourceBatchId) ?? null;
 
           if (subBatchId === NEW_SUB) {
@@ -1105,14 +1107,37 @@ function NewReceptionPage() {
                         </Select>
                       </div>
                       {subBatchId === NEW_SUB && (
-                        <div className="grid gap-2">
-                          <Label>Numéro de sous-batch *</Label>
-                          <Input
-                            value={subNumber}
-                            onChange={(e) => setSubNumber(e.target.value)}
-                            placeholder="NU001"
-                          />
-                        </div>
+                        <>
+                          <div className="grid gap-2">
+                            <Label>Numéro de sous-batch *</Label>
+                            <Input
+                              value={subNumber}
+                              onChange={(e) => setSubNumber(e.target.value)}
+                              placeholder="NU001"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Batch source</Label>
+                            <Select value={subParentId} onValueChange={setSubParentId}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Batch source" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NONE}>
+                                  Auto (batch de l'expédition liée)
+                                </SelectItem>
+                                {batches
+                                  .filter((b) => !b.parent_batch_id)
+                                  .map((b) => (
+                                    <SelectItem key={b.id} value={b.id}>
+                                      {b.batch_number}
+                                      {b.strain ? ` — ${b.strain}` : ""}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
                       )}
                     </div>
                     <CartonBuilder
