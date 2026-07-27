@@ -33,6 +33,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsIdRouteImport } from './routes/_authenticated/events_.$id'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
 import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
+import { Route as AuthenticatedInventoryIdEditRouteImport } from './routes/_authenticated/inventory_.$id_.edit'
 import { Route as AuthenticatedBatchesIdReportRouteImport } from './routes/_authenticated/batches_.$id.report'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -160,6 +161,12 @@ const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
   path: '/batches/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInventoryIdEditRoute =
+  AuthenticatedInventoryIdEditRouteImport.update({
+    id: '/inventory_/$id_/edit',
+    path: '/inventory/$id/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBatchesIdReportRoute =
   AuthenticatedBatchesIdReportRouteImport.update({
     id: '/report',
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
   '/stamps/$id': typeof AuthenticatedStampsIdRoute
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -246,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/stamps_/$id': typeof AuthenticatedStampsIdRoute
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
   '/_authenticated/batches_/$id/report': typeof AuthenticatedBatchesIdReportRoute
+  '/_authenticated/inventory_/$id_/edit': typeof AuthenticatedInventoryIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/stamps/$id'
     | '/stamps/new'
     | '/batches/$id/report'
+    | '/inventory/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/stamps/$id'
     | '/stamps/new'
     | '/batches/$id/report'
+    | '/inventory/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stamps_/$id'
     | '/_authenticated/stamps_/new'
     | '/_authenticated/batches_/$id/report'
+    | '/_authenticated/inventory_/$id_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -506,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory_/$id_/edit': {
+      id: '/_authenticated/inventory_/$id_/edit'
+      path: '/inventory/$id/edit'
+      fullPath: '/inventory/$id/edit'
+      preLoaderRoute: typeof AuthenticatedInventoryIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/batches_/$id/report': {
       id: '/_authenticated/batches_/$id/report'
       path: '/report'
@@ -564,6 +584,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShipmentsNewRoute: typeof AuthenticatedShipmentsNewRoute
   AuthenticatedStampsIdRoute: typeof AuthenticatedStampsIdRoute
   AuthenticatedStampsNewRoute: typeof AuthenticatedStampsNewRoute
+  AuthenticatedInventoryIdEditRoute: typeof AuthenticatedInventoryIdEditRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -585,6 +606,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShipmentsNewRoute: AuthenticatedShipmentsNewRoute,
   AuthenticatedStampsIdRoute: AuthenticatedStampsIdRoute,
   AuthenticatedStampsNewRoute: AuthenticatedStampsNewRoute,
+  AuthenticatedInventoryIdEditRoute: AuthenticatedInventoryIdEditRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

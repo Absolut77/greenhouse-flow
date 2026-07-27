@@ -58,6 +58,8 @@ export const cartonLetter = (i: number) => {
 };
 
 export type BagDraft = {
+  /** Id du contenant existant (édition). Absent = nouveau sac. */
+  id?: string | null;
   code: string;
   type: string;
   copies: string;
@@ -68,13 +70,20 @@ export type BagDraft = {
   gross: string;
   formatId: string;
   flowerSize: string;
+  /** Notes existantes conservées si aucune taille n'est choisie. */
+  notes?: string | null;
 };
 
 export type CartonDraft = {
+  /** Id du carton existant (édition). Absent = nouveau carton. */
+  id?: string | null;
+  /** true pour le groupe "sans carton" (contenants orphelins). */
+  noCarton?: boolean;
   code: string;
   location: string;
   bags: BagDraft[];
 };
+
 
 export const defaultWeightForType = (type: string) => (type === "bulk" ? "1000" : "");
 
@@ -162,6 +171,68 @@ export function expandCartons(cartons: CartonDraft[]) {
     return { carton: c, bags };
   });
 }
+
+/** Libellé de taille de fleur (ou null). */
+export const flowerSizeLabel = (v: string | null | undefined) =>
+  v && v !== NO_SIZE ? (FLOWER_SIZES.find((s) => s.value === v)?.label ?? v) : null;
+
+/** Retrouve la valeur de taille depuis une note "Taille : X". */
+export const flowerSizeFromNotes = (notes: string | null | undefined) => {
+  const m = notes?.match(/Taille\s*:\s*(.+)/i);
+  if (!m) return NO_SIZE;
+  const label = m[1].trim().toLowerCase();
+  return FLOWER_SIZES.find((s) => s.label.toLowerCase() === label)?.value ?? NO_SIZE;
+};
+
+export type ExpandedBag = {
+  id: string | null;
+  container_code: string;
+  container_type: string;
+  unit_count: number;
+  unit_weight_grams: number;
+  net_weight_grams: number;
+  gross_weight_grams: number | null;
+  location: string | null;
+  format_id: string | null;
+  notes: string | null;
+};
+
+/**
+ * Variante « édition » : conserve les ids existants et n'ajoute pas de préfixe
+ * carton pour le groupe « sans carton ».
+ */
+export function expandCartonsForEdit(cartons: CartonDraft[]) {
+  return cartons.map((c) => {
+    const bags: ExpandedBag[] = [];
+    let seq = 1;
+    for (const b of c.bags) {
+      const copies = Math.max(Math.round(bagCopies(b)), 0);
+      const net = bagNet(b);
+      const units = bagUnits(b);
+      const sizeLabel = flowerSizeLabel(b.flowerSize);
+      for (let i = 0; i < copies; i++) {
+        const suffix = copies > 1 ? `-${i + 1}` : "";
+        const base = `${b.code || seq}${suffix}`;
+        bags.push({
+          id: i === 0 ? (b.id ?? null) : null,
+          container_code: c.noCarton || !c.code.trim() ? base : `${c.code}/${base}`,
+          container_type: b.type,
+          unit_count: units,
+          unit_weight_grams: units > 0 ? net / units : net,
+          net_weight_grams: net,
+          gross_weight_grams: b.gross.trim() ? num(b.gross) : null,
+          location: c.location.trim() || null,
+          format_id: b.formatId && b.formatId !== NO_FORMAT ? b.formatId : null,
+          notes: sizeLabel ? `Taille : ${sizeLabel}` : (b.notes ?? null),
+        });
+        seq++;
+      }
+    }
+    return { carton: c, bags };
+  });
+}
+
+
 
 export function CartonBuilder({
   cartons,
