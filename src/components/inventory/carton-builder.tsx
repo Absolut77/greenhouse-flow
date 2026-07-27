@@ -230,7 +230,7 @@ export function CartonBuilder({
                         <SelectValue placeholder="Format" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_FORMAT}>Aucun / vrac</SelectItem>
+                        <SelectItem value={NO_FORMAT}>Aucun / Bulk</SelectItem>
                         {formats.map((f) => (
                           <SelectItem key={f.id} value={f.id}>
                             {f.name} ({formatNetGrams(f)} g)
