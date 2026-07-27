@@ -230,6 +230,17 @@ function LotDetailPage() {
           <Info label="Unités">{lot.units ?? "—"}</Info>
           <Info label="Emplacement">{lot.location ?? "—"}</Info>
           <Info label="Lot parent">{lot.parent_lot_id ?? "—"}</Info>
+          {batch && (batch as any).dry_cap_grams != null && (
+            <Info label="Plafond batch (poids sec bulk packaging)">
+              <span className="font-medium text-emerald-400">
+                {Number((batch as any).dry_cap_grams).toFixed(2)} g
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Total inventaire de la batch plafonné à cette valeur.
+              </span>
+            </Info>
+          )}
+
         </CardContent>
       </Card>
 
