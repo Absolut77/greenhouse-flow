@@ -385,6 +385,21 @@ function InventoryPage() {
                   <TableCell>{labelOf(PRODUCT_TYPES, l.product_type)}</TableCell>
                   <TableCell>{l.format ?? "—"}</TableCell>
                   <TableCell>{labelOf(FLOWER_SIZES, l.flower_size)}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const s = summarizeContainers(containers[l.id] ?? []);
+                      if (s.total === 0)
+                        return <span className="text-muted-foreground">—</span>;
+                      return (
+                        <span className="tabular-nums">
+                          {s.available}/{s.total}
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({fmtG(s.availableGrams)} g)
+                          </span>
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>{l.quantity_grams ?? "—"}</TableCell>
                   <TableCell>{l.units ?? "—"}</TableCell>
                   <TableCell>{l.location ?? "—"}</TableCell>
