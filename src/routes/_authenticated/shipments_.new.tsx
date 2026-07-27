@@ -97,6 +97,15 @@ function NewShipmentPage() {
         return;
       }
       setLots(data ?? []);
+      const lotIds = (data ?? []).map((l) => l.id);
+      if (lotIds.length > 0) {
+        const cs = await fetchContainersForLots(lotIds).catch(() => []);
+        const cm: Record<string, StockContainer[]> = {};
+        cs.forEach((c) => {
+          cm[c.lot_id] = [...(cm[c.lot_id] ?? []), c];
+        });
+        setContainersByLot(cm);
+      }
       const bIds = Array.from(
         new Set((data ?? []).map((l) => l.batch_id).filter((x): x is string => !!x)),
       );
@@ -108,6 +117,26 @@ function NewShipmentPage() {
       }
     })();
   }, []);
+
+  const containersOf = (lotId: string) =>
+    (containersByLot[lotId] ?? []).filter(isUsableContainer);
+
+  /** Remaining stock for a line, container-aware. */
+  const remainingForLine = (ln: Line, exceptIndex: number) => {
+    if (ln.container_id !== NO_CONTAINER) {
+      const c = (containersByLot[ln.lot_id] ?? []).find((x) => x.id === ln.container_id);
+      if (!c) return { g: 0, u: 0, hasUnits: true };
+      let g = Number(c.net_weight_grams ?? 0);
+      let u = Number(c.unit_count ?? 0);
+      lines.forEach((other, i) => {
+        if (i === exceptIndex || other.container_id !== ln.container_id) return;
+        g -= Number(other.grams) || 0;
+        u -= Number(other.units) || 0;
+      });
+      return { g, u, hasUnits: true };
+    }
+    return remainingFor(ln.lot_id, exceptIndex);
+  };
 
   const filteredLots = useMemo(() => {
     return lots.filter((l) => {
