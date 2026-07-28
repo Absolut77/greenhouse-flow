@@ -229,8 +229,10 @@ function StampsPage() {
       <Tabs defaultValue="stock" className="space-y-4">
         <TabsList>
           <TabsTrigger value="stock">Stock réel (rouleaux)</TabsTrigger>
+          <TabsTrigger value="applied">Timbres apposés</TabsTrigger>
           <TabsTrigger value="runs">Packaging Runs</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="stock">
           <Card>
