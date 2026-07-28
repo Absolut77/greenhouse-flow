@@ -421,6 +421,18 @@ function NewLotPage() {
             )}
           </div>
 
+          {isPackagedLot && (
+            <StampAssignment
+              value={stamp}
+              onChange={setStamp}
+              suggestedUnits={stampableUnits}
+              reels={reels}
+              loading={reelsLoading}
+            />
+          )}
+
+
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => navigate({ to: "/inventory" })}>
               Annuler
