@@ -28,6 +28,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import { AppliedStampsSummary } from "@/components/stamps/applied-stamps-summary";
+
 import type { Tables } from "@/integrations/supabase/types";
 
 type Reel = Tables<"excise_reels">;
@@ -229,8 +231,10 @@ function StampsPage() {
       <Tabs defaultValue="stock" className="space-y-4">
         <TabsList>
           <TabsTrigger value="stock">Stock réel (rouleaux)</TabsTrigger>
+          <TabsTrigger value="applied">Timbres apposés</TabsTrigger>
           <TabsTrigger value="runs">Packaging Runs</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="stock">
           <Card>
@@ -318,9 +322,14 @@ function StampsPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="applied">
+          <AppliedStampsSummary />
+        </TabsContent>
+
         <TabsContent value="runs">
           <PackagingRunsTable />
         </TabsContent>
+
       </Tabs>
     </div>
   );

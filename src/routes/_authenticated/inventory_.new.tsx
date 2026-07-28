@@ -30,6 +30,15 @@ import {
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
 import { usePackagingFormats } from "@/lib/packaging-formats";
+import {
+  StampAssignment,
+  emptyStampSelection,
+  useAvailableReels,
+  validateStampSelection,
+  type StampSelection,
+} from "@/components/stamps/stamp-assignment";
+import { applyStampsToLot } from "@/lib/stamps";
+
 
 
 type Batch = Tables<"batches">;
@@ -109,6 +118,22 @@ function NewLotPage() {
   const { formats } = usePackagingFormats();
   const meta = deriveLotMeta(withBags ? cartons : [], formats);
 
+  // Timbres d'accise : uniquement pour les lots Mastercase / packagés.
+  const { reels, loading: reelsLoading } = useAvailableReels();
+  const [stamp, setStamp] = useState<StampSelection>(emptyStampSelection());
+  const isPackagedLot = withBags && meta.lot_kind === "packaged";
+  const stampableUnits = withBags
+    ? cartons
+        .flatMap((c) => c.bags)
+        .filter((b) => b.type === "packaged" || b.type === "preroll")
+        .reduce(
+          (s, b) =>
+            s + Math.max(Math.round(Number(b.copies) || 0), 0) * Math.round(Number(b.units) || 0),
+          0,
+        )
+    : 0;
+
+
   const submit = async () => {
     if (!lotNumber.trim()) {
       toast.error("Le numéro de lot est obligatoire");
@@ -118,7 +143,13 @@ function NewLotPage() {
       toast.error("Ajoutez au moins un sac avec un poids > 0");
       return;
     }
+    const stampError = validateStampSelection(stamp, reels);
+    if (stampError) {
+      toast.error(stampError);
+      return;
+    }
     if (withBags) {
+
       const invalid = validateCartons(cartons);
       if (invalid) {
         toast.error(invalid);
@@ -226,8 +257,28 @@ function NewLotPage() {
         if (uErr) throw uErr;
       }
 
-      toast.success("Lot créé");
+      if (stamp.enabled) {
+        try {
+          await applyStampsToLot({
+            reelId: stamp.reelId,
+            lotId: lot.id,
+            quantity: Number(stamp.quantity),
+            comments: `Timbrage du lot ${lotNumber.trim()}`,
+          });
+        } catch (e) {
+          toast.error(
+            `Lot créé, mais le timbrage a échoué : ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+          navigate({ to: "/inventory/$id", params: { id: lot.id } });
+          return;
+        }
+      }
+
+      toast.success(stamp.enabled ? "Lot créé et timbré" : "Lot créé");
       navigate({ to: "/inventory/$id", params: { id: lot.id } });
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -369,6 +420,18 @@ function NewLotPage() {
               </>
             )}
           </div>
+
+          {isPackagedLot && (
+            <StampAssignment
+              value={stamp}
+              onChange={setStamp}
+              suggestedUnits={stampableUnits}
+              reels={reels}
+              loading={reelsLoading}
+            />
+          )}
+
+
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => navigate({ to: "/inventory" })}>

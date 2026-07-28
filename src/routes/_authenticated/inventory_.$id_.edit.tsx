@@ -30,6 +30,15 @@ import {
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
 import { usePackagingFormats } from "@/lib/packaging-formats";
+import {
+  StampAssignment,
+  emptyStampSelection,
+  useAvailableReels,
+  validateStampSelection,
+  type StampSelection,
+} from "@/components/stamps/stamp-assignment";
+import { applyStampsToLot, fetchLotStampCount } from "@/lib/stamps";
+
 
 
 type Lot = Tables<"inventory_lots">;
@@ -165,6 +174,29 @@ function EditLotPage() {
 
   const totals = cartonTotals(cartons);
   const { formats } = usePackagingFormats();
+  const liveMeta = deriveLotMeta(cartons, formats);
+
+  // Timbres d'accise (lots Mastercase uniquement).
+  const { reels, loading: reelsLoading } = useAvailableReels();
+  const [stamp, setStamp] = useState<StampSelection>(emptyStampSelection());
+  const [appliedStamps, setAppliedStamps] = useState(0);
+  const isPackagedLot = initialKind !== "retention" && liveMeta.lot_kind === "packaged";
+  const stampableUnits = cartons
+    .flatMap((c) => c.bags)
+    .filter((b) => b.type === "packaged" || b.type === "preroll")
+    .reduce(
+      (s, b) =>
+        s + Math.max(Math.round(Number(b.copies) || 0), 0) * Math.round(Number(b.units) || 0),
+      0,
+    );
+
+  useEffect(() => {
+    fetchLotStampCount(id)
+      .then(setAppliedStamps)
+      .catch(() => setAppliedStamps(0));
+  }, [id]);
+
+
 
   const submit = async () => {
     if (!lotNumber.trim()) {
@@ -176,7 +208,13 @@ function EditLotPage() {
       toast.error(invalid);
       return;
     }
+    const stampError = validateStampSelection(stamp, reels);
+    if (stampError) {
+      toast.error(stampError);
+      return;
+    }
     setSaving(true);
+
 
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -352,8 +390,18 @@ function EditLotPage() {
         throw lotErr;
       }
 
-      toast.success("Lot mis à jour");
+      if (stamp.enabled) {
+        await applyStampsToLot({
+          reelId: stamp.reelId,
+          lotId: id,
+          quantity: Number(stamp.quantity),
+          comments: `Timbrage du lot ${lotNumber.trim()}`,
+        });
+      }
+
+      toast.success(stamp.enabled ? "Lot mis à jour et timbré" : "Lot mis à jour");
       navigate({ to: "/inventory/$id", params: { id } });
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -452,6 +500,20 @@ function EditLotPage() {
               unité(s) · <strong>{fmtG(totals.grams)} g</strong>
             </p>
           </div>
+
+          {isPackagedLot && (
+            <StampAssignment
+              value={stamp}
+              onChange={setStamp}
+              suggestedUnits={Math.max(stampableUnits - appliedStamps, 0)}
+              reels={reels}
+              loading={reelsLoading}
+              alreadyApplied={appliedStamps}
+              title="Timbres d'accise (ajout)"
+            />
+          )}
+
+
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
