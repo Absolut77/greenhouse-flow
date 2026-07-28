@@ -22,11 +22,15 @@ import type { Tables } from "@/integrations/supabase/types";
 import {
   CartonBuilder,
   cartonTotals,
+  deriveLotMeta,
   emptyCarton,
   expandCartons,
+  validateCartons,
   type CartonDraft,
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
+import { usePackagingFormats } from "@/lib/packaging-formats";
+
 
 type Batch = Tables<"batches">;
 
