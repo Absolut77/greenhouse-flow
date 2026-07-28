@@ -160,13 +160,20 @@ function EditLotPage() {
   }, [id]);
 
   const totals = cartonTotals(cartons);
+  const { formats } = usePackagingFormats();
 
   const submit = async () => {
     if (!lotNumber.trim()) {
       toast.error("Le numéro de lot est obligatoire");
       return;
     }
+    const invalid = validateCartons(cartons);
+    if (invalid) {
+      toast.error(invalid);
+      return;
+    }
     setSaving(true);
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id ?? null;
