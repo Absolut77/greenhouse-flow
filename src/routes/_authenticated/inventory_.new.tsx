@@ -106,6 +106,8 @@ function NewLotPage() {
   }, [batchId, subNumber, parentBatch?.id, selectedBatch?.id]);
 
   const totals = cartonTotals(cartons);
+  const { formats } = usePackagingFormats();
+  const meta = deriveLotMeta(withBags ? cartons : [], formats);
 
   const submit = async () => {
     if (!lotNumber.trim()) {
@@ -116,6 +118,14 @@ function NewLotPage() {
       toast.error("Ajoutez au moins un sac avec un poids > 0");
       return;
     }
+    if (withBags) {
+      const invalid = validateCartons(cartons);
+      if (invalid) {
+        toast.error(invalid);
+        return;
+      }
+    }
+
 
     setSaving(true);
     try {
