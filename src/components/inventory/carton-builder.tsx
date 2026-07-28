@@ -33,12 +33,13 @@ const NO_SIZE = "__no_size__";
 
 /** Tailles de fleur (miroir de FLOWER_SIZES côté inventaire). */
 const FLOWER_SIZES = [
-  { value: "trim", label: "Trim" },
+  { value: "hand_trim", label: "Hand trim" },
+  { value: "big", label: "Big" },
   { value: "medium", label: "Medium" },
   { value: "small", label: "Small" },
-  { value: "hand_trim", label: "Hand Trim" },
-  { value: "mix", label: "Mix" },
+  { value: "trim", label: "Trim" },
 ];
+
 
 /** Types saisis en poids simple (pas d'unités multiples). */
 const SIMPLE_TYPES = ["bulk", "trim", "sample", "lab_sample", "retention", "other"];
@@ -236,14 +237,14 @@ export function expandCartonsForEdit(cartons: CartonDraft[]) {
 }
 
 /**
- * Un carton devient un « Master Case » dès qu'il contient du packagé.
+ * Un carton devient un « Mastercase » dès qu'il contient du packagé.
  * Le Bulk reste regroupé dans un simple carton.
  */
 export const cartonKindLabel = (c: CartonDraft) =>
-  c.bags.some((b) => !isBulkContainerType(b.type)) ? "Master Case" : "Carton";
+  c.bags.some((b) => !isBulkContainerType(b.type)) ? "Mastercase" : "Carton";
 
 /**
- * Règle métier : un Master Case peut contenir n'importe quel type packagé,
+ * Règle métier : un Mastercase peut contenir n'importe quel type packagé,
  * mais jamais de Bulk.
  */
 export function validateCartons(cartons: CartonDraft[]): string | null {
@@ -251,15 +252,16 @@ export function validateCartons(cartons: CartonDraft[]): string | null {
     const hasBulk = c.bags.some((b) => isBulkContainerType(b.type));
     const hasPackaged = c.bags.some((b) => !isBulkContainerType(b.type));
     if (hasBulk && hasPackaged)
-      return `Le Master Case ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
+      return `Le Mastercase ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
     for (const b of c.bags) {
       if (isBulkContainerType(b.type)) continue;
       if (bagNet(b) <= 0)
-        return `Poids manquant pour le sac ${b.code || "?"} du Master Case ${c.code || "?"}.`;
+        return `Poids manquant pour la ligne ${b.code || "?"} du Mastercase ${c.code || "?"}.`;
     }
   }
   return null;
 }
+
 
 export type LotMeta = {
   lot_kind: string;
