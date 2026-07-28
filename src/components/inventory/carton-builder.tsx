@@ -350,12 +350,10 @@ export function CartonBuilder({
     if (bag && isSimpleType(bag.type)) {
       return patchBag(ci, bi, { formatId, weight: String(formatNetGrams(f)) });
     }
-    patchBag(ci, bi, {
-      formatId,
-      units: String(f.units_per_pack),
-      unitWeight: String(Number(f.unit_weight_grams)),
-    });
+    // Format = poids par unité (le nombre d'unités par Mastercase reste saisi).
+    patchBag(ci, bi, { formatId, unitWeight: String(formatUnitGrams(f)) });
   };
+
 
 
   const totals = cartonTotals(cartons);
