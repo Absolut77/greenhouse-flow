@@ -471,7 +471,7 @@ export function CartonBuilder({
             <div className="space-y-2 border-t border-border/60 p-2">
             <div className="grid gap-2 sm:grid-cols-2 sm:items-end">
               <div className="grid gap-1.5">
-                <Label className="text-xs">Carton</Label>
+                <Label className="text-xs">{kind}</Label>
                 <Input
                   value={c.code}
                   onChange={(e) => patchCarton(ci, { code: e.target.value.toUpperCase() })}
@@ -491,6 +491,8 @@ export function CartonBuilder({
               {c.bags.map((b, bi) => {
                 const simple = isSimpleType(b.type);
                 const withSize = FLOWER_TYPES.includes(b.type);
+                const bagFormats = formatsForContainerType(formats, b.type);
+
                 return (
                   <div
                     key={bi}
