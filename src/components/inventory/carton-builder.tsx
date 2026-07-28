@@ -235,6 +235,84 @@ export function expandCartonsForEdit(cartons: CartonDraft[]) {
   });
 }
 
+/**
+ * Un carton devient un « Master Case » dès qu'il contient du packagé.
+ * Le Bulk reste regroupé dans un simple carton.
+ */
+export const cartonKindLabel = (c: CartonDraft) =>
+  c.bags.some((b) => !isBulkContainerType(b.type)) ? "Master Case" : "Carton";
+
+/**
+ * Règle métier : un Master Case peut contenir n'importe quel type packagé,
+ * mais jamais de Bulk.
+ */
+export function validateCartons(cartons: CartonDraft[]): string | null {
+  for (const c of cartons) {
+    const hasBulk = c.bags.some((b) => isBulkContainerType(b.type));
+    const hasPackaged = c.bags.some((b) => !isBulkContainerType(b.type));
+    if (hasBulk && hasPackaged)
+      return `Le Master Case ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
+    for (const b of c.bags) {
+      if (isBulkContainerType(b.type)) continue;
+      if (bagNet(b) <= 0)
+        return `Poids manquant pour le sac ${b.code || "?"} du Master Case ${c.code || "?"}.`;
+    }
+  }
+  return null;
+}
+
+export type LotMeta = {
+  lot_kind: string;
+  product_type: string | null;
+  format: string | null;
+  flower_size: string | null;
+};
+
+/** Déduit type de produit / format / nature du lot à partir du contenu saisi. */
+export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]): LotMeta {
+  const bags = cartons.flatMap((c) => c.bags);
+  const types = new Set(bags.map((b) => b.type));
+  const formatNames = new Set(
+    bags
+      .map((b) => formats.find((f) => f.id === b.formatId))
+      .filter(Boolean)
+      .map((f) => `${f!.name}`),
+  );
+  const sizes = new Set(
+    bags.map((b) => b.flowerSize).filter((s) => s && s !== NO_SIZE) as string[],
+  );
+
+  const hasPackaged = types.has("packaged");
+  const hasPreroll = types.has("preroll");
+  const onlySamples =
+    bags.length > 0 && bags.every((b) => b.type === "sample" || b.type === "lab_sample");
+  const onlyRetention = bags.length > 0 && bags.every((b) => b.type === "retention");
+
+  let lot_kind = "bulk";
+  let product_type: string | null = "bulk";
+  if (onlyRetention) {
+    lot_kind = "retention";
+    product_type = "flower";
+  } else if (onlySamples) {
+    lot_kind = "sample";
+    product_type = "sample";
+  } else if (hasPackaged || hasPreroll) {
+    lot_kind = "packaged";
+    product_type = hasPreroll && !hasPackaged ? "preroll" : "flower";
+  }
+
+  return {
+    lot_kind,
+    product_type,
+    format:
+      formatNames.size > 0
+        ? [...formatNames].join(" + ")
+        : lot_kind === "bulk"
+          ? "bulk"
+          : null,
+    flower_size: sizes.size === 1 ? [...sizes][0] : null,
+  };
+}
 
 
 export function CartonBuilder({
