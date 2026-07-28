@@ -174,6 +174,29 @@ function EditLotPage() {
 
   const totals = cartonTotals(cartons);
   const { formats } = usePackagingFormats();
+  const liveMeta = deriveLotMeta(cartons, formats);
+
+  // Timbres d'accise (lots Mastercase uniquement).
+  const { reels, loading: reelsLoading } = useAvailableReels();
+  const [stamp, setStamp] = useState<StampSelection>(emptyStampSelection());
+  const [appliedStamps, setAppliedStamps] = useState(0);
+  const isPackagedLot = initialKind !== "retention" && liveMeta.lot_kind === "packaged";
+  const stampableUnits = cartons
+    .flatMap((c) => c.bags)
+    .filter((b) => b.type === "packaged" || b.type === "preroll")
+    .reduce(
+      (s, b) =>
+        s + Math.max(Math.round(Number(b.copies) || 0), 0) * Math.round(Number(b.units) || 0),
+      0,
+    );
+
+  useEffect(() => {
+    fetchLotStampCount(id)
+      .then(setAppliedStamps)
+      .catch(() => setAppliedStamps(0));
+  }, [id]);
+
+
 
   const submit = async () => {
     if (!lotNumber.trim()) {
