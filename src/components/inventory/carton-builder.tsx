@@ -416,8 +416,15 @@ export function CartonBuilder({
       {cartons.map((c, ci) => {
         const t = cartonTotals([c]);
         const opened = isOpen(ci);
+        const kind = cartonKindLabel(c);
+        const invalid =
+          c.bags.some((b) => isBulkContainerType(b.type)) &&
+          c.bags.some((b) => !isBulkContainerType(b.type));
         return (
-          <div key={ci} className="rounded-md border border-border/60 bg-muted/20">
+          <div
+            key={ci}
+            className={`rounded-md border bg-muted/20 ${invalid ? "border-destructive/70" : "border-border/60"}`}
+          >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <button
                 type="button"
@@ -429,14 +436,23 @@ export function CartonBuilder({
                 ) : (
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <span className="font-semibold">Carton {c.code || "—"}</span>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {t.bags} sac{t.bags > 1 ? "s" : ""} · {fmtG(t.grams)} g
+                <span className="font-semibold">
+                  {kind} {c.code || "—"}
                 </span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t.bags} contenant{t.bags > 1 ? "s" : ""} · {t.units} unité
+                  {t.units > 1 ? "s" : ""} · {fmtG(t.grams)} g
+                </span>
+                {invalid && (
+                  <span className="text-xs font-medium text-destructive">
+                    Bulk interdit dans un Master Case
+                  </span>
+                )}
                 {c.location.trim() && (
                   <span className="truncate text-xs text-muted-foreground">· {c.location}</span>
                 )}
               </button>
+
               <Button
                 type="button"
                 size="icon"
