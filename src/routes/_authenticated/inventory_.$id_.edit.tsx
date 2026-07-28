@@ -79,6 +79,8 @@ function EditLotPage() {
 
   // Etat initial pour calculer les suppressions.
   const [initialCartonIds, setInitialCartonIds] = useState<string[]>([]);
+  const [initialKind, setInitialKind] = useState<string>("bulk");
+
   const [initialContainers, setInitialContainers] = useState<Container[]>([]);
 
   useEffect(() => {
@@ -120,6 +122,8 @@ function EditLotPage() {
       const cartonRows = (cts ?? []) as Carton[];
       const containerRows = (cns ?? []) as Container[];
       setInitialCartonIds(cartonRows.map((c) => c.id));
+      setInitialKind(l.lot_kind ?? "bulk");
+
       setInitialContainers(containerRows);
 
       const toBag = (c: Container, inCarton: boolean) => ({
