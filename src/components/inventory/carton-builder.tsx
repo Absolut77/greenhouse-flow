@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
 import { CONTAINER_TYPES, fmtG } from "@/lib/containers";
 import {
   formatNetGrams,
