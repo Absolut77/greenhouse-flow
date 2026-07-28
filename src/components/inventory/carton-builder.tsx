@@ -23,10 +23,12 @@ import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
 import { CONTAINER_TYPES, containerTypeLabel, fmtG, isBulkContainerType } from "@/lib/containers";
 import {
   formatNetGrams,
+  formatUnitGrams,
   formatsForContainerType,
   usePackagingFormats,
   type PackagingFormat,
 } from "@/lib/packaging-formats";
+
 
 export const NO_FORMAT = "__no_format__";
 const NO_SIZE = "__no_size__";
