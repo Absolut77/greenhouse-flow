@@ -208,7 +208,13 @@ function EditLotPage() {
       toast.error(invalid);
       return;
     }
+    const stampError = validateStampSelection(stamp, reels);
+    if (stampError) {
+      toast.error(stampError);
+      return;
+    }
     setSaving(true);
+
 
     try {
       const { data: userData } = await supabase.auth.getUser();
