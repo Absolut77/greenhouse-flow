@@ -20,9 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
-import { CONTAINER_TYPES, fmtG } from "@/lib/containers";
+import { CONTAINER_TYPES, fmtG, isBulkContainerType } from "@/lib/containers";
 import {
   formatNetGrams,
+  formatsForContainerType,
   usePackagingFormats,
   type PackagingFormat,
 } from "@/lib/packaging-formats";
@@ -39,12 +40,13 @@ const FLOWER_SIZES = [
   { value: "mix", label: "Mix" },
 ];
 
-/** Types saisis en poids simple (pas de format / unités). */
+/** Types saisis en poids simple (pas d'unités multiples). */
 const SIMPLE_TYPES = ["bulk", "trim", "sample", "lab_sample", "retention", "other"];
 /** Types où la taille de fleur est pertinente. */
 const FLOWER_TYPES = ["bulk", "trim"];
 
 export const isSimpleType = (t: string) => SIMPLE_TYPES.includes(t);
+
 
 /** A, B, ... Z, AA, AB... */
 export const cartonLetter = (i: number) => {
