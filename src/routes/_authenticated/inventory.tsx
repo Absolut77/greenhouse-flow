@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Download } from "lucide-react";
+import { Plus, Download, Upload } from "lucide-react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { exportXlsx, fmtDate } from "@/lib/export-xlsx";
@@ -237,12 +237,19 @@ function InventoryPage() {
           >
             <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
+          {roles.some((r) => r === "admin" || r === "supervisor") && (
+            <Button variant="outline" onClick={() => navigate({ to: "/inventory/import" })}>
+              <Upload className="mr-1 h-4 w-4" />
+              Import bulk
+            </Button>
+          )}
           {!isViewerOnly && (
             <Button onClick={() => navigate({ to: "/inventory/new" })}>
               <Plus className="mr-1 h-4 w-4" />
               Nouveau lot
             </Button>
           )}
+
         </div>
 
       </div>

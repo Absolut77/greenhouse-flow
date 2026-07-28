@@ -1226,6 +1226,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_bulk_inventory: { Args: { _payload: Json }; Returns: Json }
       next_number: { Args: { _kind: string }; Returns: string }
       recompute_reel_status: { Args: { _reel_id: string }; Returns: undefined }
     }

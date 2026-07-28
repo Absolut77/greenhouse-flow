@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authen
 import { Route as AuthenticatedSettingsPackagingRouteImport } from './routes/_authenticated/settings.packaging'
 import { Route as AuthenticatedReceptionsNewRouteImport } from './routes/_authenticated/receptions_.new'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory_.new'
+import { Route as AuthenticatedInventoryImportRouteImport } from './routes/_authenticated/inventory_.import'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory_.$id'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events_.new'
 import { Route as AuthenticatedEventsIdRouteImport } from './routes/_authenticated/events_.$id'
@@ -135,6 +136,12 @@ const AuthenticatedInventoryNewRoute =
     path: '/inventory/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryImportRoute =
+  AuthenticatedInventoryImportRouteImport.update({
+    id: '/inventory_/import',
+    path: '/inventory/import',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryIdRoute =
   AuthenticatedInventoryIdRouteImport.update({
     id: '/inventory_/$id',
@@ -191,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/import': typeof AuthenticatedInventoryImportRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
   '/events/$id': typeof AuthenticatedEventsIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/import': typeof AuthenticatedInventoryImportRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/receptions/new': typeof AuthenticatedReceptionsNewRoute
   '/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -247,6 +256,7 @@ export interface FileRoutesById {
   '/_authenticated/events_/$id': typeof AuthenticatedEventsIdRoute
   '/_authenticated/events_/new': typeof AuthenticatedEventsNewRoute
   '/_authenticated/inventory_/$id': typeof AuthenticatedInventoryIdRoute
+  '/_authenticated/inventory_/import': typeof AuthenticatedInventoryImportRoute
   '/_authenticated/inventory_/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/receptions_/new': typeof AuthenticatedReceptionsNewRoute
   '/_authenticated/settings/packaging': typeof AuthenticatedSettingsPackagingRoute
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/events/$id'
     | '/events/new'
     | '/inventory/$id'
+    | '/inventory/import'
     | '/inventory/new'
     | '/receptions/new'
     | '/settings/packaging'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/events/$id'
     | '/events/new'
     | '/inventory/$id'
+    | '/inventory/import'
     | '/inventory/new'
     | '/receptions/new'
     | '/settings/packaging'
@@ -331,6 +343,7 @@ export interface FileRouteTypes {
     | '/_authenticated/events_/$id'
     | '/_authenticated/events_/new'
     | '/_authenticated/inventory_/$id'
+    | '/_authenticated/inventory_/import'
     | '/_authenticated/inventory_/new'
     | '/_authenticated/receptions_/new'
     | '/_authenticated/settings/packaging'
@@ -484,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory_/import': {
+      id: '/_authenticated/inventory_/import'
+      path: '/inventory/import'
+      fullPath: '/inventory/import'
+      preLoaderRoute: typeof AuthenticatedInventoryImportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory_/$id': {
       id: '/_authenticated/inventory_/$id'
       path: '/inventory/$id'
@@ -579,6 +599,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEventsIdRoute: typeof AuthenticatedEventsIdRoute
   AuthenticatedEventsNewRoute: typeof AuthenticatedEventsNewRoute
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
+  AuthenticatedInventoryImportRoute: typeof AuthenticatedInventoryImportRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedReceptionsNewRoute: typeof AuthenticatedReceptionsNewRoute
   AuthenticatedShipmentsNewRoute: typeof AuthenticatedShipmentsNewRoute
@@ -601,6 +622,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEventsIdRoute: AuthenticatedEventsIdRoute,
   AuthenticatedEventsNewRoute: AuthenticatedEventsNewRoute,
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
+  AuthenticatedInventoryImportRoute: AuthenticatedInventoryImportRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedReceptionsNewRoute: AuthenticatedReceptionsNewRoute,
   AuthenticatedShipmentsNewRoute: AuthenticatedShipmentsNewRoute,
