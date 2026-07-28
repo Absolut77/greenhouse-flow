@@ -160,11 +160,15 @@ function NewLotPage() {
         .insert({
           lot_number: lotNumber.trim(),
           batch_id: finalBatchId,
-          quantity_grams: withBags ? 0 : 0,
+          quantity_grams: 0,
           units: 0,
           location: location.trim() || null,
           status: "available",
-          lot_kind: "bulk",
+          lot_kind: meta.lot_kind,
+          product_type: meta.product_type,
+          format: meta.format,
+          flower_size: meta.flower_size,
+
           notes:
             [lotName.trim() ? `Variété : ${lotName.trim()}` : "", notes.trim()]
               .filter(Boolean)
