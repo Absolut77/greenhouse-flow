@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
 import { CONTAINER_TYPES, fmtG } from "@/lib/containers";
 import {
   formatNetGrams,
@@ -311,6 +312,20 @@ export function CartonBuilder({
           </Button>
         </div>
       </div>
+
+      <CartonQuickEntry
+        existingCount={cartons.length}
+        onApply={(generated, mode) => {
+          const next = mode === "replace" ? generated : [...cartons, ...generated];
+          onChange(next);
+          setOpen(
+            mode === "replace"
+              ? generated.map((_, i) => i)
+              : generated.map((_, i) => cartons.length + i),
+          );
+        }}
+      />
+
 
       {cartons.length === 0 && (
         <p className="text-sm italic text-muted-foreground">
