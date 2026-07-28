@@ -118,6 +118,22 @@ function NewLotPage() {
   const { formats } = usePackagingFormats();
   const meta = deriveLotMeta(withBags ? cartons : [], formats);
 
+  // Timbres d'accise : uniquement pour les lots Mastercase / packagés.
+  const { reels, loading: reelsLoading } = useAvailableReels();
+  const [stamp, setStamp] = useState<StampSelection>(emptyStampSelection());
+  const isPackagedLot = withBags && meta.lot_kind === "packaged";
+  const stampableUnits = withBags
+    ? cartons
+        .flatMap((c) => c.bags)
+        .filter((b) => b.type === "packaged" || b.type === "preroll")
+        .reduce(
+          (s, b) =>
+            s + Math.max(Math.round(Number(b.copies) || 0), 0) * Math.round(Number(b.units) || 0),
+          0,
+        )
+    : 0;
+
+
   const submit = async () => {
     if (!lotNumber.trim()) {
       toast.error("Le numéro de lot est obligatoire");
