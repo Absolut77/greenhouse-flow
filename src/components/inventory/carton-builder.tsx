@@ -563,41 +563,36 @@ export function CartonBuilder({
                     )}
 
                     {simple ? (
-                      <>
-                        {bagFormats.length > 0 && (
-                          <div className="grid w-40 gap-1.5">
-                            <Label className="text-xs">Format</Label>
-                            <Select
-                              value={b.formatId || NO_FORMAT}
-                              onValueChange={(v) => applyFormat(ci, bi, v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Libre" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={NO_FORMAT}>Poids libre</SelectItem>
-                                {bagFormats.map((f) => (
-                                  <SelectItem key={f.id} value={f.id}>
-                                    {f.name} ({formatNetGrams(f)} g)
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                        <div className="grid w-28 gap-1.5">
-                          <Label className="text-xs">Poids (g)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={b.weight}
-                            onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
-                          />
-                        </div>
-                      </>
+                      <div className="grid w-32 gap-1.5">
+                        <Label className="text-xs">Poids (g)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={b.weight}
+                          onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
+                        />
+                      </div>
                     ) : (
                       <>
+                        <div className="grid w-28 gap-1.5">
+                          <Label className="text-xs">Nb Mastercase</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={b.copies}
+                            onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid w-28 gap-1.5">
+                          <Label className="text-xs">Unités / MC</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={b.units}
+                            onChange={(e) => patchBag(ci, bi, { units: e.target.value })}
+                          />
+                        </div>
                         <div className="grid w-44 gap-1.5">
                           <Label className="text-xs">Format</Label>
                           <Select
@@ -611,50 +606,37 @@ export function CartonBuilder({
                               <SelectItem value={NO_FORMAT}>Format libre</SelectItem>
                               {bagFormats.map((f) => (
                                 <SelectItem key={f.id} value={f.id}>
-                                  {f.name} ({formatNetGrams(f)} g)
+                                  {f.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="grid w-24 gap-1.5">
-                          <Label className="text-xs">Pots / unités</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={b.units}
-                            onChange={(e) => patchBag(ci, bi, { units: e.target.value })}
-                          />
+                        <div className="grid w-32 gap-1.5">
+                          <Label className="text-xs">Poids par unité (g)</Label>
+                          {b.formatId && b.formatId !== NO_FORMAT ? (
+                            <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
+                              {fmtG(num(b.unitWeight))}
+                            </div>
+                          ) : (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={b.unitWeight}
+                              onChange={(e) => patchBag(ci, bi, { unitWeight: e.target.value })}
+                            />
+                          )}
                         </div>
-                        <div className="grid w-28 gap-1.5">
-                          <Label className="text-xs">Poids / pot (g)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={b.unitWeight}
-                            onChange={(e) => patchBag(ci, bi, { unitWeight: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid w-20 gap-1.5">
-                          <Label className="text-xs">Répéter ×</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={b.copies}
-                            onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
-                          />
+                        <div className="grid w-32 gap-1.5">
+                          <Label className="text-xs">Poids total (g)</Label>
+                          <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
+                            {fmtG(bagNet(b) * Math.max(num(b.copies), 0))}
+                          </div>
                         </div>
                       </>
                     )}
 
-
-                    <div className="grid w-24 gap-1.5">
-                      <Label className="text-xs">Net / sac (g)</Label>
-                      <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
-                        {fmtG(bagNet(b))}
-                      </div>
-                    </div>
 
                     <div className="flex gap-1">
                       <Button
