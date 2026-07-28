@@ -339,7 +339,7 @@ function EditLotPage() {
           notes: noteValue,
           quantity_grams: grams,
           units,
-          lot_kind: meta.lot_kind,
+          lot_kind: initialKind === "retention" ? "retention" : meta.lot_kind,
           product_type: meta.product_type,
           format: meta.format,
           flower_size: meta.flower_size,
