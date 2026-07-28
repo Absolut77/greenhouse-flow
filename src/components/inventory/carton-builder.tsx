@@ -342,12 +342,17 @@ export function CartonBuilder({
     if (formatId === NO_FORMAT) return patchBag(ci, bi, { formatId });
     const f = formats.find((x: PackagingFormat) => x.id === formatId);
     if (!f) return patchBag(ci, bi, { formatId });
+    const bag = cartons[ci]?.bags[bi];
+    if (bag && isSimpleType(bag.type)) {
+      return patchBag(ci, bi, { formatId, weight: String(formatNetGrams(f)) });
+    }
     patchBag(ci, bi, {
       formatId,
       units: String(f.units_per_pack),
       unitWeight: String(Number(f.unit_weight_grams)),
     });
   };
+
 
   const totals = cartonTotals(cartons);
 
