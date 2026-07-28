@@ -320,9 +320,14 @@ function StampsPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="applied">
+          <AppliedStampsSummary />
+        </TabsContent>
+
         <TabsContent value="runs">
           <PackagingRunsTable />
         </TabsContent>
+
       </Tabs>
     </div>
   );
