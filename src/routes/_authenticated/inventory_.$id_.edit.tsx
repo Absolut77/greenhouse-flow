@@ -390,8 +390,18 @@ function EditLotPage() {
         throw lotErr;
       }
 
-      toast.success("Lot mis à jour");
+      if (stamp.enabled) {
+        await applyStampsToLot({
+          reelId: stamp.reelId,
+          lotId: id,
+          quantity: Number(stamp.quantity),
+          comments: `Timbrage du lot ${lotNumber.trim()}`,
+        });
+      }
+
+      toast.success(stamp.enabled ? "Lot mis à jour et timbré" : "Lot mis à jour");
       navigate({ to: "/inventory/$id", params: { id } });
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
