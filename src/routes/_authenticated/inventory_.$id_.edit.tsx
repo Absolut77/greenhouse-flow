@@ -30,6 +30,15 @@ import {
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
 import { usePackagingFormats } from "@/lib/packaging-formats";
+import {
+  StampAssignment,
+  emptyStampSelection,
+  useAvailableReels,
+  validateStampSelection,
+  type StampSelection,
+} from "@/components/stamps/stamp-assignment";
+import { applyStampsToLot, fetchLotStampCount } from "@/lib/stamps";
+
 
 
 type Lot = Tables<"inventory_lots">;
