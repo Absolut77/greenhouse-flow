@@ -80,11 +80,14 @@ export function LotStatusBadge({ status }: { status: string | null }) {
 }
 
 export const PRODUCT_TYPES = [
+  { value: "bulk", label: "Bulk" },
   { value: "flower", label: "Flower" },
   { value: "trim", label: "Trim" },
   { value: "preroll", label: "Preroll" },
+  { value: "packaged", label: "Packagé" },
   { value: "sample", label: "Sample" },
 ];
+
 
 export const FLOWER_SIZES = [
   { value: "big", label: "Big" },
