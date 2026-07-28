@@ -29,23 +29,24 @@ export const formatLabel = (f: PackagingFormat | null | undefined) =>
 
 /**
  * Cohérence type de contenant → familles de formats autorisées.
- * Un type absent de cette table n'accepte aucun format packagé (poids simple).
+ * Un type absent de cette table n'accepte aucun format (poids simple).
+ * Mastercase (packaged) accepte les formats fleur et pré-roulés,
+ * le type Pre-roll uniquement les formats pré-roulés.
  */
 export const FORMAT_TYPES_FOR_CONTAINER: Record<string, string[]> = {
-  packaged: ["flower"],
+  packaged: ["flower", "preroll"],
   preroll: ["preroll"],
-  sample: ["flower", "preroll"],
-  lab_sample: ["flower", "preroll"],
-  master_case: ["flower", "preroll"],
-  other: ["flower", "preroll"],
 };
 
-/** Formats cohérents avec le type de contenant (poids net > 0 uniquement). */
+/** Formats cohérents avec le type de contenant (poids unitaire > 0 uniquement). */
 export function formatsForContainerType(list: PackagingFormat[], type: string) {
   const allowed = FORMAT_TYPES_FOR_CONTAINER[type];
   if (!allowed) return [];
-  return list.filter((f) => allowed.includes(f.format_type) && formatNetGrams(f) > 0);
+  return list.filter(
+    (f) => allowed.includes(f.format_type) && f.is_active && formatUnitGrams(f) > 0,
+  );
 }
+
 
 
 export async function fetchPackagingFormats(activeOnly = true) {
