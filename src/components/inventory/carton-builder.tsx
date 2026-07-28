@@ -530,7 +530,11 @@ export function CartonBuilder({
                               {t2.label}
                             </SelectItem>
                           ))}
+                          {!CONTAINER_TYPES.some((t2) => t2.value === b.type) && b.type && (
+                            <SelectItem value={b.type}>{containerTypeLabel(b.type)}</SelectItem>
+                          )}
                         </SelectContent>
+
                       </Select>
                     </div>
 
