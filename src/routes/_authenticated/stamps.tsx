@@ -28,6 +28,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import { AppliedStampsSummary } from "@/components/stamps/applied-stamps-summary";
+
 import type { Tables } from "@/integrations/supabase/types";
 
 type Reel = Tables<"excise_reels">;
