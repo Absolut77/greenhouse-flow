@@ -24,7 +24,6 @@ const TYPE_ALIASES: Record<string, string> = {
   prerolls: "preroll",
   package: "packaged",
   packaged: "packaged",
-  package_: "packaged",
   retention: "retention",
   other: "other",
   autre: "other",
