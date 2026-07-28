@@ -22,11 +22,15 @@ import {
   NO_FORMAT,
   cartonLetter,
   cartonTotals,
+  deriveLotMeta,
   expandCartonsForEdit,
   flowerSizeFromNotes,
+  validateCartons,
   type CartonDraft,
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
+import { usePackagingFormats } from "@/lib/packaging-formats";
+
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
