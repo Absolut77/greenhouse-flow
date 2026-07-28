@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
-import { CONTAINER_TYPES, fmtG, isBulkContainerType } from "@/lib/containers";
+import { CONTAINER_TYPES, containerTypeLabel, fmtG, isBulkContainerType } from "@/lib/containers";
 import {
   formatNetGrams,
   formatsForContainerType,
