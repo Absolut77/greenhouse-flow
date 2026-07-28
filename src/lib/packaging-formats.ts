@@ -18,6 +18,14 @@ export const FORMAT_TYPE_CLASS: Record<string, string> = {
 export const formatTypeLabel = (v: string | null | undefined) =>
   FORMAT_TYPES.find((t) => t.value === v)?.label ?? v ?? "—";
 
+/** Poids par unité du format (g). */
+export const formatUnitGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit_weight_grams" | "net_weight_grams">) => {
+  const u = Number(f.unit_weight_grams ?? 0);
+  if (u > 0) return u;
+  const per = Number(f.units_per_pack ?? 0) || 1;
+  return Number(f.net_weight_grams ?? 0) / per;
+};
+
 /** Poids net calculé dynamiquement (jamais figé côté UI). */
 export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit_weight_grams" | "net_weight_grams">) => {
   const computed = Number(f.units_per_pack ?? 0) * Number(f.unit_weight_grams ?? 0);
@@ -25,7 +33,8 @@ export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit
 };
 
 export const formatLabel = (f: PackagingFormat | null | undefined) =>
-  f ? `${f.name} — ${formatNetGrams(f)} g` : "—";
+  f ? `${f.name} — ${formatUnitGrams(f)} g / unité` : "—";
+
 
 /**
  * Cohérence type de contenant → familles de formats autorisées.
