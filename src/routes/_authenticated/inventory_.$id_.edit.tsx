@@ -324,6 +324,8 @@ function EditLotPage() {
           .filter(Boolean)
           .join(" — ") || null;
 
+      const meta = deriveLotMeta(cartons, formats);
+
       const { error: lotErr } = await supabase
         .from("inventory_lots")
         .update({
@@ -333,7 +335,12 @@ function EditLotPage() {
           notes: noteValue,
           quantity_grams: grams,
           units,
+          lot_kind: meta.lot_kind,
+          product_type: meta.product_type,
+          format: meta.format,
+          flower_size: meta.flower_size,
         } as never)
+
         .eq("id", id);
       if (lotErr) {
         if ((lotErr as { code?: string }).code === "23505")
