@@ -134,7 +134,12 @@ export function parseCartonFormula(input: string, startIndex = 0): FormulaResult
         errors.push({ line: i + 1, text: line, message: parsed });
         return;
       }
-      bags.push({ ...parsed, code: String(bags.length + 1) });
+      // Les types « simples » (bulk, sample...) n'ont pas de champ « Nb sacs » :
+      // on développe N sacs distincts.
+      const n = isSimpleType(parsed.type) ? Number(parsed.copies) || 1 : 1;
+      for (let k = 0; k < n; k++) {
+        bags.push({ ...parsed, copies: n > 1 ? "1" : parsed.copies, code: String(bags.length + 1) });
+      }
     });
 
     if (failed || bags.length === 0) {
