@@ -373,7 +373,7 @@ export function CartonBuilder({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Boxes className="h-4 w-4" /> Cartons &amp; sacs
+          <Boxes className="h-4 w-4" /> Cartons &amp; Mastercases
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -416,7 +416,7 @@ export function CartonBuilder({
 
       {cartons.length === 0 && (
         <p className="text-sm italic text-muted-foreground">
-          Aucun carton : la saisie sera enregistrée en un seul sac global.
+          Aucun carton : la saisie sera enregistrée en un seul contenant global.
         </p>
       )}
 
@@ -506,7 +506,7 @@ export function CartonBuilder({
                     className="flex flex-wrap items-end gap-2 rounded-md border border-border/40 bg-background/40 p-1.5"
                   >
                     <div className="grid w-16 gap-1.5">
-                      <Label className="text-xs">Sac</Label>
+                      <Label className="text-xs">N°</Label>
                       <Input
                         value={b.code}
                         onChange={(e) => patchBag(ci, bi, { code: e.target.value })}
@@ -679,13 +679,13 @@ export function CartonBuilder({
                   patchCarton(ci, { bags: [...c.bags, emptyBag(c.bags.length + 1, defaultType)] })
                 }
               >
-                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un sac
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter une ligne
               </Button>
             </div>
 
             <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
               <Package className="h-3.5 w-3.5" />
-              {t.bags} sac{t.bags > 1 ? "s" : ""} · {t.units} unités · {fmtG(t.grams)} g
+              {t.bags} contenant{t.bags > 1 ? "s" : ""} · {t.units} unités · {fmtG(t.grams)} g
             </div>
             </div>
             )}
@@ -697,7 +697,7 @@ export function CartonBuilder({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
           <span className="text-muted-foreground">Total</span>
           <span className="font-semibold tabular-nums">
-            {totals.bags} sacs · {totals.units} unités · {fmtG(totals.grams)} g
+            {totals.bags} contenants · {totals.units} unités · {fmtG(totals.grams)} g
           </span>
         </div>
       )}
