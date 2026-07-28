@@ -257,8 +257,28 @@ function NewLotPage() {
         if (uErr) throw uErr;
       }
 
-      toast.success("Lot créé");
+      if (stamp.enabled) {
+        try {
+          await applyStampsToLot({
+            reelId: stamp.reelId,
+            lotId: lot.id,
+            quantity: Number(stamp.quantity),
+            comments: `Timbrage du lot ${lotNumber.trim()}`,
+          });
+        } catch (e) {
+          toast.error(
+            `Lot créé, mais le timbrage a échoué : ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+          navigate({ to: "/inventory/$id", params: { id: lot.id } });
+          return;
+        }
+      }
+
+      toast.success(stamp.enabled ? "Lot créé et timbré" : "Lot créé");
       navigate({ to: "/inventory/$id", params: { id: lot.id } });
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
