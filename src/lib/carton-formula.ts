@@ -15,9 +15,10 @@ const TYPE_ALIASES: Record<string, string> = {
   "lab sample": "lab_sample",
   "laboratory sample": "lab_sample",
   lab: "lab_sample",
-  "master case": "master_case",
-  mastercase: "master_case",
-  carton: "master_case",
+  "master case": "packaged",
+  mastercase: "packaged",
+  carton: "packaged",
+
   preroll: "preroll",
   "pre roll": "preroll",
   "pre-roll": "preroll",

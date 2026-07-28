@@ -22,11 +22,15 @@ import type { Tables } from "@/integrations/supabase/types";
 import {
   CartonBuilder,
   cartonTotals,
+  deriveLotMeta,
   emptyCarton,
   expandCartons,
+  validateCartons,
   type CartonDraft,
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
+import { usePackagingFormats } from "@/lib/packaging-formats";
+
 
 type Batch = Tables<"batches">;
 
@@ -102,6 +106,8 @@ function NewLotPage() {
   }, [batchId, subNumber, parentBatch?.id, selectedBatch?.id]);
 
   const totals = cartonTotals(cartons);
+  const { formats } = usePackagingFormats();
+  const meta = deriveLotMeta(withBags ? cartons : [], formats);
 
   const submit = async () => {
     if (!lotNumber.trim()) {
@@ -112,6 +118,14 @@ function NewLotPage() {
       toast.error("Ajoutez au moins un sac avec un poids > 0");
       return;
     }
+    if (withBags) {
+      const invalid = validateCartons(cartons);
+      if (invalid) {
+        toast.error(invalid);
+        return;
+      }
+    }
+
 
     setSaving(true);
     try {
@@ -146,11 +160,15 @@ function NewLotPage() {
         .insert({
           lot_number: lotNumber.trim(),
           batch_id: finalBatchId,
-          quantity_grams: withBags ? 0 : 0,
+          quantity_grams: 0,
           units: 0,
           location: location.trim() || null,
           status: "available",
-          lot_kind: "bulk",
+          lot_kind: meta.lot_kind,
+          product_type: meta.product_type,
+          format: meta.format,
+          flower_size: meta.flower_size,
+
           notes:
             [lotName.trim() ? `Variété : ${lotName.trim()}` : "", notes.trim()]
               .filter(Boolean)

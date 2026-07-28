@@ -20,9 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CartonQuickEntry } from "@/components/inventory/carton-quick-entry";
-import { CONTAINER_TYPES, fmtG } from "@/lib/containers";
+import { CONTAINER_TYPES, containerTypeLabel, fmtG, isBulkContainerType } from "@/lib/containers";
 import {
   formatNetGrams,
+  formatsForContainerType,
   usePackagingFormats,
   type PackagingFormat,
 } from "@/lib/packaging-formats";
@@ -39,12 +40,13 @@ const FLOWER_SIZES = [
   { value: "mix", label: "Mix" },
 ];
 
-/** Types saisis en poids simple (pas de format / unités). */
+/** Types saisis en poids simple (pas d'unités multiples). */
 const SIMPLE_TYPES = ["bulk", "trim", "sample", "lab_sample", "retention", "other"];
 /** Types où la taille de fleur est pertinente. */
 const FLOWER_TYPES = ["bulk", "trim"];
 
 export const isSimpleType = (t: string) => SIMPLE_TYPES.includes(t);
+
 
 /** A, B, ... Z, AA, AB... */
 export const cartonLetter = (i: number) => {
@@ -233,6 +235,84 @@ export function expandCartonsForEdit(cartons: CartonDraft[]) {
   });
 }
 
+/**
+ * Un carton devient un « Master Case » dès qu'il contient du packagé.
+ * Le Bulk reste regroupé dans un simple carton.
+ */
+export const cartonKindLabel = (c: CartonDraft) =>
+  c.bags.some((b) => !isBulkContainerType(b.type)) ? "Master Case" : "Carton";
+
+/**
+ * Règle métier : un Master Case peut contenir n'importe quel type packagé,
+ * mais jamais de Bulk.
+ */
+export function validateCartons(cartons: CartonDraft[]): string | null {
+  for (const c of cartons) {
+    const hasBulk = c.bags.some((b) => isBulkContainerType(b.type));
+    const hasPackaged = c.bags.some((b) => !isBulkContainerType(b.type));
+    if (hasBulk && hasPackaged)
+      return `Le Master Case ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
+    for (const b of c.bags) {
+      if (isBulkContainerType(b.type)) continue;
+      if (bagNet(b) <= 0)
+        return `Poids manquant pour le sac ${b.code || "?"} du Master Case ${c.code || "?"}.`;
+    }
+  }
+  return null;
+}
+
+export type LotMeta = {
+  lot_kind: string;
+  product_type: string | null;
+  format: string | null;
+  flower_size: string | null;
+};
+
+/** Déduit type de produit / format / nature du lot à partir du contenu saisi. */
+export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]): LotMeta {
+  const bags = cartons.flatMap((c) => c.bags);
+  const types = new Set(bags.map((b) => b.type));
+  const formatNames = new Set(
+    bags
+      .map((b) => formats.find((f) => f.id === b.formatId))
+      .filter(Boolean)
+      .map((f) => `${f!.name}`),
+  );
+  const sizes = new Set(
+    bags.map((b) => b.flowerSize).filter((s) => s && s !== NO_SIZE) as string[],
+  );
+
+  const hasPackaged = types.has("packaged");
+  const hasPreroll = types.has("preroll");
+  const onlySamples =
+    bags.length > 0 && bags.every((b) => b.type === "sample" || b.type === "lab_sample");
+  const onlyRetention = bags.length > 0 && bags.every((b) => b.type === "retention");
+
+  let lot_kind = "bulk";
+  let product_type: string | null = "bulk";
+  if (onlyRetention) {
+    lot_kind = "retention";
+    product_type = "flower";
+  } else if (onlySamples) {
+    lot_kind = "sample";
+    product_type = "sample";
+  } else if (hasPackaged || hasPreroll) {
+    lot_kind = "packaged";
+    product_type = hasPreroll && !hasPackaged ? "preroll" : "flower";
+  }
+
+  return {
+    lot_kind,
+    product_type,
+    format:
+      formatNames.size > 0
+        ? [...formatNames].join(" + ")
+        : lot_kind === "bulk"
+          ? "bulk"
+          : null,
+    flower_size: sizes.size === 1 ? [...sizes][0] : null,
+  };
+}
 
 
 export function CartonBuilder({
@@ -262,12 +342,17 @@ export function CartonBuilder({
     if (formatId === NO_FORMAT) return patchBag(ci, bi, { formatId });
     const f = formats.find((x: PackagingFormat) => x.id === formatId);
     if (!f) return patchBag(ci, bi, { formatId });
+    const bag = cartons[ci]?.bags[bi];
+    if (bag && isSimpleType(bag.type)) {
+      return patchBag(ci, bi, { formatId, weight: String(formatNetGrams(f)) });
+    }
     patchBag(ci, bi, {
       formatId,
       units: String(f.units_per_pack),
       unitWeight: String(Number(f.unit_weight_grams)),
     });
   };
+
 
   const totals = cartonTotals(cartons);
 
@@ -336,8 +421,15 @@ export function CartonBuilder({
       {cartons.map((c, ci) => {
         const t = cartonTotals([c]);
         const opened = isOpen(ci);
+        const kind = cartonKindLabel(c);
+        const invalid =
+          c.bags.some((b) => isBulkContainerType(b.type)) &&
+          c.bags.some((b) => !isBulkContainerType(b.type));
         return (
-          <div key={ci} className="rounded-md border border-border/60 bg-muted/20">
+          <div
+            key={ci}
+            className={`rounded-md border bg-muted/20 ${invalid ? "border-destructive/70" : "border-border/60"}`}
+          >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <button
                 type="button"
@@ -349,14 +441,23 @@ export function CartonBuilder({
                 ) : (
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <span className="font-semibold">Carton {c.code || "—"}</span>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {t.bags} sac{t.bags > 1 ? "s" : ""} · {fmtG(t.grams)} g
+                <span className="font-semibold">
+                  {kind} {c.code || "—"}
                 </span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t.bags} contenant{t.bags > 1 ? "s" : ""} · {t.units} unité
+                  {t.units > 1 ? "s" : ""} · {fmtG(t.grams)} g
+                </span>
+                {invalid && (
+                  <span className="text-xs font-medium text-destructive">
+                    Bulk interdit dans un Master Case
+                  </span>
+                )}
                 {c.location.trim() && (
                   <span className="truncate text-xs text-muted-foreground">· {c.location}</span>
                 )}
               </button>
+
               <Button
                 type="button"
                 size="icon"
@@ -375,7 +476,7 @@ export function CartonBuilder({
             <div className="space-y-2 border-t border-border/60 p-2">
             <div className="grid gap-2 sm:grid-cols-2 sm:items-end">
               <div className="grid gap-1.5">
-                <Label className="text-xs">Carton</Label>
+                <Label className="text-xs">{kind}</Label>
                 <Input
                   value={c.code}
                   onChange={(e) => patchCarton(ci, { code: e.target.value.toUpperCase() })}
@@ -395,6 +496,8 @@ export function CartonBuilder({
               {c.bags.map((b, bi) => {
                 const simple = isSimpleType(b.type);
                 const withSize = FLOWER_TYPES.includes(b.type);
+                const bagFormats = formatsForContainerType(formats, b.type);
+
                 return (
                   <div
                     key={bi}
@@ -427,7 +530,11 @@ export function CartonBuilder({
                               {t2.label}
                             </SelectItem>
                           ))}
+                          {!CONTAINER_TYPES.some((t2) => t2.value === b.type) && b.type && (
+                            <SelectItem value={b.type}>{containerTypeLabel(b.type)}</SelectItem>
+                          )}
                         </SelectContent>
+
                       </Select>
                     </div>
 
@@ -454,16 +561,39 @@ export function CartonBuilder({
                     )}
 
                     {simple ? (
-                      <div className="grid w-28 gap-1.5">
-                        <Label className="text-xs">Poids (g)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={b.weight}
-                          onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
-                        />
-                      </div>
+                      <>
+                        {bagFormats.length > 0 && (
+                          <div className="grid w-40 gap-1.5">
+                            <Label className="text-xs">Format</Label>
+                            <Select
+                              value={b.formatId || NO_FORMAT}
+                              onValueChange={(v) => applyFormat(ci, bi, v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Libre" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_FORMAT}>Poids libre</SelectItem>
+                                {bagFormats.map((f) => (
+                                  <SelectItem key={f.id} value={f.id}>
+                                    {f.name} ({formatNetGrams(f)} g)
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        <div className="grid w-28 gap-1.5">
+                          <Label className="text-xs">Poids (g)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={b.weight}
+                            onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
+                          />
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="grid w-44 gap-1.5">
@@ -476,8 +606,8 @@ export function CartonBuilder({
                               <SelectValue placeholder="Format" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={NO_FORMAT}>Aucun / Bulk</SelectItem>
-                              {formats.map((f) => (
+                              <SelectItem value={NO_FORMAT}>Format libre</SelectItem>
+                              {bagFormats.map((f) => (
                                 <SelectItem key={f.id} value={f.id}>
                                   {f.name} ({formatNetGrams(f)} g)
                                 </SelectItem>
@@ -485,17 +615,8 @@ export function CartonBuilder({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="grid w-20 gap-1.5">
-                          <Label className="text-xs">Nb sacs</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={b.copies}
-                            onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
-                          />
-                        </div>
                         <div className="grid w-24 gap-1.5">
-                          <Label className="text-xs">Unités / sac</Label>
+                          <Label className="text-xs">Pots / unités</Label>
                           <Input
                             type="number"
                             min="0"
@@ -504,7 +625,7 @@ export function CartonBuilder({
                           />
                         </div>
                         <div className="grid w-28 gap-1.5">
-                          <Label className="text-xs">Poids / unité (g)</Label>
+                          <Label className="text-xs">Poids / pot (g)</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -513,8 +634,18 @@ export function CartonBuilder({
                             onChange={(e) => patchBag(ci, bi, { unitWeight: e.target.value })}
                           />
                         </div>
+                        <div className="grid w-20 gap-1.5">
+                          <Label className="text-xs">Répéter ×</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={b.copies}
+                            onChange={(e) => patchBag(ci, bi, { copies: e.target.value })}
+                          />
+                        </div>
                       </>
                     )}
+
 
                     <div className="grid w-24 gap-1.5">
                       <Label className="text-xs">Net / sac (g)</Label>

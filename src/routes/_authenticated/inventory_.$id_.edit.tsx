@@ -22,11 +22,15 @@ import {
   NO_FORMAT,
   cartonLetter,
   cartonTotals,
+  deriveLotMeta,
   expandCartonsForEdit,
   flowerSizeFromNotes,
+  validateCartons,
   type CartonDraft,
 } from "@/components/inventory/carton-builder";
 import { fmtG } from "@/lib/containers";
+import { usePackagingFormats } from "@/lib/packaging-formats";
+
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -75,6 +79,8 @@ function EditLotPage() {
 
   // Etat initial pour calculer les suppressions.
   const [initialCartonIds, setInitialCartonIds] = useState<string[]>([]);
+  const [initialKind, setInitialKind] = useState<string>("bulk");
+
   const [initialContainers, setInitialContainers] = useState<Container[]>([]);
 
   useEffect(() => {
@@ -116,6 +122,8 @@ function EditLotPage() {
       const cartonRows = (cts ?? []) as Carton[];
       const containerRows = (cns ?? []) as Container[];
       setInitialCartonIds(cartonRows.map((c) => c.id));
+      setInitialKind(l.lot_kind ?? "bulk");
+
       setInitialContainers(containerRows);
 
       const toBag = (c: Container, inCarton: boolean) => ({
@@ -156,13 +164,20 @@ function EditLotPage() {
   }, [id]);
 
   const totals = cartonTotals(cartons);
+  const { formats } = usePackagingFormats();
 
   const submit = async () => {
     if (!lotNumber.trim()) {
       toast.error("Le numéro de lot est obligatoire");
       return;
     }
+    const invalid = validateCartons(cartons);
+    if (invalid) {
+      toast.error(invalid);
+      return;
+    }
     setSaving(true);
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id ?? null;
@@ -313,6 +328,8 @@ function EditLotPage() {
           .filter(Boolean)
           .join(" — ") || null;
 
+      const meta = deriveLotMeta(cartons, formats);
+
       const { error: lotErr } = await supabase
         .from("inventory_lots")
         .update({
@@ -322,7 +339,12 @@ function EditLotPage() {
           notes: noteValue,
           quantity_grams: grams,
           units,
+          lot_kind: initialKind === "retention" ? "retention" : meta.lot_kind,
+          product_type: meta.product_type,
+          format: meta.format,
+          flower_size: meta.flower_size,
         } as never)
+
         .eq("id", id);
       if (lotErr) {
         if ((lotErr as { code?: string }).code === "23505")
