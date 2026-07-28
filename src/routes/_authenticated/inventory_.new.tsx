@@ -143,7 +143,13 @@ function NewLotPage() {
       toast.error("Ajoutez au moins un sac avec un poids > 0");
       return;
     }
+    const stampError = validateStampSelection(stamp, reels);
+    if (stampError) {
+      toast.error(stampError);
+      return;
+    }
     if (withBags) {
+
       const invalid = validateCartons(cartons);
       if (invalid) {
         toast.error(invalid);
