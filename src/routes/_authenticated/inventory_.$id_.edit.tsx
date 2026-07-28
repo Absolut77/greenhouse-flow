@@ -501,6 +501,20 @@ function EditLotPage() {
             </p>
           </div>
 
+          {isPackagedLot && (
+            <StampAssignment
+              value={stamp}
+              onChange={setStamp}
+              suggestedUnits={Math.max(stampableUnits - appliedStamps, 0)}
+              reels={reels}
+              loading={reelsLoading}
+              alreadyApplied={appliedStamps}
+              title="Timbres d'accise (ajout)"
+            />
+          )}
+
+
+
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="ghost"
