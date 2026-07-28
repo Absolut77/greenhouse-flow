@@ -27,6 +27,27 @@ export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit
 export const formatLabel = (f: PackagingFormat | null | undefined) =>
   f ? `${f.name} — ${formatNetGrams(f)} g` : "—";
 
+/**
+ * Cohérence type de contenant → familles de formats autorisées.
+ * Un type absent de cette table n'accepte aucun format packagé (poids simple).
+ */
+export const FORMAT_TYPES_FOR_CONTAINER: Record<string, string[]> = {
+  packaged: ["flower"],
+  preroll: ["preroll"],
+  sample: ["flower", "preroll"],
+  lab_sample: ["flower", "preroll"],
+  master_case: ["flower", "preroll"],
+  other: ["flower", "preroll"],
+};
+
+/** Formats cohérents avec le type de contenant (poids net > 0 uniquement). */
+export function formatsForContainerType(list: PackagingFormat[], type: string) {
+  const allowed = FORMAT_TYPES_FOR_CONTAINER[type];
+  if (!allowed) return [];
+  return list.filter((f) => allowed.includes(f.format_type) && formatNetGrams(f) > 0);
+}
+
+
 export async function fetchPackagingFormats(activeOnly = true) {
   let q = supabase
     .from("packaging_formats")

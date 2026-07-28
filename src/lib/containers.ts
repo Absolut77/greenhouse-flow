@@ -6,17 +6,26 @@ export type StockCarton = Tables<"stock_cartons">;
 
 export const CONTAINER_TYPES = [
   { value: "bulk", label: "Bulk" },
+  { value: "packaged", label: "Packagé (pots)" },
+  { value: "preroll", label: "Pre-roll" },
   { value: "sample", label: "Sample" },
   { value: "lab_sample", label: "Laboratory Sample" },
-  { value: "master_case", label: "Master Case" },
-  { value: "preroll", label: "Pre-roll" },
-  { value: "packaged", label: "Packagé" },
   { value: "retention", label: "Rétention" },
   { value: "other", label: "Autre" },
 ] as const;
 
+/** Types packagés : peuvent vivre dans un Master Case. */
+export const PACKAGED_CONTAINER_TYPES = ["packaged", "preroll", "sample", "lab_sample", "other"];
+
+/** Le Bulk ne peut jamais être placé dans un Master Case. */
+export const isBulkContainerType = (t: string) => t === "bulk" || t === "trim";
+
 /** Libellés historiques (types retirés du sélecteur mais présents en base). */
-const LEGACY_TYPE_LABELS: Record<string, string> = { trim: "Trim" };
+const LEGACY_TYPE_LABELS: Record<string, string> = {
+  trim: "Trim",
+  master_case: "Master Case (ancien)",
+};
+
 
 export const CONTAINER_TYPE_CLASS: Record<string, string> = {
   bulk: "bg-blue-500/15 text-blue-400 border-blue-500/30",
