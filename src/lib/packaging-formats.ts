@@ -18,6 +18,14 @@ export const FORMAT_TYPE_CLASS: Record<string, string> = {
 export const formatTypeLabel = (v: string | null | undefined) =>
   FORMAT_TYPES.find((t) => t.value === v)?.label ?? v ?? "—";
 
+/** Poids par unité du format (g). */
+export const formatUnitGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit_weight_grams" | "net_weight_grams">) => {
+  const u = Number(f.unit_weight_grams ?? 0);
+  if (u > 0) return u;
+  const per = Number(f.units_per_pack ?? 0) || 1;
+  return Number(f.net_weight_grams ?? 0) / per;
+};
+
 /** Poids net calculé dynamiquement (jamais figé côté UI). */
 export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit_weight_grams" | "net_weight_grams">) => {
   const computed = Number(f.units_per_pack ?? 0) * Number(f.unit_weight_grams ?? 0);
@@ -25,27 +33,29 @@ export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit
 };
 
 export const formatLabel = (f: PackagingFormat | null | undefined) =>
-  f ? `${f.name} — ${formatNetGrams(f)} g` : "—";
+  f ? `${f.name} — ${formatUnitGrams(f)} g / unité` : "—";
+
 
 /**
  * Cohérence type de contenant → familles de formats autorisées.
- * Un type absent de cette table n'accepte aucun format packagé (poids simple).
+ * Un type absent de cette table n'accepte aucun format (poids simple).
+ * Mastercase (packaged) accepte les formats fleur et pré-roulés,
+ * le type Pre-roll uniquement les formats pré-roulés.
  */
 export const FORMAT_TYPES_FOR_CONTAINER: Record<string, string[]> = {
-  packaged: ["flower"],
+  packaged: ["flower", "preroll"],
   preroll: ["preroll"],
-  sample: ["flower", "preroll"],
-  lab_sample: ["flower", "preroll"],
-  master_case: ["flower", "preroll"],
-  other: ["flower", "preroll"],
 };
 
-/** Formats cohérents avec le type de contenant (poids net > 0 uniquement). */
+/** Formats cohérents avec le type de contenant (poids unitaire > 0 uniquement). */
 export function formatsForContainerType(list: PackagingFormat[], type: string) {
   const allowed = FORMAT_TYPES_FOR_CONTAINER[type];
   if (!allowed) return [];
-  return list.filter((f) => allowed.includes(f.format_type) && formatNetGrams(f) > 0);
+  return list.filter(
+    (f) => allowed.includes(f.format_type) && f.is_active && formatUnitGrams(f) > 0,
+  );
 }
+
 
 
 export async function fetchPackagingFormats(activeOnly = true) {

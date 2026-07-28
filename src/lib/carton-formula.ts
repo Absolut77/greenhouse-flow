@@ -24,6 +24,7 @@ const TYPE_ALIASES: Record<string, string> = {
   "pre-roll": "preroll",
   prerolls: "preroll",
   package: "packaged",
+
   packaged: "packaged",
   retention: "retention",
   other: "other",
@@ -33,14 +34,13 @@ const TYPE_ALIASES: Record<string, string> = {
 /** Alias de tailles de fleur. */
 const SIZE_ALIASES: Record<string, string> = {
   trim: "trim",
-  big: "trim",
+  big: "big",
   medium: "medium",
   med: "medium",
   small: "small",
   ht: "hand_trim",
   "hand trim": "hand_trim",
   handtrim: "hand_trim",
-  mix: "mix",
 };
 
 const NO_SIZE = "__no_size__";

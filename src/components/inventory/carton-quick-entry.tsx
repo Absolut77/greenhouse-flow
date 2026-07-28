@@ -10,7 +10,7 @@ import { fmtG } from "@/lib/containers";
 
 const PLACEHOLDER = `A: 7x1000 Bulk Big, 1x726 Bulk HT
 B: 12x1000 Bulk Medium
-C: 10x7g Packagé, 2x3.5g Packagé
+C: 10x7g Mastercase, 2x3.5g Mastercase
 D: 5x5x0.5 Pre-roll`;
 
 export function CartonQuickEntry({

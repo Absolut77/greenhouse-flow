@@ -84,30 +84,30 @@ export const PRODUCT_TYPES = [
   { value: "flower", label: "Flower" },
   { value: "trim", label: "Trim" },
   { value: "preroll", label: "Preroll" },
-  { value: "packaged", label: "Packagé" },
+  { value: "packaged", label: "Mastercase" },
   { value: "sample", label: "Sample" },
 ];
 
 
 export const FLOWER_SIZES = [
+  { value: "hand_trim", label: "Hand trim" },
   { value: "big", label: "Big" },
   { value: "medium", label: "Medium" },
   { value: "small", label: "Small" },
-  { value: "hand_trim", label: "Hand Trim" },
-  { value: "mix", label: "Mix" },
+  { value: "trim", label: "Trim" },
 ];
 
 const VIEW_LABEL: Record<string, string> = {
   all: "Tous les lots",
   bulk: "Bulk (flower + trim, disponibles)",
-  packaged: "Packagé avec timbres (en stock)",
+  packaged: "Mastercase avec timbres (en stock)",
   sample: "Échantillons (par batch)",
   retention: "Rétention (bloqués — destruction après 3 ans)",
 };
 
 export const LOT_KIND_VARIANTS: Record<string, { label: string; className: string }> = {
   bulk: { label: "Bulk", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  packaged: { label: "Packagé", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  packaged: { label: "Mastercase", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
   sample: { label: "Échantillon", className: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
   retention: { label: "Rétention 🔒", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
 };
@@ -267,7 +267,7 @@ function InventoryPage() {
             <SelectContent>
               <SelectItem value="all">Tous les lots</SelectItem>
               <SelectItem value="bulk">Bulk (flower + trim)</SelectItem>
-              <SelectItem value="packaged">Packagé avec timbres</SelectItem>
+              <SelectItem value="packaged">Mastercase avec timbres</SelectItem>
               <SelectItem value="sample">Échantillons</SelectItem>
               <SelectItem value="retention">Rétention 🔒</SelectItem>
             </SelectContent>
