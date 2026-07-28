@@ -237,12 +237,19 @@ function InventoryPage() {
           >
             <Download className="mr-1 h-4 w-4" /> Exporter Excel
           </Button>
+          {roles.some((r) => r === "admin" || r === "supervisor") && (
+            <Button variant="outline" onClick={() => navigate({ to: "/inventory/import" })}>
+              <Upload className="mr-1 h-4 w-4" />
+              Import bulk
+            </Button>
+          )}
           {!isViewerOnly && (
             <Button onClick={() => navigate({ to: "/inventory/new" })}>
               <Plus className="mr-1 h-4 w-4" />
               Nouveau lot
             </Button>
           )}
+
         </div>
 
       </div>
