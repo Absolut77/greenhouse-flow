@@ -28,7 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { fmtG } from "@/lib/containers";
-import { materialOf, strainOf } from "@/lib/materials";
+import { containerMaterial, materialOf, strainOf } from "@/lib/materials";
 import { isSubLot } from "@/lib/lot-display";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 
@@ -126,6 +126,14 @@ export type BatchStockGroup = {
   status: string;
 };
 
+export type ContainerRow = {
+  lot_id: string | null;
+  net_weight_grams: number | string | null;
+  status: string | null;
+  container_type: string | null;
+  notes: string | null;
+};
+
 const NO_BATCH = "__none__";
 
 /**
@@ -138,6 +146,7 @@ export function groupLotsByBatch(
   batches: Record<string, Batch>,
   formatName: (id: string | null, fallbackText: string | null) => string | null,
   gramsOf: (lot: Lot) => number = (l) => Number(l.quantity_grams ?? 0),
+  containersByLot: Record<string, ContainerRow[]> = {},
 ): BatchStockGroup[] {
   const map = new Map<string, Lot[]>();
   for (const l of lots) {
@@ -150,6 +159,20 @@ export function groupLotsByBatch(
     const available = rows.filter((r) => (r.status ?? "available") === "available");
     const totals = { flower: 0, trim: 0, unknown: 0 };
     for (const r of available) {
+      // Matière déterminée sac par sac quand la batch a des contenants.
+      const cs = containersByLot[r.id] ?? [];
+      if (cs.length > 0) {
+        for (const c of cs) {
+          if ((c.container_type ?? "").toLowerCase() === "retention") continue;
+          const m = containerMaterial(c, r);
+          const g = Number(c.net_weight_grams ?? 0);
+          if (m === "flower") totals.flower += g;
+          else if (m === "trim") totals.trim += g;
+          else totals.unknown += g;
+        }
+        continue;
+      }
+      if (r.lot_kind === "retention") continue;
       const g = gramsOf(r);
       const m = materialOf(r);
       if (m === "flower") totals.flower += g;
@@ -208,6 +231,7 @@ function InventoryPage() {
   const [batches, setBatches] = useState<Record<string, Batch>>({});
   const [allBatches, setAllBatches] = useState<Batch[]>([]);
   const [lotGrams, setLotGrams] = useState<Record<string, number>>({});
+  const [lotContainers, setLotContainers] = useState<Record<string, ContainerRow[]>>({});
   const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<typeof search>) =>
@@ -220,7 +244,7 @@ function InventoryPage() {
       const [{ data, error: err }, { data: bs }, { data: cs }] = await Promise.all([
         supabase.from("inventory_lots").select("*").order("created_at", { ascending: false }),
         supabase.from("batches").select("*").order("batch_number", { ascending: true }),
-        supabase.from("stock_containers").select("lot_id,net_weight_grams,status"),
+        supabase.from("stock_containers").select("lot_id,net_weight_grams,status,container_type,notes"),
       ]);
       if (cancelled) return;
       if (err) {
@@ -230,10 +254,13 @@ function InventoryPage() {
       const map: Record<string, Batch> = {};
       (bs ?? []).forEach((b) => (map[b.id] = b));
       const grams: Record<string, number> = {};
+      const byLot: Record<string, ContainerRow[]> = {};
       (cs ?? []).forEach((c) => {
         if (!c.lot_id || (c.status ?? "available") !== "available") return;
         grams[c.lot_id] = (grams[c.lot_id] ?? 0) + Number(c.net_weight_grams ?? 0);
+        byLot[c.lot_id] = [...(byLot[c.lot_id] ?? []), c as ContainerRow];
       });
+      setLotContainers(byLot);
       setBatches(map);
       setAllBatches(bs ?? []);
       setLotGrams(grams);
@@ -251,9 +278,9 @@ function InventoryPage() {
     if (!lots) return null;
     // Poids du lot : `quantity_grams` sinon somme des sacs disponibles.
     const gramsOf = (l: Lot) => Number(l.quantity_grams ?? 0) || (lotGrams[l.id] ?? 0);
-    return groupLotsByBatch(lots, batches, formatName, gramsOf);
+    return groupLotsByBatch(lots, batches, formatName, gramsOf, lotContainers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lots, batches, formats, lotGrams]);
+  }, [lots, batches, formats, lotGrams, lotContainers]);
 
   const visibleGroups = useMemo(() => {
     if (!groups) return null;
