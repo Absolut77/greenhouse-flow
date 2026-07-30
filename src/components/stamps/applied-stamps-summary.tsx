@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ProvinceBadge } from "@/lib/provinces";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 
