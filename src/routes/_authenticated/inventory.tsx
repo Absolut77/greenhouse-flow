@@ -29,6 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
+import { indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
+
 
 
 type Lot = Tables<"inventory_lots">;
