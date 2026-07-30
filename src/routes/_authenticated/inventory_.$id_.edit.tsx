@@ -380,6 +380,8 @@ function EditLotPage() {
           lot_kind: initialKind === "retention" ? "retention" : meta.lot_kind,
           product_type: meta.product_type,
           format: meta.format,
+          format_id: meta.format_id,
+
           flower_size: meta.flower_size,
         } as never)
 
