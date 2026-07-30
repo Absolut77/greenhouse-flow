@@ -154,12 +154,21 @@ function LotDetailPage() {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">{lot.lot_number}</h1>
+          <h1 className="text-2xl font-semibold">
+            {lot.lot_number}
+            {strainOf(lot, batch) && (
+              <span className="ml-2 text-xl font-normal text-emerald-400">
+                {strainOf(lot, batch)}
+              </span>
+            )}
+          </h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <LotStatusBadge status={lot.status} />
+            <MaterialBadge lot={lot} />
             <span>Créé le {formatZonedDate(lot.created_at)}</span>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <Select
             value={lot.status ?? ""}
