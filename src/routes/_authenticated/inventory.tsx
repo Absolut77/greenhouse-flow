@@ -344,6 +344,23 @@ function InventoryPage() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Matière</span>
+          <Select
+            value={materialFilter}
+            onValueChange={(v) => patch({ material: v })}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Fleur + Trim</SelectItem>
+              <SelectItem value="flower">Fleur seule</SelectItem>
+              <SelectItem value="trim">Trim seul</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {view === "all" && (
           <>
             <div className="flex items-center gap-2">
