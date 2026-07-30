@@ -598,16 +598,48 @@ export function CartonBuilder({
                     )}
 
                     {simple ? (
-                      <div className="grid w-32 gap-1.5">
-                        <Label className="text-xs">Poids (g)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={b.weight}
-                          onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
-                        />
-                      </div>
+                      <>
+                        <div className="grid w-44 gap-1.5">
+                          <Label className="text-xs">Format catalogue *</Label>
+                          <Select
+                            value={b.formatId && b.formatId !== NO_FORMAT ? b.formatId : ""}
+                            onValueChange={(v) => applyFormat(ci, bi, v)}
+                          >
+                            <SelectTrigger
+                              className={
+                                !b.formatId || b.formatId === NO_FORMAT
+                                  ? "border-destructive/70"
+                                  : undefined
+                              }
+                            >
+                              <SelectValue placeholder="Choisir un format" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bagFormats.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid w-32 gap-1.5">
+                          <Label className="text-xs">Poids (g)</Label>
+                          {selectedFormat && !isFreeWeightFormat(selectedFormat) ? (
+                            <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
+                              {fmtG(num(b.weight))}
+                            </div>
+                          ) : (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={b.weight}
+                              onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
+                            />
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="grid w-28 gap-1.5">
@@ -629,16 +661,21 @@ export function CartonBuilder({
                           />
                         </div>
                         <div className="grid w-44 gap-1.5">
-                          <Label className="text-xs">Format</Label>
+                          <Label className="text-xs">Format catalogue *</Label>
                           <Select
-                            value={b.formatId || NO_FORMAT}
+                            value={b.formatId && b.formatId !== NO_FORMAT ? b.formatId : ""}
                             onValueChange={(v) => applyFormat(ci, bi, v)}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Format" />
+                            <SelectTrigger
+                              className={
+                                !b.formatId || b.formatId === NO_FORMAT
+                                  ? "border-destructive/70"
+                                  : undefined
+                              }
+                            >
+                              <SelectValue placeholder="Choisir un format" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={NO_FORMAT}>Format libre</SelectItem>
                               {bagFormats.map((f) => (
                                 <SelectItem key={f.id} value={f.id}>
                                   {f.name}
@@ -647,6 +684,7 @@ export function CartonBuilder({
                             </SelectContent>
                           </Select>
                         </div>
+
                         <div className="grid w-32 gap-1.5">
                           <Label className="text-xs">Poids par unité (g)</Label>
                           {b.formatId && b.formatId !== NO_FORMAT ? (
