@@ -35,7 +35,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -50,6 +52,7 @@ import {
   isUsableContainer,
   type StockContainer,
 } from "@/lib/containers";
+import { isSubLot, lotDisplayLabel } from "@/lib/lot-display";
 
 type EventItem = Tables<"event_items">;
 type Lot = Tables<"inventory_lots">;
@@ -73,6 +76,7 @@ export function EventItemsSection({
   const [items, setItems] = useState<EventItem[] | null>(null);
   const [availableLots, setAvailableLots] = useState<Lot[]>([]);
   const [lotMap, setLotMap] = useState<Record<string, Lot>>({});
+  const [batchMap, setBatchMap] = useState<Record<string, Tables<"batches">>>({});
   const [containerMap, setContainerMap] = useState<Record<string, StockContainer>>({});
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -111,6 +115,11 @@ export function EventItemsSection({
       (extra ?? []).forEach((l) => (m[l.id] = l));
     }
     setLotMap(m);
+
+    const { data: bs } = await supabase.from("batches").select("*");
+    const bm: Record<string, Tables<"batches">> = {};
+    (bs ?? []).forEach((b) => (bm[b.id] = b));
+    setBatchMap(bm);
 
     const containerIds = rows
       .map((r) => (r as any).container_id as string | null)
@@ -202,7 +211,7 @@ export function EventItemsSection({
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="font-medium">
-                        {lot ? lot.lot_number : "—"}
+                        {lot ? lotDisplayLabel(lot, lot.batch_id ? batchMap[lot.batch_id] : null) : "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {container ? (
@@ -269,6 +278,7 @@ export function EventItemsSection({
         eventId={eventId}
         availableLots={availableLots}
         lotMap={lotMap}
+        batchMap={batchMap}
         open={open}
         editing={null}
         onOpenChange={setOpen}
@@ -278,6 +288,7 @@ export function EventItemsSection({
         eventId={eventId}
         availableLots={availableLots}
         lotMap={lotMap}
+        batchMap={batchMap}
         open={!!editing}
         editing={editing}
         onOpenChange={(o) => !o && setEditing(null)}
@@ -309,6 +320,7 @@ function ItemDialog({
   eventId,
   availableLots,
   lotMap,
+  batchMap,
   open,
   editing,
   onOpenChange,
@@ -317,6 +329,7 @@ function ItemDialog({
   eventId: string;
   availableLots: Lot[];
   lotMap: Record<string, Lot>;
+  batchMap: Record<string, Tables<"batches">>;
   open: boolean;
   editing: EventItem | null;
   onOpenChange: (o: boolean) => void;
@@ -516,7 +529,7 @@ function ItemDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label>Lot *</Label>
+            <Label>Stock source *</Label>
             <Select
               value={lotId}
               onValueChange={(v) => {
@@ -525,17 +538,30 @@ function ItemDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un lot" />
+                <SelectValue placeholder="Sélectionner un stock de batch ou un sous-lot" />
               </SelectTrigger>
               <SelectContent>
-                {lotChoices.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.lot_number}
-                    {l.product_type ? ` — ${l.product_type}` : ""}
-                    {l.quantity_grams != null ? ` (${l.quantity_grams}g` : ""}
-                    {l.units != null ? `, ${l.units} sacs)` : l.quantity_grams != null ? ")" : ""}
-                  </SelectItem>
-                ))}
+                {[
+                  { title: "Stock de batch (sacs)", rows: lotChoices.filter((l) => !isSubLot(l)) },
+                  { title: "Sous-lots (transformations)", rows: lotChoices.filter(isSubLot) },
+                ]
+                  .filter((g) => g.rows.length > 0)
+                  .map((g) => (
+                    <SelectGroup key={g.title}>
+                      <SelectLabel>{g.title}</SelectLabel>
+                      {g.rows.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {lotDisplayLabel(l, l.batch_id ? batchMap[l.batch_id] : null)}
+                          {l.quantity_grams != null ? ` (${l.quantity_grams}g` : ""}
+                          {l.units != null
+                            ? `, ${l.units} sacs)`
+                            : l.quantity_grams != null
+                              ? ")"
+                              : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
                 {lotChoices.length === 0 && (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
                     Aucun lot disponible
