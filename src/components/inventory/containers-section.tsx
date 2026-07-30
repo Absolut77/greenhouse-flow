@@ -59,6 +59,18 @@ import {
   indexFormats,
   usePackagingFormats,
 } from "@/lib/packaging-formats";
+import { flowerSizeFromNotes, flowerSizeLabel } from "@/components/inventory/carton-builder";
+import { MaterialBadge } from "@/lib/materials";
+
+/** Matière/taille d'un sac, dérivées du type et de la note "Taille : X". */
+export function containerSizeValue(c: Pick<StockContainer, "notes">) {
+  const v = flowerSizeFromNotes(c.notes);
+  return v && v !== "__no_size__" ? v : null;
+}
+
+export function containerMaterialLot(c: Pick<StockContainer, "container_type" | "notes">) {
+  return { product_type: c.container_type, flower_size: containerSizeValue(c) };
+}
 
 const NO_FORMAT = "__no_format__";
 
