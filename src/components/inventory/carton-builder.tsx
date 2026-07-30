@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
   ChevronDown,
@@ -25,9 +25,11 @@ import {
   formatNetGrams,
   formatUnitGrams,
   formatsForContainerType,
+  isFreeWeightFormat,
   usePackagingFormats,
   type PackagingFormat,
 } from "@/lib/packaging-formats";
+
 
 
 export const NO_FORMAT = "__no_format__";
@@ -246,8 +248,10 @@ export const cartonKindLabel = (c: CartonDraft) =>
   c.bags.some((b) => !isBulkContainerType(b.type)) ? "Mastercase" : "Carton";
 
 /**
- * Règle métier : un Mastercase peut contenir n'importe quel type packagé,
- * mais jamais de Bulk.
+ * Règles métier :
+ * - un Mastercase peut contenir n'importe quel type packagé, mais jamais de Bulk ;
+ * - chaque contenant doit porter un format du catalogue (aucun format libre) ;
+ * - le poids doit être renseigné (poids libre pour bulk / échantillon / rétention).
  */
 export function validateCartons(cartons: CartonDraft[]): string | null {
   for (const c of cartons) {
@@ -256,9 +260,10 @@ export function validateCartons(cartons: CartonDraft[]): string | null {
     if (hasBulk && hasPackaged)
       return `Le Mastercase ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
     for (const b of c.bags) {
-      if (isBulkContainerType(b.type)) continue;
+      if (!b.formatId || b.formatId === NO_FORMAT)
+        return `Format catalogue obligatoire pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
       if (bagNet(b) <= 0)
-        return `Poids manquant pour la ligne ${b.code || "?"} du Mastercase ${c.code || "?"}.`;
+        return `Poids manquant pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
     }
   }
   return null;
@@ -269,6 +274,7 @@ export type LotMeta = {
   lot_kind: string;
   product_type: string | null;
   format: string | null;
+  format_id: string | null;
   flower_size: string | null;
 };
 
@@ -276,12 +282,11 @@ export type LotMeta = {
 export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]): LotMeta {
   const bags = cartons.flatMap((c) => c.bags);
   const types = new Set(bags.map((b) => b.type));
-  const formatNames = new Set(
-    bags
-      .map((b) => formats.find((f) => f.id === b.formatId))
-      .filter(Boolean)
-      .map((f) => `${f!.name}`),
-  );
+  const usedFormats = bags
+    .map((b) => formats.find((f) => f.id === b.formatId))
+    .filter(Boolean) as PackagingFormat[];
+  const formatIds = new Set(usedFormats.map((f) => f.id));
+  const formatNames = new Set(usedFormats.map((f) => f.name));
   const sizes = new Set(
     bags.map((b) => b.flowerSize).filter((s) => s && s !== NO_SIZE) as string[],
   );
@@ -312,11 +317,13 @@ export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]
       formatNames.size > 0
         ? [...formatNames].join(" + ")
         : lot_kind === "bulk"
-          ? "bulk"
+          ? "Bulk"
           : null,
+    format_id: formatIds.size === 1 ? [...formatIds][0] : null,
     flower_size: sizes.size === 1 ? [...sizes][0] : null,
   };
 }
+
 
 
 export function CartonBuilder({
@@ -348,11 +355,39 @@ export function CartonBuilder({
     if (!f) return patchBag(ci, bi, { formatId });
     const bag = cartons[ci]?.bags[bi];
     if (bag && isSimpleType(bag.type)) {
+      // Poids libre (bulk / échantillon / rétention) : on conserve la saisie.
+      if (isFreeWeightFormat(f)) return patchBag(ci, bi, { formatId });
       return patchBag(ci, bi, { formatId, weight: String(formatNetGrams(f)) });
     }
     // Format = poids par unité (le nombre d'unités par Mastercase reste saisi).
     patchBag(ci, bi, { formatId, unitWeight: String(formatUnitGrams(f)) });
   };
+
+  // Auto-sélection du format catalogue quand un seul est possible (bulk, sample, rétention).
+  useEffect(() => {
+    if (formats.length === 0) return;
+    let changed = false;
+    const next = cartons.map((c) => ({
+      ...c,
+      bags: c.bags.map((b) => {
+        if (b.formatId && b.formatId !== NO_FORMAT) return b;
+        const candidates = formatsForContainerType(formats, b.type);
+        if (candidates.length !== 1) return b;
+        changed = true;
+        const f = candidates[0];
+        return isSimpleType(b.type)
+          ? {
+              ...b,
+              formatId: f.id,
+              weight: isFreeWeightFormat(f) ? b.weight : String(formatNetGrams(f)),
+            }
+          : { ...b, formatId: f.id, unitWeight: String(formatUnitGrams(f)) };
+      }),
+    }));
+    if (changed) onChange(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formats, cartons]);
+
 
 
 
@@ -499,6 +534,9 @@ export function CartonBuilder({
                 const simple = isSimpleType(b.type);
                 const withSize = FLOWER_TYPES.includes(b.type);
                 const bagFormats = formatsForContainerType(formats, b.type);
+                const selectedFormat =
+                  formats.find((f) => f.id === b.formatId) ?? null;
+
 
                 return (
                   <div
@@ -520,8 +558,15 @@ export function CartonBuilder({
                           patchBag(ci, bi, {
                             type: v,
                             weight: v === "bulk" && !b.weight.trim() ? "1000" : b.weight,
+                            // Le format doit rester cohérent avec le type de contenant.
+                            formatId: formatsForContainerType(formats, v).some(
+                              (f) => f.id === b.formatId,
+                            )
+                              ? b.formatId
+                              : NO_FORMAT,
                           })
                         }
+
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -563,16 +608,48 @@ export function CartonBuilder({
                     )}
 
                     {simple ? (
-                      <div className="grid w-32 gap-1.5">
-                        <Label className="text-xs">Poids (g)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={b.weight}
-                          onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
-                        />
-                      </div>
+                      <>
+                        <div className="grid w-44 gap-1.5">
+                          <Label className="text-xs">Format catalogue *</Label>
+                          <Select
+                            value={b.formatId && b.formatId !== NO_FORMAT ? b.formatId : ""}
+                            onValueChange={(v) => applyFormat(ci, bi, v)}
+                          >
+                            <SelectTrigger
+                              className={
+                                !b.formatId || b.formatId === NO_FORMAT
+                                  ? "border-destructive/70"
+                                  : undefined
+                              }
+                            >
+                              <SelectValue placeholder="Choisir un format" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bagFormats.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid w-32 gap-1.5">
+                          <Label className="text-xs">Poids (g)</Label>
+                          {selectedFormat && !isFreeWeightFormat(selectedFormat) ? (
+                            <div className="flex h-9 items-center rounded-md border border-border/60 bg-muted/40 px-2 text-sm tabular-nums">
+                              {fmtG(num(b.weight))}
+                            </div>
+                          ) : (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={b.weight}
+                              onChange={(e) => patchBag(ci, bi, { weight: e.target.value })}
+                            />
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="grid w-28 gap-1.5">
@@ -594,16 +671,21 @@ export function CartonBuilder({
                           />
                         </div>
                         <div className="grid w-44 gap-1.5">
-                          <Label className="text-xs">Format</Label>
+                          <Label className="text-xs">Format catalogue *</Label>
                           <Select
-                            value={b.formatId || NO_FORMAT}
+                            value={b.formatId && b.formatId !== NO_FORMAT ? b.formatId : ""}
                             onValueChange={(v) => applyFormat(ci, bi, v)}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Format" />
+                            <SelectTrigger
+                              className={
+                                !b.formatId || b.formatId === NO_FORMAT
+                                  ? "border-destructive/70"
+                                  : undefined
+                              }
+                            >
+                              <SelectValue placeholder="Choisir un format" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={NO_FORMAT}>Format libre</SelectItem>
                               {bagFormats.map((f) => (
                                 <SelectItem key={f.id} value={f.id}>
                                   {f.name}
@@ -612,6 +694,7 @@ export function CartonBuilder({
                             </SelectContent>
                           </Select>
                         </div>
+
                         <div className="grid w-32 gap-1.5">
                           <Label className="text-xs">Poids par unité (g)</Label>
                           {b.formatId && b.formatId !== NO_FORMAT ? (

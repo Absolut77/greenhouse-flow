@@ -8,17 +8,28 @@ export type PackagingFormat = Tables<"packaging_formats">;
 export const FORMAT_TYPES = [
   { value: "flower", label: "Fleur" },
   { value: "preroll", label: "Pré-roulé" },
+  { value: "bulk", label: "Bulk" },
+  { value: "sample", label: "Échantillon" },
+  { value: "retention", label: "Rétention" },
 ] as const;
 
 export const FORMAT_TYPE_CLASS: Record<string, string> = {
   flower: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   preroll: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30",
+  bulk: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  sample: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+  retention: "bg-amber-500/15 text-amber-400 border-amber-500/30",
 };
 
 export const formatTypeLabel = (v: string | null | undefined) =>
   FORMAT_TYPES.find((t) => t.value === v)?.label ?? v ?? "—";
 
-/** Poids par unité du format (g). */
+/** Format à poids libre (bulk, échantillon, rétention) : le poids est saisi. */
+export const isFreeWeightFormat = (
+  f: Pick<PackagingFormat, "is_free_weight" | "net_weight_grams"> | null | undefined,
+) => !!f && (f.is_free_weight || f.net_weight_grams == null);
+
+/** Poids par unité du format (g). 0 pour un format à poids libre. */
 export const formatUnitGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit_weight_grams" | "net_weight_grams">) => {
   const u = Number(f.unit_weight_grams ?? 0);
   if (u > 0) return u;
@@ -32,29 +43,40 @@ export const formatNetGrams = (f: Pick<PackagingFormat, "units_per_pack" | "unit
   return computed > 0 ? computed : Number(f.net_weight_grams ?? 0);
 };
 
-export const formatLabel = (f: PackagingFormat | null | undefined) =>
-  f ? `${f.name} — ${formatUnitGrams(f)} g / unité` : "—";
+export const formatLabel = (f: PackagingFormat | null | undefined) => {
+  if (!f) return "—";
+  return isFreeWeightFormat(f) ? f.name : `${f.name} — ${formatUnitGrams(f)} g / unité`;
+};
 
 
 /**
- * Cohérence type de contenant → familles de formats autorisées.
- * Un type absent de cette table n'accepte aucun format (poids simple).
- * Mastercase (packaged) accepte les formats fleur et pré-roulés,
- * le type Pre-roll uniquement les formats pré-roulés.
+ * Cohérence type de contenant → familles de formats autorisées (catalogue).
+ * Chaque type de contenant doit pointer vers une famille du catalogue :
+ * aucune saisie de format libre n'est permise en inventaire.
  */
 export const FORMAT_TYPES_FOR_CONTAINER: Record<string, string[]> = {
   packaged: ["flower", "preroll"],
   preroll: ["preroll"],
+  bulk: ["bulk"],
+  trim: ["bulk"],
+  sample: ["sample"],
+  lab_sample: ["sample"],
+  retention: ["retention"],
+  other: ["bulk", "sample"],
 };
 
-/** Formats cohérents avec le type de contenant (poids unitaire > 0 uniquement). */
+/** Formats catalogue cohérents avec le type de contenant. */
 export function formatsForContainerType(list: PackagingFormat[], type: string) {
   const allowed = FORMAT_TYPES_FOR_CONTAINER[type];
   if (!allowed) return [];
   return list.filter(
-    (f) => allowed.includes(f.format_type) && f.is_active && formatUnitGrams(f) > 0,
+    (f) =>
+      allowed.includes(f.format_type) &&
+      f.is_active &&
+      (isFreeWeightFormat(f) || formatUnitGrams(f) > 0),
   );
 }
+
 
 
 

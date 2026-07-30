@@ -755,6 +755,7 @@ export type Database = {
           format_type: string
           id: string
           is_active: boolean
+          is_free_weight: boolean
           name: string
           net_weight_grams: number | null
           sort_order: number
@@ -767,6 +768,7 @@ export type Database = {
           format_type?: string
           id?: string
           is_active?: boolean
+          is_free_weight?: boolean
           name: string
           net_weight_grams?: number | null
           sort_order?: number
@@ -779,6 +781,7 @@ export type Database = {
           format_type?: string
           id?: string
           is_active?: boolean
+          is_free_weight?: boolean
           name?: string
           net_weight_grams?: number | null
           sort_order?: number

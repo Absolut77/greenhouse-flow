@@ -29,6 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
+import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
+
 
 
 type Lot = Tables<"inventory_lots">;
@@ -39,7 +41,12 @@ const searchSchema = z.object({
   view: fallback(z.string(), "all").default("all"), // all | bulk | packaged | sample
   status: fallback(z.string(), "all").default("all"),
   type: fallback(z.string(), "all").default("all"),
+  format: fallback(z.string(), "all").default("all"),
+  kind: fallback(z.string(), "all").default("all"),
+  location: fallback(z.string(), "all").default("all"),
+  batch: fallback(z.string(), "all").default("all"),
 });
+
 
 export const Route = createFileRoute("/_authenticated/inventory")({
   head: () => ({ meta: [{ title: "Inventaire — ONO Cannabis" }] }),
@@ -120,20 +127,59 @@ export function LotKindBadge({ kind }: { kind: string | null }) {
 function InventoryPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { view, status: statusFilter, type: typeFilter } = search;
+  const {
+    view,
+    status: statusFilter,
+    type: typeFilter,
+    format: formatFilter,
+    kind: kindFilter,
+    location: locationFilter,
+    batch: batchFilter,
+  } = search;
   const { roles } = useAuth();
+  const { formats } = usePackagingFormats(false);
+  const formatsById = indexFormats(formats);
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
   const [containers, setContainers] = useState<Record<string, StockContainer[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [allBatches, setAllBatches] = useState<Batch[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
 
-  const setStatusFilter = (v: string) =>
-    navigate({ to: "/inventory", search: { ...search, status: v, view: "all" } });
-  const setTypeFilter = (v: string) =>
-    navigate({ to: "/inventory", search: { ...search, type: v, view: "all" } });
+  const patch = (p: Partial<typeof search>) =>
+    navigate({ to: "/inventory", search: { ...search, ...p, view: "all" } });
+  const setStatusFilter = (v: string) => patch({ status: v });
+  const setTypeFilter = (v: string) => patch({ type: v });
   const setView = (v: string) =>
-    navigate({ to: "/inventory", search: { view: v, status: "all", type: "all" } });
+    navigate({
+      to: "/inventory",
+      search: {
+        view: v,
+        status: "all",
+        type: "all",
+        format: "all",
+        kind: "all",
+        location: "all",
+        batch: "all",
+      },
+    });
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: bs }, { data: locs }] = await Promise.all([
+        supabase.from("batches").select("*").order("batch_number", { ascending: true }),
+        supabase.from("inventory_lots").select("location"),
+      ]);
+      setAllBatches(bs ?? []);
+      setLocations(
+        Array.from(
+          new Set((locs ?? []).map((l) => l.location).filter((x): x is string => !!x)),
+        ).sort(),
+      );
+    })();
+  }, []);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -155,7 +201,12 @@ function InventoryPage() {
       } else {
         if (statusFilter !== "all") query = query.eq("status", statusFilter);
         if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
+        if (formatFilter !== "all") query = query.eq("format_id", formatFilter);
+        if (kindFilter !== "all") query = query.eq("lot_kind", kindFilter);
+        if (locationFilter !== "all") query = query.eq("location", locationFilter);
+        if (batchFilter !== "all") query = query.eq("batch_id", batchFilter);
       }
+
 
       const { data, error } = await query;
       if (cancelled) return;
@@ -199,7 +250,7 @@ function InventoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [view, statusFilter, typeFilter]);
+  }, [view, statusFilter, typeFilter, formatFilter, kindFilter, locationFilter, batchFilter]);
 
   const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
     arr.find((x) => x.value === v)?.label ?? v ?? "—";
@@ -226,7 +277,9 @@ function InventoryPage() {
                     "Numéro lot": l.lot_number,
                     Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
                     Type: labelOf(PRODUCT_TYPES, l.product_type),
-                    Format: l.format ?? "",
+                    Format:
+                      (l.format_id ? formatsById[l.format_id]?.name : null) ?? l.format ?? "",
+
                     Taille: labelOf(FLOWER_SIZES, l.flower_size),
                     "Quantité (g)": l.quantity_grams ?? "",
                     Unités: l.units ?? "",
@@ -306,8 +359,74 @@ function InventoryPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Format</span>
+              <Select value={formatFilter} onValueChange={(v) => patch({ format: v })}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  {formats.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Nature</span>
+              <Select value={kindFilter} onValueChange={(v) => patch({ kind: v })}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  {Object.entries(LOT_KIND_VARIANTS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Emplacement</span>
+              <Select value={locationFilter} onValueChange={(v) => patch({ location: v })}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Batch</span>
+              <Select value={batchFilter} onValueChange={(v) => patch({ batch: v })}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  {allBatches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.batch_number}
+                      {b.strain ? ` — ${b.strain}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </>
         )}
+
       </div>
 
       <Card>
@@ -317,14 +436,18 @@ function InventoryPage() {
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
                 <TableHead>Nom de la batch</TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Nature</TableHead>
+                <TableHead>Emplacement</TableHead>
                 <TableHead className="text-right">Quantité disponible (g)</TableHead>
                 <TableHead className="text-right">Unités (sacs dispo.)</TableHead>
+
               </TableRow>
             </TableHeader>
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-destructive">
+                  <TableCell colSpan={7} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -333,7 +456,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(4)].map((_, j) => (
+                      {[...Array(7)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -345,7 +468,7 @@ function InventoryPage() {
               {lots && lots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={7}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
@@ -387,6 +510,26 @@ function InventoryPage() {
                         "—"
                       )}
                     </TableCell>
+                    <TableCell>
+                      {l.format_id && formatsById[l.format_id] ? (
+                        <Badge
+                          variant="outline"
+                          className={
+                            FORMAT_TYPE_CLASS[formatsById[l.format_id].format_type] ??
+                            "bg-muted text-muted-foreground"
+                          }
+                        >
+                          {formatsById[l.format_id].name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">{l.format ?? "—"}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <LotKindBadge kind={l.lot_kind} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
+
                     <TableCell className="text-right tabular-nums">
                       {fmtG(Number(l.quantity_grams ?? 0))}
                     </TableCell>

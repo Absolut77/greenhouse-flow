@@ -28,6 +28,7 @@ import {
 } from "@/components/inventory/carton-builder";
 import { Switch } from "@/components/ui/switch";
 import { formatZonedDate } from "@/lib/dates";
+import { usePackagingFormats } from "@/lib/packaging-formats";
 
 type Batch = Tables<"batches">;
 type EventRow = Tables<"events">;
@@ -94,7 +95,9 @@ function NewReceptionPage() {
   const [existingBatchId, setExistingBatchId] = useState<string>(NONE);
   // Cannabis lot fields (used by cannabis_bulk & cannabis_batch)
   const [productType, setProductType] = useState<string>("flower");
-  const [format, setFormat] = useState("");
+  const [formatId, setFormatId] = useState<string>(NONE);
+  const { formats: catalogFormats } = usePackagingFormats();
+  const selectedFormat = catalogFormats.find((f) => f.id === formatId) ?? null;
   const [flowerSize, setFlowerSize] = useState<string>(NONE);
   const [grams, setGrams] = useState("");
   const [units, setUnits] = useState("");
@@ -312,6 +315,7 @@ function NewReceptionPage() {
         if (existingLotIdBulk !== NONE) {
           inventoryLotForBulk = existingLotIdBulk;
         } else {
+          if (!selectedFormat) throw new Error("Sélectionnez un format du catalogue");
           // Create a new lot
           const lotNumber = `REC-${eventNumber}-${Date.now().toString().slice(-4)}`;
           const { data: lot, error } = await supabase
@@ -320,7 +324,8 @@ function NewReceptionPage() {
               lot_number: lotNumber,
               batch_id: relatedBatchId,
               product_type: productType || null,
-              format: format.trim() || null,
+              format: selectedFormat?.name ?? null,
+              format_id: selectedFormat?.id ?? null,
               flower_size: flowerSize === NONE ? null : flowerSize,
               quantity_grams: 0, // trigger will add via event_items
               units: 0,
@@ -360,13 +365,15 @@ function NewReceptionPage() {
           .single();
         if (bErr) throw bErr;
         relatedBatchId = b.id;
+        if (!selectedFormat) throw new Error("Sélectionnez un format du catalogue");
         const { data: lot, error: lErr } = await supabase
           .from("inventory_lots")
           .insert({
             lot_number: (newBatchLotNumber.trim() || newBatchNumber.trim()),
             batch_id: b.id,
             product_type: productType || null,
-            format: format.trim() || null,
+            format: selectedFormat?.name ?? null,
+              format_id: selectedFormat?.id ?? null,
             flower_size: flowerSize === NONE ? null : flowerSize,
             quantity_grams: 0,
             units: 0,
@@ -752,8 +759,20 @@ function NewReceptionPage() {
                       </Select>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Format</Label>
-                      <Input value={format} onChange={(e) => setFormat(e.target.value)} />
+                      <Label>Format (catalogue) *</Label>
+                      <Select value={formatId} onValueChange={setFormatId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir un format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>— Choisir —</SelectItem>
+                          {catalogFormats.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid gap-2">
                       <Label>Taille</Label>
@@ -856,8 +875,20 @@ function NewReceptionPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Format</Label>
-                  <Input value={format} onChange={(e) => setFormat(e.target.value)} />
+                  <Label>Format (catalogue) *</Label>
+                  <Select value={formatId} onValueChange={setFormatId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir un format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>— Choisir —</SelectItem>
+                      {catalogFormats.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label>Emplacement</Label>
