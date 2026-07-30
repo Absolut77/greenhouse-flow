@@ -31,6 +31,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge } from "./batches";
 import { WorkflowTimeline } from "@/components/batches/workflow-timeline";
 import { DestructionsSection } from "@/components/batches/destructions-section";
+import { RetentionSection } from "@/components/inventory/retention-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateOnly, formatZonedDateTime } from "@/lib/dates";
 
@@ -357,6 +358,7 @@ function BatchDetailPage() {
         onDestructionSaved={() => setDestructionRefresh((n) => n + 1)}
       />
       <DestructionsSection batchId={batch.id} batchStatus={batch.status} refreshKey={destructionRefresh} />
+      <RetentionSection batchId={batch.id} />
 
 
       <EditBatchDialog
