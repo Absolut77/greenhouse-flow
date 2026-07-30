@@ -285,16 +285,19 @@ function InventoryPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            disabled={!lots || lots.length === 0}
+            disabled={!visibleLots || visibleLots.length === 0}
             onClick={() => {
-              if (!lots) return;
+              if (!visibleLots) return;
               exportXlsx("inventaire", [
                 {
                   name: "Lots",
-                  rows: lots.map((l) => ({
+                  rows: visibleLots.map((l) => ({
                     "Numéro lot": l.lot_number,
                     Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
+                    Variété: strainOf(l, l.batch_id ? batches[l.batch_id] : null) ?? "",
+                    Matière: materialLabel(materialOf(l)),
                     Type: labelOf(PRODUCT_TYPES, l.product_type),
+
                     Format:
                       (l.format_id ? formatsById[l.format_id]?.name : null) ?? l.format ?? "",
 
