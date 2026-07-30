@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ProvinceBadge } from "@/lib/provinces";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 
@@ -187,7 +188,7 @@ export function AppliedStampsSummary() {
                   </TableCell>
                   <TableCell>{r.lot_status ?? "—"}</TableCell>
                   <TableCell>{r.reel_serial}</TableCell>
-                  <TableCell>{r.province ?? "—"}</TableCell>
+                  <TableCell><ProvinceBadge province={r.province} /></TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {r.quantity}
                   </TableCell>

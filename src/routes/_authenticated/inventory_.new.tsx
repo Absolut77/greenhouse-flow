@@ -201,6 +201,8 @@ function NewLotPage() {
           format_id: meta.format_id,
 
           flower_size: meta.flower_size,
+          strain: lotName.trim() || null,
+
 
           notes:
             [lotName.trim() ? `Variété : ${lotName.trim()}` : "", notes.trim()]

@@ -541,6 +541,7 @@ export type Database = {
           product_type: string | null
           quantity_grams: number | null
           status: string | null
+          strain: string | null
           units: number | null
         }
         Insert: {
@@ -558,6 +559,7 @@ export type Database = {
           product_type?: string | null
           quantity_grams?: number | null
           status?: string | null
+          strain?: string | null
           units?: number | null
         }
         Update: {
@@ -575,6 +577,7 @@ export type Database = {
           product_type?: string | null
           quantity_grams?: number | null
           status?: string | null
+          strain?: string | null
           units?: number | null
         }
         Relationships: [

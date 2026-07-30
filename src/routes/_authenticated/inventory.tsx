@@ -29,7 +29,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
+import { MaterialBadge, materialLabel, materialOf, materialTotals, strainOf } from "@/lib/materials";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
+
 
 
 
@@ -45,6 +47,8 @@ const searchSchema = z.object({
   kind: fallback(z.string(), "all").default("all"),
   location: fallback(z.string(), "all").default("all"),
   batch: fallback(z.string(), "all").default("all"),
+  material: fallback(z.string(), "all").default("all"), // all | flower | trim
+
 });
 
 
@@ -135,7 +139,9 @@ function InventoryPage() {
     kind: kindFilter,
     location: locationFilter,
     batch: batchFilter,
+    material: materialFilter,
   } = search;
+
   const { roles } = useAuth();
   const { formats } = usePackagingFormats(false);
   const formatsById = indexFormats(formats);
@@ -162,6 +168,8 @@ function InventoryPage() {
         kind: "all",
         location: "all",
         batch: "all",
+        material: "all",
+
       },
     });
 
@@ -255,6 +263,16 @@ function InventoryPage() {
   const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
     arr.find((x) => x.value === v)?.label ?? v ?? "—";
 
+  // Fleur et Trim ne sont jamais fusionnés : filtre client + totaux distincts.
+  const visibleLots =
+    lots === null
+      ? null
+      : materialFilter === "all"
+        ? lots
+        : lots.filter((l) => materialOf(l) === materialFilter);
+  const totals = materialTotals(visibleLots ?? []);
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -267,16 +285,19 @@ function InventoryPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            disabled={!lots || lots.length === 0}
+            disabled={!visibleLots || visibleLots.length === 0}
             onClick={() => {
-              if (!lots) return;
+              if (!visibleLots) return;
               exportXlsx("inventaire", [
                 {
                   name: "Lots",
-                  rows: lots.map((l) => ({
+                  rows: visibleLots.map((l) => ({
                     "Numéro lot": l.lot_number,
                     Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
+                    Variété: strainOf(l, l.batch_id ? batches[l.batch_id] : null) ?? "",
+                    Matière: materialLabel(materialOf(l)),
                     Type: labelOf(PRODUCT_TYPES, l.product_type),
+
                     Format:
                       (l.format_id ? formatsById[l.format_id]?.name : null) ?? l.format ?? "",
 
@@ -326,6 +347,23 @@ function InventoryPage() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Matière</span>
+          <Select
+            value={materialFilter}
+            onValueChange={(v) => patch({ material: v })}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Fleur + Trim</SelectItem>
+              <SelectItem value="flower">Fleur seule</SelectItem>
+              <SelectItem value="trim">Trim seul</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {view === "all" && (
           <>
             <div className="flex items-center gap-2">
@@ -429,25 +467,53 @@ function InventoryPage() {
 
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Fleur disponible
+          </p>
+          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">
+            {fmtG(totals.flower)} g
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Trim disponible
+          </p>
+          <p className="text-2xl font-semibold text-lime-400 tabular-nums">
+            {fmtG(totals.trim)} g
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Matière non qualifiée
+          </p>
+          <p className="text-2xl font-semibold text-muted-foreground tabular-nums">
+            {fmtG(totals.unknown)} g
+          </p>
+        </Card>
+      </div>
+
       <Card>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
-                <TableHead>Nom de la batch</TableHead>
+                <TableHead>Variété</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Format</TableHead>
                 <TableHead>Nature</TableHead>
+                <TableHead className="text-right">Quantité (g)</TableHead>
+                <TableHead className="text-right">Unités</TableHead>
                 <TableHead>Emplacement</TableHead>
-                <TableHead className="text-right">Quantité disponible (g)</TableHead>
-                <TableHead className="text-right">Unités (sacs dispo.)</TableHead>
-
+                <TableHead>Statut</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-destructive">
+                  <TableCell colSpan={9} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -456,7 +522,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(7)].map((_, j) => (
+                      {[...Array(9)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -465,19 +531,20 @@ function InventoryPage() {
                   ))}
                 </>
               )}
-              {lots && lots.length === 0 && (
+              {visibleLots && visibleLots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={9}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
                   </TableCell>
                 </TableRow>
               )}
-              {lots?.map((l) => {
+              {visibleLots?.map((l) => {
                 const s = summarizeContainers(containers[l.id] ?? []);
                 const batch = l.batch_id ? batches[l.batch_id] : null;
+                const strain = strainOf(l, batch);
                 return (
                   <TableRow
                     key={l.id}
@@ -495,20 +562,17 @@ function InventoryPage() {
                       >
                         {l.lot_number}
                       </Link>
+                      {batch && (
+                        <span className="block text-xs text-muted-foreground">
+                          {batch.batch_number}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      {batch ? (
-                        <Link
-                          to="/batches/$id"
-                          params={{ id: batch.id }}
-                          className="hover:underline text-muted-foreground"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {batch.strain || batch.batch_number}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
+                      {strain ?? <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <MaterialBadge lot={l} />
                     </TableCell>
                     <TableCell>
                       {l.format_id && formatsById[l.format_id] ? (
@@ -528,13 +592,17 @@ function InventoryPage() {
                     <TableCell>
                       <LotKindBadge kind={l.lot_kind} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
-
                     <TableCell className="text-right tabular-nums">
                       {fmtG(Number(l.quantity_grams ?? 0))}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {s.total > 0 ? s.available : (l.units ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.location ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <LotStatusBadge status={l.status} />
                     </TableCell>
                   </TableRow>
                 );
@@ -547,3 +615,4 @@ function InventoryPage() {
     </div>
   );
 }
+
