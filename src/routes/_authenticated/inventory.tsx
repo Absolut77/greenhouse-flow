@@ -168,6 +168,8 @@ function InventoryPage() {
         kind: "all",
         location: "all",
         batch: "all",
+        material: "all",
+
       },
     });
 
