@@ -166,6 +166,12 @@ function BatchStockPage() {
     null;
   const title = batchId === NO_BATCH ? "Lots sans batch" : (batch?.batch_number ?? "Batch");
 
+  // Sous-lots visibles = transformations (pré-roulés, mastercase, retours…),
+  // qu'ils soient portés par la batch ou par une sous-batch enfant.
+  const childBatchById = Object.fromEntries(childBatches.map((b) => [b.id, b]));
+  const subLots = [...(lots ?? []).filter(isSubLot), ...childLots.filter(isSubLot)];
+
+
   const sizeLabel = (v: string | null) =>
     v ? (FLOWER_SIZES.find((s) => s.value === v)?.label ?? flowerSizeLabel(v)) : "—";
 
