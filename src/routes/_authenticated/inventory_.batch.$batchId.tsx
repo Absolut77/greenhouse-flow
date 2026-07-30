@@ -14,10 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { Tables } from "@/integrations/supabase/types";
 import { exportXlsx } from "@/lib/export-xlsx";
-import { fmtG, type StockContainer } from "@/lib/containers";
+import { fmtG, type StockCarton, type StockContainer } from "@/lib/containers";
 import { MaterialBadge, materialLabel, materialOf, strainOf } from "@/lib/materials";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 import { flowerSizeLabel } from "@/components/inventory/carton-builder";
@@ -26,11 +25,7 @@ import {
   containerMaterialLot,
   containerSizeValue,
 } from "@/components/inventory/containers-section";
-import {
-  FLOWER_SIZES,
-  LotKindBadge,
-  LotStatusBadge,
-} from "@/routes/_authenticated/inventory";
+import { FLOWER_SIZES, LotStatusBadge } from "@/routes/_authenticated/inventory";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -51,6 +46,8 @@ function BatchStockPage() {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [containers, setContainers] = useState<StockContainer[]>([]);
+  const [cartons, setCartons] = useState<StockCarton[]>([]);
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +66,11 @@ function BatchStockPage() {
       setLots(rows);
 
       if (batchId !== NO_BATCH) {
-        const { data: b } = await supabase.from("batches").select("*").eq("id", batchId).maybeSingle();
+        const { data: b } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("id", batchId)
+          .maybeSingle();
         if (!cancelled) setBatch(b ?? null);
       }
 
@@ -80,15 +81,34 @@ function BatchStockPage() {
           .select("*")
           .in("lot_id", ids)
           .order("container_code", { ascending: true });
-        if (!cancelled) setContainers(cs ?? []);
+        if (cancelled) return;
+        const list = cs ?? [];
+        setContainers(list);
+        const cartonIds = Array.from(
+          new Set(list.map((c) => c.carton_id).filter((x): x is string => !!x)),
+        );
+        if (cartonIds.length > 0) {
+          const { data: ks } = await supabase
+            .from("stock_cartons")
+            .select("*")
+            .in("id", cartonIds)
+            .order("carton_code", { ascending: true });
+          if (!cancelled) setCartons(ks ?? []);
+        } else if (!cancelled) {
+          setCartons([]);
+        }
       } else if (!cancelled) {
         setContainers([]);
+        setCartons([]);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [batchId]);
+
+  const cartonCode = (id: string | null) =>
+    (id ? cartons.find((k) => k.id === id)?.carton_code : null) ?? "—";
 
   const formatName = (id: string | null, fallbackText: string | null) =>
     (id ? formatsById[id]?.name : null) ?? fallbackText ?? null;
@@ -132,7 +152,10 @@ function BatchStockPage() {
     if (!name) return <span className="text-muted-foreground">—</span>;
     const type = id ? formatsById[id]?.format_type : null;
     return (
-      <Badge variant="outline" className={(type && FORMAT_TYPE_CLASS[type]) ?? "bg-muted text-muted-foreground"}>
+      <Badge
+        variant="outline"
+        className={(type && FORMAT_TYPE_CLASS[type]) ?? "bg-muted text-muted-foreground"}
+      >
         {name}
       </Badge>
     );
@@ -142,7 +165,12 @@ function BatchStockPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate({ to: "/inventory" })}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => navigate({ to: "/inventory" })}
+          >
             <ArrowLeft className="mr-1 h-4 w-4" /> Inventaire
           </Button>
           <h1 className="text-2xl font-semibold">
@@ -161,30 +189,14 @@ function BatchStockPage() {
         </div>
         <Button
           variant="outline"
-          disabled={!lots || lots.length === 0}
+          disabled={containers.length === 0}
           onClick={() => {
-            if (!lots) return;
             exportXlsx(`stock-${title}`, [
-              {
-                name: "Lots",
-                rows: lots.map((l) => ({
-                  "Numéro lot": l.lot_number,
-                  Variété: strainOf(l, batch) ?? "",
-                  Matière: materialLabel(materialOf(l)),
-                  Taille: sizeLabel(l.flower_size),
-                  Format: formatName(l.format_id, l.format) ?? "",
-                  Nature: l.lot_kind ?? "",
-                  "Quantité (g)": l.quantity_grams ?? "",
-                  Unités: l.units ?? "",
-                  Emplacement: l.location ?? "",
-                  Statut: l.status ?? "",
-                })),
-              },
               {
                 name: "Sacs",
                 rows: containers.map((c) => ({
-                  Sac: c.container_code,
-                  Lot: lots.find((l) => l.id === c.lot_id)?.lot_number ?? "",
+                  "Contenant / sac": c.container_code,
+                  "Carton / Box": cartonCode(c.carton_id),
                   Type: c.container_type,
                   Matière: materialLabel(materialOf(containerMaterialLot(c))),
                   Taille: sizeLabel(containerSizeValue(c)),
@@ -207,7 +219,9 @@ function BatchStockPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Fleur restante</p>
-          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">{fmtG(totals.flower)} g</p>
+          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">
+            {fmtG(totals.flower)} g
+          </p>
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Trim restante</p>
@@ -228,85 +242,14 @@ function BatchStockPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Lots de la batch</CardTitle>
+          <CardTitle className="text-base">Sacs / contenants ({containers.length})</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Numéro de lot</TableHead>
-                <TableHead>Matière</TableHead>
-                <TableHead>Taille</TableHead>
-                <TableHead>Format</TableHead>
-                <TableHead>Nature</TableHead>
-                <TableHead className="text-right">Poids (g)</TableHead>
-                <TableHead className="text-right">Unités</TableHead>
-                <TableHead>Emplacement</TableHead>
-                <TableHead>Statut</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lots === null &&
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    {[...Array(9)].map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              {lots?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                    Aucun lot pour cette batch.
-                  </TableCell>
-                </TableRow>
-              )}
-              {lots?.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-medium">
-                    <Link to="/inventory/$id" params={{ id: l.id }} className="hover:underline">
-                      {l.lot_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <MaterialBadge lot={l} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{sizeLabel(l.flower_size)}</TableCell>
-                  <TableCell>
-                    <FormatBadge id={l.format_id} text={l.format} />
-                  </TableCell>
-                  <TableCell>
-                    <LotKindBadge kind={l.lot_kind} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {fmtG(gramsOf(l))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{l.units ?? 0}</TableCell>
-                  <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
-                  <TableCell>
-                    <LotStatusBadge status={l.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Sacs / contenants ({containers.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID sac</TableHead>
-                <TableHead>Lot</TableHead>
+                <TableHead>Contenant / sac</TableHead>
+                <TableHead>Carton / Box</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Matière</TableHead>
                 <TableHead>Taille</TableHead>
@@ -317,6 +260,7 @@ function BatchStockPage() {
                 <TableHead>Statut</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {containers.length === 0 && (
                 <TableRow>
@@ -328,9 +272,8 @@ function BatchStockPage() {
               {containers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.container_code}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {lots?.find((l) => l.id === c.lot_id)?.lot_number ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{cartonCode(c.carton_id)}</TableCell>
+
                   <TableCell>
                     <ContainerTypeBadge type={c.container_type} />
                   </TableCell>
