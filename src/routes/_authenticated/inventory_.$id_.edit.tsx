@@ -112,7 +112,7 @@ function EditLotPage() {
       setBatchId(l.batch_id ?? NONE);
       setLocation(l.location ?? "");
       const parsed = splitNotes(l.notes);
-      setLotName(parsed.name);
+      setLotName(((l as { strain?: string | null }).strain ?? "").trim() || parsed.name);
       setNotes(parsed.notes);
 
       const [{ data: cts }, { data: cns }] = await Promise.all([
@@ -374,6 +374,7 @@ function EditLotPage() {
           lot_number: lotNumber.trim(),
           batch_id: batchId === NONE ? null : batchId,
           location: location.trim() || null,
+          strain: lotName.trim() || null,
           notes: noteValue,
           quantity_grams: grams,
           units,
