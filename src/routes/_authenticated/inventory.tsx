@@ -434,8 +434,12 @@ function InventoryPage() {
               <TableRow>
                 <TableHead>Numéro de lot</TableHead>
                 <TableHead>Nom de la batch</TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Nature</TableHead>
+                <TableHead>Emplacement</TableHead>
                 <TableHead className="text-right">Quantité disponible (g)</TableHead>
                 <TableHead className="text-right">Unités (sacs dispo.)</TableHead>
+
               </TableRow>
             </TableHeader>
             <TableBody>
