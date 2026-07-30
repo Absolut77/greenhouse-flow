@@ -508,6 +508,26 @@ function InventoryPage() {
                         "—"
                       )}
                     </TableCell>
+                    <TableCell>
+                      {l.format_id && formatsById[l.format_id] ? (
+                        <Badge
+                          variant="outline"
+                          className={
+                            FORMAT_TYPE_CLASS[formatsById[l.format_id].format_type] ??
+                            "bg-muted text-muted-foreground"
+                          }
+                        >
+                          {formatsById[l.format_id].name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">{l.format ?? "—"}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <LotKindBadge kind={l.lot_kind} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
+
                     <TableCell className="text-right tabular-nums">
                       {fmtG(Number(l.quantity_grams ?? 0))}
                     </TableCell>
