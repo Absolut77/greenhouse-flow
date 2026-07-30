@@ -264,6 +264,9 @@ export function validateCartons(cartons: CartonDraft[]): string | null {
         return `Format catalogue obligatoire pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
       if (bagNet(b) <= 0)
         return `Poids manquant pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
+      // Fleur et Trim doivent être qualifiés dès la saisie : totaux séparés en inventaire.
+      if (b.type === "bulk" && (!b.flowerSize || b.flowerSize === NO_SIZE))
+        return `Sélectionnez Fleur (Hand trim / Big / Medium / Small) ou Trim pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
     }
   }
   return null;
@@ -297,8 +300,10 @@ export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]
     bags.length > 0 && bags.every((b) => b.type === "sample" || b.type === "lab_sample");
   const onlyRetention = bags.length > 0 && bags.every((b) => b.type === "retention");
 
+  const onlyTrim = sizes.size === 1 && sizes.has("trim");
   let lot_kind = "bulk";
-  let product_type: string | null = "bulk";
+  // Bulk : on distingue explicitement Trim de la Fleur (totaux jamais fusionnés).
+  let product_type: string | null = onlyTrim ? "trim" : sizes.size > 0 ? "flower" : "bulk";
   if (onlyRetention) {
     lot_kind = "retention";
     product_type = "flower";
