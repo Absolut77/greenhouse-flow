@@ -534,6 +534,9 @@ export function CartonBuilder({
                 const simple = isSimpleType(b.type);
                 const withSize = FLOWER_TYPES.includes(b.type);
                 const bagFormats = formatsForContainerType(formats, b.type);
+                const selectedFormat =
+                  formats.find((f) => f.id === b.formatId) ?? null;
+
 
                 return (
                   <div
