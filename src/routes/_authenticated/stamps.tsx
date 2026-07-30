@@ -7,6 +7,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
+import { ProvinceBadge } from "@/lib/provinces";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/stamps")({
 export const PROVINCES = [
   { value: "SQDC", label: "SQDC" },
   { value: "OCS", label: "OCS" },
+  { value: "MB", label: "MB" },
   { value: "NB", label: "NB" },
 ];
 
@@ -300,7 +302,7 @@ function StampsPage() {
                             {r.serial_number}
                           </Link>
                         </TableCell>
-                        <TableCell>{r.province ?? "—"}</TableCell>
+                        <TableCell><ProvinceBadge province={r.province} /></TableCell>
                         <TableCell>{r.box_id ?? "—"}</TableCell>
                         <TableCell className="text-right">{r.original_quantity ?? "—"}</TableCell>
                         <TableCell className="text-right">{r.spoiled_at_reception ?? 0}</TableCell>
@@ -402,7 +404,7 @@ function PackagingRunsTable() {
                     </Link>
                   ) : "—"}
                 </TableCell>
-                <TableCell>{r.reel?.province ?? "—"}</TableCell>
+                <TableCell><ProvinceBadge province={r.reel?.province} /></TableCell>
                 <TableCell>
                   <Badge variant="outline">{r.movement_type}</Badge>
                 </TableCell>

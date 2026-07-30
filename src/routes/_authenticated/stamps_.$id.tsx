@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 
 import { formatDateOnly } from "@/lib/dates";
 import { supabase } from "@/integrations/supabase/client";
+import { ProvinceBadge } from "@/lib/provinces";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -186,7 +187,7 @@ function ReelDetailPage() {
           <h1 className="text-2xl font-semibold">{reel.serial_number}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <ReelStatusBadge status={reel.status} />
-            <span>{reel.province ?? "—"}</span>
+            <ProvinceBadge province={reel.province} />
             {reel.received_at && (
               <span>
                 Reçu le {formatDateOnly(reel.received_at)}
@@ -245,7 +246,7 @@ function ReelDetailPage() {
           <CardTitle>Informations</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
-          <Info label="Province">{reel.province ?? "—"}</Info>
+          <Info label="Province"><ProvinceBadge province={reel.province} /></Info>
           <Info label="Box ID">{reel.box_id ?? "—"}</Info>
           <Info label="Reçu le">
             {formatDateOnly(reel.received_at)}
