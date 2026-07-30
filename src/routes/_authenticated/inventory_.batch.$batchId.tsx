@@ -29,7 +29,6 @@ import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/pack
 import { flowerSizeLabel } from "@/components/inventory/carton-builder";
 import {
   ContainerTypeBadge,
-  containerMaterialLot,
   containerSizeValue,
 } from "@/components/inventory/containers-section";
 import { FLOWER_SIZES, LotStatusBadge } from "@/routes/_authenticated/inventory";
@@ -238,7 +237,7 @@ function BatchStockPage() {
                   "Contenant / sac": c.container_code,
                   "Carton / Box": cartonCode(c.carton_id),
                   Type: c.container_type,
-                  Matière: materialLabel(materialOf(containerMaterialLot(c))),
+                  Matière: materialLabel(lotMaterial(c)),
                   Taille: sizeLabel(containerSizeValue(c)),
                   Format: formatName(c.format_id, null) ?? "",
                   "Poids net (g)": c.net_weight_grams,
@@ -318,7 +317,7 @@ function BatchStockPage() {
                     <ContainerTypeBadge type={c.container_type} />
                   </TableCell>
                   <TableCell>
-                    <MaterialBadge lot={containerMaterialLot(c)} />
+                    <MaterialTag material={lotMaterial(c)} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {sizeLabel(containerSizeValue(c))}
