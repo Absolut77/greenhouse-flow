@@ -34,6 +34,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsIdRouteImport } from './routes/_authenticated/events_.$id'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches_.new'
 import { Route as AuthenticatedBatchesIdRouteImport } from './routes/_authenticated/batches_.$id'
+import { Route as AuthenticatedInventoryBatchBatchIdRouteImport } from './routes/_authenticated/inventory_.batch.$batchId'
 import { Route as AuthenticatedInventoryIdEditRouteImport } from './routes/_authenticated/inventory_.$id_.edit'
 import { Route as AuthenticatedBatchesIdReportRouteImport } from './routes/_authenticated/batches_.$id.report'
 
@@ -168,6 +169,12 @@ const AuthenticatedBatchesIdRoute = AuthenticatedBatchesIdRouteImport.update({
   path: '/batches/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInventoryBatchBatchIdRoute =
+  AuthenticatedInventoryBatchBatchIdRouteImport.update({
+    id: '/inventory_/batch/$batchId',
+    path: '/inventory/batch/$batchId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryIdEditRoute =
   AuthenticatedInventoryIdEditRouteImport.update({
     id: '/inventory_/$id_/edit',
@@ -208,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
   '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
+  '/inventory/batch/$batchId': typeof AuthenticatedInventoryBatchBatchIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -236,6 +244,7 @@ export interface FileRoutesByTo {
   '/stamps/new': typeof AuthenticatedStampsNewRoute
   '/batches/$id/report': typeof AuthenticatedBatchesIdReportRoute
   '/inventory/$id/edit': typeof AuthenticatedInventoryIdEditRoute
+  '/inventory/batch/$batchId': typeof AuthenticatedInventoryBatchBatchIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -266,6 +275,7 @@ export interface FileRoutesById {
   '/_authenticated/stamps_/new': typeof AuthenticatedStampsNewRoute
   '/_authenticated/batches_/$id/report': typeof AuthenticatedBatchesIdReportRoute
   '/_authenticated/inventory_/$id_/edit': typeof AuthenticatedInventoryIdEditRoute
+  '/_authenticated/inventory_/batch/$batchId': typeof AuthenticatedInventoryBatchBatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/stamps/new'
     | '/batches/$id/report'
     | '/inventory/$id/edit'
+    | '/inventory/batch/$batchId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/stamps/new'
     | '/batches/$id/report'
     | '/inventory/$id/edit'
+    | '/inventory/batch/$batchId'
   id:
     | '__root__'
     | '/'
@@ -353,6 +365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stamps_/new'
     | '/_authenticated/batches_/$id/report'
     | '/_authenticated/inventory_/$id_/edit'
+    | '/_authenticated/inventory_/batch/$batchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -539,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory_/batch/$batchId': {
+      id: '/_authenticated/inventory_/batch/$batchId'
+      path: '/inventory/batch/$batchId'
+      fullPath: '/inventory/batch/$batchId'
+      preLoaderRoute: typeof AuthenticatedInventoryBatchBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory_/$id_/edit': {
       id: '/_authenticated/inventory_/$id_/edit'
       path: '/inventory/$id/edit'
@@ -606,6 +626,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStampsIdRoute: typeof AuthenticatedStampsIdRoute
   AuthenticatedStampsNewRoute: typeof AuthenticatedStampsNewRoute
   AuthenticatedInventoryIdEditRoute: typeof AuthenticatedInventoryIdEditRoute
+  AuthenticatedInventoryBatchBatchIdRoute: typeof AuthenticatedInventoryBatchBatchIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -629,6 +650,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStampsIdRoute: AuthenticatedStampsIdRoute,
   AuthenticatedStampsNewRoute: AuthenticatedStampsNewRoute,
   AuthenticatedInventoryIdEditRoute: AuthenticatedInventoryIdEditRoute,
+  AuthenticatedInventoryBatchBatchIdRoute:
+    AuthenticatedInventoryBatchBatchIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -643,13 +666,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
