@@ -315,6 +315,7 @@ function NewReceptionPage() {
         if (existingLotIdBulk !== NONE) {
           inventoryLotForBulk = existingLotIdBulk;
         } else {
+          if (!selectedFormat) throw new Error("Sélectionnez un format du catalogue");
           // Create a new lot
           const lotNumber = `REC-${eventNumber}-${Date.now().toString().slice(-4)}`;
           const { data: lot, error } = await supabase
@@ -364,6 +365,7 @@ function NewReceptionPage() {
           .single();
         if (bErr) throw bErr;
         relatedBatchId = b.id;
+        if (!selectedFormat) throw new Error("Sélectionnez un format du catalogue");
         const { data: lot, error: lErr } = await supabase
           .from("inventory_lots")
           .insert({
