@@ -82,9 +82,25 @@ function BatchStockPage() {
           .select("*")
           .in("lot_id", ids)
           .order("container_code", { ascending: true });
-        if (!cancelled) setContainers(cs ?? []);
+        if (cancelled) return;
+        const list = cs ?? [];
+        setContainers(list);
+        const cartonIds = Array.from(
+          new Set(list.map((c) => c.carton_id).filter((x): x is string => !!x)),
+        );
+        if (cartonIds.length > 0) {
+          const { data: ks } = await supabase
+            .from("stock_cartons")
+            .select("*")
+            .in("id", cartonIds)
+            .order("carton_code", { ascending: true });
+          if (!cancelled) setCartons(ks ?? []);
+        } else if (!cancelled) {
+          setCartons([]);
+        }
       } else if (!cancelled) {
         setContainers([]);
+        setCartons([]);
       }
     })();
     return () => {
@@ -92,8 +108,12 @@ function BatchStockPage() {
     };
   }, [batchId]);
 
+  const cartonCode = (id: string | null) =>
+    (id ? cartons.find((k) => k.id === id)?.carton_code : null) ?? "—";
+
   const formatName = (id: string | null, fallbackText: string | null) =>
     (id ? formatsById[id]?.name : null) ?? fallbackText ?? null;
+
 
   // Poids d'un lot : `quantity_grams` sinon somme de ses sacs disponibles.
   const containerGrams = (lotId: string) =>
