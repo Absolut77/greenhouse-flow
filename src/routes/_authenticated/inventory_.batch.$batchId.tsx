@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Tables } from "@/integrations/supabase/types";
 import { exportXlsx } from "@/lib/export-xlsx";
 import { fmtG, type StockContainer } from "@/lib/containers";
-import { MaterialBadge, materialLabel, materialOf, materialTotals, strainOf } from "@/lib/materials";
+import { MaterialBadge, materialLabel, materialOf, strainOf } from "@/lib/materials";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 import { flowerSizeLabel } from "@/components/inventory/carton-builder";
 import {
@@ -281,7 +281,7 @@ function BatchStockPage() {
                     <LotKindBadge kind={l.lot_kind} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {fmtG(Number(l.quantity_grams ?? 0))}
+                    {fmtG(gramsOf(l))}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{l.units ?? 0}</TableCell>
                   <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
