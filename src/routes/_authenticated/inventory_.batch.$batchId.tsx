@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { Tables } from "@/integrations/supabase/types";
 import { exportXlsx } from "@/lib/export-xlsx";
 import { fmtG, type StockCarton, type StockContainer } from "@/lib/containers";
@@ -26,11 +25,7 @@ import {
   containerMaterialLot,
   containerSizeValue,
 } from "@/components/inventory/containers-section";
-import {
-  FLOWER_SIZES,
-  LotKindBadge,
-  LotStatusBadge,
-} from "@/routes/_authenticated/inventory";
+import { FLOWER_SIZES, LotStatusBadge } from "@/routes/_authenticated/inventory";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -71,7 +66,11 @@ function BatchStockPage() {
       setLots(rows);
 
       if (batchId !== NO_BATCH) {
-        const { data: b } = await supabase.from("batches").select("*").eq("id", batchId).maybeSingle();
+        const { data: b } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("id", batchId)
+          .maybeSingle();
         if (!cancelled) setBatch(b ?? null);
       }
 
@@ -114,7 +113,6 @@ function BatchStockPage() {
   const formatName = (id: string | null, fallbackText: string | null) =>
     (id ? formatsById[id]?.name : null) ?? fallbackText ?? null;
 
-
   // Poids d'un lot : `quantity_grams` sinon somme de ses sacs disponibles.
   const containerGrams = (lotId: string) =>
     containers
@@ -154,7 +152,10 @@ function BatchStockPage() {
     if (!name) return <span className="text-muted-foreground">—</span>;
     const type = id ? formatsById[id]?.format_type : null;
     return (
-      <Badge variant="outline" className={(type && FORMAT_TYPE_CLASS[type]) ?? "bg-muted text-muted-foreground"}>
+      <Badge
+        variant="outline"
+        className={(type && FORMAT_TYPE_CLASS[type]) ?? "bg-muted text-muted-foreground"}
+      >
         {name}
       </Badge>
     );
@@ -164,7 +165,12 @@ function BatchStockPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate({ to: "/inventory" })}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => navigate({ to: "/inventory" })}
+          >
             <ArrowLeft className="mr-1 h-4 w-4" /> Inventaire
           </Button>
           <h1 className="text-2xl font-semibold">
@@ -204,7 +210,6 @@ function BatchStockPage() {
             ]);
           }}
         >
-
           <Download className="mr-1 h-4 w-4" /> Exporter Excel
         </Button>
       </div>
@@ -214,7 +219,9 @@ function BatchStockPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Fleur restante</p>
-          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">{fmtG(totals.flower)} g</p>
+          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">
+            {fmtG(totals.flower)} g
+          </p>
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Trim restante</p>
@@ -235,9 +242,7 @@ function BatchStockPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
-            Sacs / contenants ({containers.length})
-          </CardTitle>
+          <CardTitle className="text-base">Sacs / contenants ({containers.length})</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -267,9 +272,7 @@ function BatchStockPage() {
               {containers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.container_code}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {cartonCode(c.carton_id)}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{cartonCode(c.carton_id)}</TableCell>
 
                   <TableCell>
                     <ContainerTypeBadge type={c.container_type} />
