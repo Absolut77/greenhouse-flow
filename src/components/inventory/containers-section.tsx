@@ -248,6 +248,8 @@ export function ContainersSection({
                       <TableRow>
                         <TableHead>Sac</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Matière</TableHead>
+                        <TableHead>Taille</TableHead>
                         <TableHead>Format</TableHead>
                         <TableHead className="text-right">Unités</TableHead>
                         <TableHead className="text-right">Poids / unité</TableHead>
@@ -271,6 +273,12 @@ export function ContainersSection({
                           </TableCell>
                           <TableCell>
                             <ContainerTypeBadge type={c.container_type} />
+                          </TableCell>
+                          <TableCell>
+                            <MaterialBadge lot={containerMaterialLot(c)} />
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {flowerSizeLabel(containerSizeValue(c)) ?? "—"}
                           </TableCell>
                           <TableCell>
                             {c.format_id && formatMap[c.format_id] ? (
