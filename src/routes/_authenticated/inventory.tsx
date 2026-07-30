@@ -139,7 +139,9 @@ function InventoryPage() {
     kind: kindFilter,
     location: locationFilter,
     batch: batchFilter,
+    material: materialFilter,
   } = search;
+
   const { roles } = useAuth();
   const { formats } = usePackagingFormats(false);
   const formatsById = indexFormats(formats);
