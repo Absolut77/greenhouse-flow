@@ -45,6 +45,7 @@ import { EventStatusBadge, EVENT_TYPES, RECEPTION_KINDS, SHIPMENT_KINDS } from "
 import { EventItemsSection } from "@/components/events/event-items-section";
 import { EventStampsSection } from "@/components/events/event-stamps-section";
 import { PackagedLotsSection } from "@/components/events/packaged-lots-section";
+import { ExpectedVsReceivedSection } from "@/components/events/expected-vs-received-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatZonedDate, formatZonedDateTime } from "@/lib/dates";
 
@@ -353,6 +354,11 @@ function EventDetailPage() {
       {event.event_type === "shipment" && (
         <ShipmentDetailsSection event={event} />
       )}
+
+      {event.shipment_kind === "external_transformation" && (
+        <ExpectedVsReceivedSection eventId={event.id} />
+      )}
+
 
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 

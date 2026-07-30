@@ -22,6 +22,7 @@ import { RECEPTION_KINDS } from "./events";
 import {
   CartonBuilder,
   cartonTotals,
+  deriveLotMeta,
   emptyCarton,
   expandCartons,
   type CartonDraft,
@@ -129,6 +130,7 @@ function NewReceptionPage() {
   const [subMode, setSubMode] = useState(false);
   const [subBatchId, setSubBatchId] = useState<string>(NEW_SUB);
   const [subNumber, setSubNumber] = useState("");
+  const [subLotNumber, setSubLotNumber] = useState("");
   const [subParentId, setSubParentId] = useState<string>(NONE);
   const [subCartons, setSubCartons] = useState<CartonDraft[]>([emptyCarton(1, "preroll")]);
 
@@ -437,12 +439,25 @@ function NewReceptionPage() {
               subBatchId === NEW_SUB
                 ? subNumber.trim()
                 : batches.find((b) => b.id === subBatchId)?.batch_number ?? subNumber.trim();
+            // Lot source = plus grosse sortie de l'expédition liée (parenté inventaire).
+            const sourceLotId =
+              [...shipmentItems]
+                .filter((i) => i.inventory_lot_id)
+                .sort(
+                  (a, b) => (Number(b.quantity_grams) || 0) - (Number(a.quantity_grams) || 0),
+                )[0]?.inventory_lot_id ?? null;
+            const subMeta = deriveLotMeta(subCartons, catalogFormats);
+            if (!subMeta.format_id)
+              throw new Error("Chaque sac reçu doit avoir un format du catalogue");
             const { data: lot, error: lotErr } = await supabase
               .from("inventory_lots")
               .insert({
-                lot_number: subBatchNumber,
+                lot_number: subLotNumber.trim() || subBatchNumber,
                 batch_id: relatedBatchId,
-                product_type: "preroll",
+                parent_lot_id: sourceLotId,
+                format_id: subMeta.format_id,
+                format: subMeta.format,
+                product_type: subMeta.product_type ?? "preroll",
                 quantity_grams: 0,
                 units: 0,
                 location: location.trim() || null,
@@ -1145,6 +1160,14 @@ function NewReceptionPage() {
                               value={subNumber}
                               onChange={(e) => setSubNumber(e.target.value)}
                               placeholder="NU001"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Numéro de lot reçu</Label>
+                            <Input
+                              value={subLotNumber}
+                              onChange={(e) => setSubLotNumber(e.target.value)}
+                              placeholder="Défaut : numéro de sous-batch"
                             />
                           </div>
                           <div className="grid gap-2">
