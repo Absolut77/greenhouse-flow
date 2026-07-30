@@ -222,9 +222,12 @@ function LotDetailPage() {
               "—"
             )}
           </Info>
+          <Info label="Variété">{strainOf(lot, batch) ?? "—"}</Info>
+          <Info label="Matière">{materialLabel(materialOf(lot))}</Info>
           <Info label="Type de produit">
             {labelOf(PRODUCT_TYPES, lot.product_type)}
           </Info>
+
           <Info label="Format">{lot.format ?? "—"}</Info>
           <Info label="Taille de fleur">
             {labelOf(FLOWER_SIZES, lot.flower_size)}
