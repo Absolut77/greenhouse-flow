@@ -93,7 +93,25 @@ function BatchStockPage() {
   const formatName = (id: string | null, fallbackText: string | null) =>
     (id ? formatsById[id]?.name : null) ?? fallbackText ?? null;
 
-  const totals = materialTotals(lots ?? []);
+  // Poids d'un lot : `quantity_grams` sinon somme de ses sacs disponibles.
+  const containerGrams = (lotId: string) =>
+    containers
+      .filter((c) => c.lot_id === lotId && (c.status ?? "available") === "available")
+      .reduce((s, c) => s + Number(c.net_weight_grams ?? 0), 0);
+  const gramsOf = (l: Lot) => Number(l.quantity_grams ?? 0) || containerGrams(l.id);
+  const totals = (lots ?? [])
+    .filter((l) => (l.status ?? "available") === "available")
+    .reduce(
+      (acc, l) => {
+        const m = materialOf(l);
+        const g = gramsOf(l);
+        if (m === "flower") acc.flower += g;
+        else if (m === "trim") acc.trim += g;
+        else acc.unknown += g;
+        return acc;
+      },
+      { flower: 0, trim: 0, unknown: 0 },
+    );
   const availableLots = (lots ?? []).filter((l) => (l.status ?? "available") === "available");
   const formatNames = Array.from(
     new Set(
