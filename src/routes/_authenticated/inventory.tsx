@@ -127,11 +127,16 @@ export type BatchStockGroup = {
 
 const NO_BATCH = "__none__";
 
-/** Regroupe les lots par batch. Les totaux ne comptent que les lots disponibles. */
+/**
+ * Regroupe les lots par batch. Les totaux ne comptent que les lots disponibles.
+ * `gramsOf` permet de retomber sur le poids des contenants quand le lot n'a pas
+ * de `quantity_grams` renseigné.
+ */
 export function groupLotsByBatch(
   lots: Lot[],
   batches: Record<string, Batch>,
   formatName: (id: string | null, fallbackText: string | null) => string | null,
+  gramsOf: (lot: Lot) => number = (l) => Number(l.quantity_grams ?? 0),
 ): BatchStockGroup[] {
   const map = new Map<string, Lot[]>();
   for (const l of lots) {
@@ -141,8 +146,15 @@ export function groupLotsByBatch(
   const groups: BatchStockGroup[] = [];
   for (const [key, rows] of map) {
     const batch = key === NO_BATCH ? null : (batches[key] ?? null);
-    const totals = materialTotals(rows);
     const available = rows.filter((r) => (r.status ?? "available") === "available");
+    const totals = { flower: 0, trim: 0, unknown: 0 };
+    for (const r of available) {
+      const g = gramsOf(r);
+      const m = materialOf(r);
+      if (m === "flower") totals.flower += g;
+      else if (m === "trim") totals.trim += g;
+      else totals.unknown += g;
+    }
     const formatIds = Array.from(
       new Set(available.map((r) => r.format_id).filter((x): x is string => !!x)),
     );
