@@ -277,7 +277,9 @@ function InventoryPage() {
                     "Numéro lot": l.lot_number,
                     Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
                     Type: labelOf(PRODUCT_TYPES, l.product_type),
-                    Format: l.format ?? "",
+                    Format:
+                      (l.format_id ? formatsById[l.format_id]?.name : null) ?? l.format ?? "",
+
                     Taille: labelOf(FLOWER_SIZES, l.flower_size),
                     "Quantité (g)": l.quantity_grams ?? "",
                     Unités: l.units ?? "",
