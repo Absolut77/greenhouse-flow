@@ -354,6 +354,11 @@ function EventDetailPage() {
         <ShipmentDetailsSection event={event} />
       )}
 
+      {event.shipment_kind === "external_transformation" && (
+        <ExpectedVsReceivedSection eventId={event.id} />
+      )}
+
+
       <EventItemsSection eventId={event.id} eventStatus={event.status} />
 
       {event.event_type === "packaging" && (
