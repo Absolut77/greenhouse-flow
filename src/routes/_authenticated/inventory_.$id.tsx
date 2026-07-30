@@ -24,7 +24,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { ContainersSection } from "@/components/inventory/containers-section";
+import {
+  ContainersSection,
+  containerMaterialLot,
+} from "@/components/inventory/containers-section";
+import { Badge } from "@/components/ui/badge";
+import { fetchContainersForLots, type StockContainer } from "@/lib/containers";
+import { usePackagingFormats, indexFormats } from "@/lib/packaging-formats";
 import { formatZonedDate } from "@/lib/dates";
 import { MaterialBadge, materialLabel, materialOf, strainOf } from "@/lib/materials";
 
@@ -52,6 +58,9 @@ function LotDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [containers, setContainers] = useState<StockContainer[]>([]);
+  const { formats } = usePackagingFormats(false);
+  const formatMap = indexFormats(formats);
 
   const load = async () => {
     setError(null);
@@ -69,15 +78,32 @@ function LotDetailPage() {
       return;
     }
     setLot(data);
-    if (data.batch_id) {
+
+    // Batch liée : directe, sinon héritée du lot parent (lots issus de packaging).
+    let batchId = data.batch_id;
+    if (!batchId && data.parent_lot_id) {
+      const { data: parent } = await supabase
+        .from("inventory_lots")
+        .select("batch_id")
+        .eq("id", data.parent_lot_id)
+        .maybeSingle();
+      batchId = parent?.batch_id ?? null;
+    }
+    if (batchId) {
       const { data: b } = await supabase
         .from("batches")
         .select("*")
-        .eq("id", data.batch_id)
+        .eq("id", batchId)
         .maybeSingle();
-      setBatch(b);
+      setBatch(b ?? null);
     } else {
       setBatch(null);
+    }
+
+    try {
+      setContainers(await fetchContainersForLots([data.id]));
+    } catch {
+      setContainers([]);
     }
   };
 
@@ -219,7 +245,7 @@ function LotDetailPage() {
                 {batch.strain ? ` — ${batch.strain}` : ""}
               </Link>
             ) : (
-              "—"
+              <span className="text-muted-foreground">Aucune batch liée</span>
             )}
           </Info>
           <Info label="Variété">{strainOf(lot, batch) ?? "—"}</Info>
@@ -228,7 +254,13 @@ function LotDetailPage() {
             {labelOf(PRODUCT_TYPES, lot.product_type)}
           </Info>
 
-          <Info label="Format">{lot.format ?? "—"}</Info>
+          <Info label="Format catalogue">
+            {lot.format_id && formatMap[lot.format_id] ? (
+              <Badge variant="outline">{formatMap[lot.format_id].name}</Badge>
+            ) : (
+              (lot.format ?? "—")
+            )}
+          </Info>
           <Info label="Taille de fleur">
             {labelOf(FLOWER_SIZES, lot.flower_size)}
           </Info>
@@ -249,6 +281,8 @@ function LotDetailPage() {
 
         </CardContent>
       </Card>
+
+      <StockSynthesis containers={containers} formatMap={formatMap} />
 
       <ContainersSection
         lotId={lot.id}
@@ -276,6 +310,72 @@ function LotDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function StockSynthesis({
+  containers,
+  formatMap,
+}: {
+  containers: StockContainer[];
+  formatMap: Record<string, { name: string }>;
+}) {
+  const avail = containers.filter((c) => c.status === "available");
+  if (avail.length === 0) return null;
+
+  let flower = 0;
+  let trim = 0;
+  let other = 0;
+  let units = 0;
+  const formatCounts = new Map<string, { grams: number; bags: number }>();
+
+  for (const c of avail) {
+    const g = Number(c.net_weight_grams ?? 0);
+    units += Number(c.unit_count ?? 0);
+    const m = materialOf(containerMaterialLot(c));
+    if (m === "flower") flower += g;
+    else if (m === "trim") trim += g;
+    else other += g;
+    const name = c.format_id ? (formatMap[c.format_id]?.name ?? "Format inconnu") : "Bulk (poids libre)";
+    const cur = formatCounts.get(name) ?? { grams: 0, bags: 0 };
+    formatCounts.set(name, { grams: cur.grams + g, bags: cur.bags + 1 });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Synthèse du stock restant</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-4">
+          <Metric label="Fleur restante" value={`${flower.toFixed(2)} g`} tone="text-emerald-400" />
+          <Metric label="Trim restant" value={`${trim.toFixed(2)} g`} tone="text-lime-400" />
+          {other > 0 && <Metric label="Non catégorisé" value={`${other.toFixed(2)} g`} />}
+          <Metric label="Unités" value={String(units)} />
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Formats présents
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[...formatCounts.entries()].map(([name, v]) => (
+              <Badge key={name} variant="outline">
+                {name} · {v.bags} sac{v.bags > 1 ? "s" : ""} · {v.grams.toFixed(2)} g
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${tone ?? ""}`}>{value}</p>
     </div>
   );
 }

@@ -59,6 +59,18 @@ import {
   indexFormats,
   usePackagingFormats,
 } from "@/lib/packaging-formats";
+import { flowerSizeFromNotes, flowerSizeLabel } from "@/components/inventory/carton-builder";
+import { MaterialBadge } from "@/lib/materials";
+
+/** Matière/taille d'un sac, dérivées du type et de la note "Taille : X". */
+export function containerSizeValue(c: Pick<StockContainer, "notes">) {
+  const v = flowerSizeFromNotes(c.notes);
+  return v && v !== "__no_size__" ? v : null;
+}
+
+export function containerMaterialLot(c: Pick<StockContainer, "container_type" | "notes">) {
+  return { product_type: c.container_type, flower_size: containerSizeValue(c) };
+}
 
 const NO_FORMAT = "__no_format__";
 
@@ -236,6 +248,8 @@ export function ContainersSection({
                       <TableRow>
                         <TableHead>Sac</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Matière</TableHead>
+                        <TableHead>Taille</TableHead>
                         <TableHead>Format</TableHead>
                         <TableHead className="text-right">Unités</TableHead>
                         <TableHead className="text-right">Poids / unité</TableHead>
@@ -259,6 +273,12 @@ export function ContainersSection({
                           </TableCell>
                           <TableCell>
                             <ContainerTypeBadge type={c.container_type} />
+                          </TableCell>
+                          <TableCell>
+                            <MaterialBadge lot={containerMaterialLot(c)} />
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {flowerSizeLabel(containerSizeValue(c)) ?? "—"}
                           </TableCell>
                           <TableCell>
                             {c.format_id && formatMap[c.format_id] ? (
