@@ -24,7 +24,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { ContainersSection } from "@/components/inventory/containers-section";
+import {
+  ContainersSection,
+  containerMaterialLot,
+} from "@/components/inventory/containers-section";
+import { Badge } from "@/components/ui/badge";
+import { fetchContainersForLots, type StockContainer } from "@/lib/containers";
+import { usePackagingFormats, indexFormats } from "@/lib/packaging-formats";
 import { formatZonedDate } from "@/lib/dates";
 import { MaterialBadge, materialLabel, materialOf, strainOf } from "@/lib/materials";
 
@@ -52,6 +58,9 @@ function LotDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [containers, setContainers] = useState<StockContainer[]>([]);
+  const { formats } = usePackagingFormats(false);
+  const formatMap = indexFormats(formats);
 
   const load = async () => {
     setError(null);
@@ -69,15 +78,32 @@ function LotDetailPage() {
       return;
     }
     setLot(data);
-    if (data.batch_id) {
+
+    // Batch liée : directe, sinon héritée du lot parent (lots issus de packaging).
+    let batchId = data.batch_id;
+    if (!batchId && data.parent_lot_id) {
+      const { data: parent } = await supabase
+        .from("inventory_lots")
+        .select("batch_id")
+        .eq("id", data.parent_lot_id)
+        .maybeSingle();
+      batchId = parent?.batch_id ?? null;
+    }
+    if (batchId) {
       const { data: b } = await supabase
         .from("batches")
         .select("*")
-        .eq("id", data.batch_id)
+        .eq("id", batchId)
         .maybeSingle();
-      setBatch(b);
+      setBatch(b ?? null);
     } else {
       setBatch(null);
+    }
+
+    try {
+      setContainers(await fetchContainersForLots([data.id]));
+    } catch {
+      setContainers([]);
     }
   };
 
