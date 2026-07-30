@@ -355,11 +355,39 @@ export function CartonBuilder({
     if (!f) return patchBag(ci, bi, { formatId });
     const bag = cartons[ci]?.bags[bi];
     if (bag && isSimpleType(bag.type)) {
+      // Poids libre (bulk / échantillon / rétention) : on conserve la saisie.
+      if (isFreeWeightFormat(f)) return patchBag(ci, bi, { formatId });
       return patchBag(ci, bi, { formatId, weight: String(formatNetGrams(f)) });
     }
     // Format = poids par unité (le nombre d'unités par Mastercase reste saisi).
     patchBag(ci, bi, { formatId, unitWeight: String(formatUnitGrams(f)) });
   };
+
+  // Auto-sélection du format catalogue quand un seul est possible (bulk, sample, rétention).
+  useEffect(() => {
+    if (formats.length === 0) return;
+    let changed = false;
+    const next = cartons.map((c) => ({
+      ...c,
+      bags: c.bags.map((b) => {
+        if (b.formatId && b.formatId !== NO_FORMAT) return b;
+        const candidates = formatsForContainerType(formats, b.type);
+        if (candidates.length !== 1) return b;
+        changed = true;
+        const f = candidates[0];
+        return isSimpleType(b.type)
+          ? {
+              ...b,
+              formatId: f.id,
+              weight: isFreeWeightFormat(f) ? b.weight : String(formatNetGrams(f)),
+            }
+          : { ...b, formatId: f.id, unitWeight: String(formatUnitGrams(f)) };
+      }),
+    }));
+    if (changed) onChange(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formats, cartons]);
+
 
 
 
