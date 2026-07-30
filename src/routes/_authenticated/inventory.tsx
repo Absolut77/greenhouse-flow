@@ -445,7 +445,7 @@ function InventoryPage() {
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-destructive">
+                  <TableCell colSpan={7} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -454,7 +454,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(4)].map((_, j) => (
+                      {[...Array(7)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -466,7 +466,7 @@ function InventoryPage() {
               {lots && lots.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={7}
                     className="text-center text-muted-foreground py-8"
                   >
                     Aucun lot pour le moment.
