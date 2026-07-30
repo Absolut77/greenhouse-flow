@@ -206,6 +206,7 @@ function InventoryPage() {
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
   const [allBatches, setAllBatches] = useState<Batch[]>([]);
+  const [lotGrams, setLotGrams] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<typeof search>) =>
@@ -215,9 +216,10 @@ function InventoryPage() {
     let cancelled = false;
     (async () => {
       setError(null);
-      const [{ data, error: err }, { data: bs }] = await Promise.all([
+      const [{ data, error: err }, { data: bs }, { data: cs }] = await Promise.all([
         supabase.from("inventory_lots").select("*").order("created_at", { ascending: false }),
         supabase.from("batches").select("*").order("batch_number", { ascending: true }),
+        supabase.from("stock_containers").select("lot_id,net_weight_grams,status"),
       ]);
       if (cancelled) return;
       if (err) {
@@ -226,8 +228,14 @@ function InventoryPage() {
       }
       const map: Record<string, Batch> = {};
       (bs ?? []).forEach((b) => (map[b.id] = b));
+      const grams: Record<string, number> = {};
+      (cs ?? []).forEach((c) => {
+        if (!c.lot_id || (c.status ?? "available") !== "available") return;
+        grams[c.lot_id] = (grams[c.lot_id] ?? 0) + Number(c.net_weight_grams ?? 0);
+      });
       setBatches(map);
       setAllBatches(bs ?? []);
+      setLotGrams(grams);
       setLots(data ?? []);
     })();
     return () => {
@@ -240,9 +248,11 @@ function InventoryPage() {
 
   const groups = useMemo(() => {
     if (!lots) return null;
-    return groupLotsByBatch(lots, batches, formatName);
+    // Poids du lot : `quantity_grams` sinon somme des sacs disponibles.
+    const gramsOf = (l: Lot) => Number(l.quantity_grams ?? 0) || (lotGrams[l.id] ?? 0);
+    return groupLotsByBatch(lots, batches, formatName, gramsOf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lots, batches, formats]);
+  }, [lots, batches, formats, lotGrams]);
 
   const visibleGroups = useMemo(() => {
     if (!groups) return null;
@@ -252,8 +262,8 @@ function InventoryPage() {
       if (materialFilter === "flower" && g.flower <= 0) return false;
       if (materialFilter === "trim" && g.trim <= 0) return false;
       if (formatFilter !== "all" && !g.formatIds.includes(formatFilter)) return false;
-      // On masque les batches totalement vidées, sauf filtre batch explicite.
-      if (batchFilter === "all" && g.flower + g.trim + g.unknown + g.units <= 0) return false;
+      // Batches entièrement expédiées/détruites : masquées sauf filtre batch explicite.
+      if (batchFilter === "all" && g.status !== "available") return false;
       return true;
     });
   }, [groups, batchFilter, strainFilter, materialFilter, formatFilter]);
