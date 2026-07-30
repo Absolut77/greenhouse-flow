@@ -141,19 +141,24 @@ function BatchStockPage() {
       .filter((c) => c.lot_id === lotId && (c.status ?? "available") === "available")
       .reduce((s, c) => s + Number(c.net_weight_grams ?? 0), 0);
   const gramsOf = (l: Lot) => Number(l.quantity_grams ?? 0) || containerGrams(l.id);
-  const totals = (lots ?? [])
-    .filter((l) => (l.status ?? "available") === "available")
-    .reduce(
-      (acc, l) => {
-        const m = materialOf(l);
-        const g = gramsOf(l);
-        if (m === "flower") acc.flower += g;
-        else if (m === "trim") acc.trim += g;
-        else acc.unknown += g;
-        return acc;
-      },
-      { flower: 0, trim: 0, unknown: 0 },
-    );
+  const lotById = Object.fromEntries((lots ?? []).map((l) => [l.id, l]));
+  const lotMaterial = (c: StockContainer) =>
+    containerMaterial(c, c.lot_id ? lotById[c.lot_id] : null);
+
+  // Totaux : calculés sacs par sacs (rétention exclue). Les lots sans sac
+  // (sous-lots, imports) restent comptés au niveau du lot.
+  const totals = containerMaterialTotals(containers, lotById);
+  for (const l of lots ?? []) {
+    if ((l.status ?? "available") !== "available") continue;
+    if (containers.some((c) => c.lot_id === l.id)) continue;
+    if (l.lot_kind === "retention") continue;
+    const m = materialOf(l);
+    const g = Number(l.quantity_grams ?? 0);
+    if (m === "flower") totals.flower += g;
+    else if (m === "trim") totals.trim += g;
+    else totals.unknown += g;
+  }
+
   const availableLots = (lots ?? []).filter((l) => (l.status ?? "available") === "available");
   const formatNames = Array.from(
     new Set(
