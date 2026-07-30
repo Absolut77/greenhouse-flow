@@ -328,6 +328,68 @@ function BatchStockPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {subLots.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sous-lots ({subLots.length})</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Issus d'une transformation (pré-roulés, mastercase, retours). Le stock bulk de la
+              batch reste porté par les sacs ci-dessus.
+            </p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sous-lot</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Format</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead className="text-right">Quantité (g)</TableHead>
+                  <TableHead className="text-right">Unités</TableHead>
+                  <TableHead>Emplacement</TableHead>
+                  <TableHead>Statut</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subLots.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        to="/inventory/$id"
+                        params={{ id: l.id }}
+                        className="hover:underline text-primary"
+                      >
+                        {l.lot_number}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.product_type ?? l.lot_kind ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <FormatBadge id={l.format_id} text={l.format} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.batch_id && l.batch_id !== batchId
+                        ? (childBatchById[l.batch_id]?.batch_number ?? "—")
+                        : (batch?.batch_number ?? "—")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtG(gramsOf(l))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{l.units ?? 0}</TableCell>
+                    <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
+                    <TableCell>
+                      <LotStatusBadge status={l.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
