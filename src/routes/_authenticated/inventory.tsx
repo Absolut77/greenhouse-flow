@@ -257,6 +257,16 @@ function InventoryPage() {
   const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
     arr.find((x) => x.value === v)?.label ?? v ?? "—";
 
+  // Fleur et Trim ne sont jamais fusionnés : filtre client + totaux distincts.
+  const visibleLots =
+    lots === null
+      ? null
+      : materialFilter === "all"
+        ? lots
+        : lots.filter((l) => materialOf(l) === materialFilter);
+  const totals = materialTotals(visibleLots ?? []);
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
