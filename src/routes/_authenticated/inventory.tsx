@@ -47,6 +47,8 @@ const searchSchema = z.object({
   kind: fallback(z.string(), "all").default("all"),
   location: fallback(z.string(), "all").default("all"),
   batch: fallback(z.string(), "all").default("all"),
+  material: fallback(z.string(), "all").default("all"), // all | flower | trim
+
 });
 
 
