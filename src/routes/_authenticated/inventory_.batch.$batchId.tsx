@@ -161,30 +161,14 @@ function BatchStockPage() {
         </div>
         <Button
           variant="outline"
-          disabled={!lots || lots.length === 0}
+          disabled={containers.length === 0}
           onClick={() => {
-            if (!lots) return;
             exportXlsx(`stock-${title}`, [
-              {
-                name: "Lots",
-                rows: lots.map((l) => ({
-                  "Numéro lot": l.lot_number,
-                  Variété: strainOf(l, batch) ?? "",
-                  Matière: materialLabel(materialOf(l)),
-                  Taille: sizeLabel(l.flower_size),
-                  Format: formatName(l.format_id, l.format) ?? "",
-                  Nature: l.lot_kind ?? "",
-                  "Quantité (g)": l.quantity_grams ?? "",
-                  Unités: l.units ?? "",
-                  Emplacement: l.location ?? "",
-                  Statut: l.status ?? "",
-                })),
-              },
               {
                 name: "Sacs",
                 rows: containers.map((c) => ({
-                  Sac: c.container_code,
-                  Lot: lots.find((l) => l.id === c.lot_id)?.lot_number ?? "",
+                  "Contenant / sac": c.container_code,
+                  "Carton / Box": cartonCode(c.carton_id),
                   Type: c.container_type,
                   Matière: materialLabel(materialOf(containerMaterialLot(c))),
                   Taille: sizeLabel(containerSizeValue(c)),
@@ -198,6 +182,7 @@ function BatchStockPage() {
             ]);
           }}
         >
+
           <Download className="mr-1 h-4 w-4" /> Exporter Excel
         </Button>
       </div>
