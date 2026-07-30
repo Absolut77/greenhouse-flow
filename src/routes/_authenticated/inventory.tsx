@@ -39,7 +39,12 @@ const searchSchema = z.object({
   view: fallback(z.string(), "all").default("all"), // all | bulk | packaged | sample
   status: fallback(z.string(), "all").default("all"),
   type: fallback(z.string(), "all").default("all"),
+  format: fallback(z.string(), "all").default("all"),
+  kind: fallback(z.string(), "all").default("all"),
+  location: fallback(z.string(), "all").default("all"),
+  batch: fallback(z.string(), "all").default("all"),
 });
+
 
 export const Route = createFileRoute("/_authenticated/inventory")({
   head: () => ({ meta: [{ title: "Inventaire — ONO Cannabis" }] }),
