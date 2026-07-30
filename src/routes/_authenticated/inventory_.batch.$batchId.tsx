@@ -51,6 +51,8 @@ function BatchStockPage() {
   const [batch, setBatch] = useState<Batch | null>(null);
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [containers, setContainers] = useState<StockContainer[]>([]);
+  const [cartons, setCartons] = useState<StockCarton[]>([]);
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
