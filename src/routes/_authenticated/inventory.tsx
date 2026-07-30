@@ -201,7 +201,12 @@ function InventoryPage() {
       } else {
         if (statusFilter !== "all") query = query.eq("status", statusFilter);
         if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
+        if (formatFilter !== "all") query = query.eq("format_id", formatFilter);
+        if (kindFilter !== "all") query = query.eq("lot_kind", kindFilter);
+        if (locationFilter !== "all") query = query.eq("location", locationFilter);
+        if (batchFilter !== "all") query = query.eq("batch_id", batchFilter);
       }
+
 
       const { data, error } = await query;
       if (cancelled) return;
