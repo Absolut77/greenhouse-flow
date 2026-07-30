@@ -558,8 +558,15 @@ export function CartonBuilder({
                           patchBag(ci, bi, {
                             type: v,
                             weight: v === "bulk" && !b.weight.trim() ? "1000" : b.weight,
+                            // Le format doit rester cohérent avec le type de contenant.
+                            formatId: formatsForContainerType(formats, v).some(
+                              (f) => f.id === b.formatId,
+                            )
+                              ? b.formatId
+                              : NO_FORMAT,
                           })
                         }
+
                       >
                         <SelectTrigger>
                           <SelectValue />
