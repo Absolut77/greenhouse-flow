@@ -261,8 +261,9 @@ function BatchStockPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.container_code}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {lots?.find((l) => l.id === c.lot_id)?.lot_number ?? "—"}
+                    {cartonCode(c.carton_id)}
                   </TableCell>
+
                   <TableCell>
                     <ContainerTypeBadge type={c.container_type} />
                   </TableCell>
