@@ -1,10 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Download, Upload } from "lucide-react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { exportXlsx, fmtDate } from "@/lib/export-xlsx";
-
+import { exportXlsx } from "@/lib/export-xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,29 +27,20 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
-import { summarizeContainers, fmtG, type StockContainer } from "@/lib/containers";
-import { MaterialBadge, materialLabel, materialOf, materialTotals, strainOf } from "@/lib/materials";
+import { fmtG } from "@/lib/containers";
+import { materialOf, strainOf } from "@/lib/materials";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
-
-
-
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
 
-// URL views group product/status filters into semantic buckets that match the dashboard cards.
+// La liste est regroupée par batch : une ligne = une batch ayant du stock.
 const searchSchema = z.object({
-  view: fallback(z.string(), "all").default("all"), // all | bulk | packaged | sample
-  status: fallback(z.string(), "all").default("all"),
-  type: fallback(z.string(), "all").default("all"),
-  format: fallback(z.string(), "all").default("all"),
-  kind: fallback(z.string(), "all").default("all"),
-  location: fallback(z.string(), "all").default("all"),
   batch: fallback(z.string(), "all").default("all"),
+  strain: fallback(z.string(), "all").default("all"),
   material: fallback(z.string(), "all").default("all"), // all | flower | trim
-
+  format: fallback(z.string(), "all").default("all"),
 });
-
 
 export const Route = createFileRoute("/_authenticated/inventory")({
   head: () => ({ meta: [{ title: "Inventaire — ONO Cannabis" }] }),
@@ -99,7 +89,6 @@ export const PRODUCT_TYPES = [
   { value: "sample", label: "Sample" },
 ];
 
-
 export const FLOWER_SIZES = [
   { value: "hand_trim", label: "Hand trim" },
   { value: "big", label: "Big" },
@@ -107,14 +96,6 @@ export const FLOWER_SIZES = [
   { value: "small", label: "Small" },
   { value: "trim", label: "Trim" },
 ];
-
-const VIEW_LABEL: Record<string, string> = {
-  all: "Tous les lots",
-  bulk: "Bulk (flower + trim, disponibles)",
-  packaged: "Mastercase avec timbres (en stock)",
-  sample: "Échantillons (par batch)",
-  retention: "Rétention (bloqués — destruction après 3 ans)",
-};
 
 export const LOT_KIND_VARIANTS: Record<string, { label: string; className: string }> = {
   bulk: { label: "Bulk", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
@@ -128,150 +109,175 @@ export function LotKindBadge({ kind }: { kind: string | null }) {
   return <Badge variant="outline" className={v.className}>{v.label}</Badge>;
 }
 
+export type BatchStockGroup = {
+  key: string; // batch id ou "__none__"
+  batch: Batch | null;
+  batchNumber: string;
+  strain: string | null;
+  lots: Lot[];
+  flower: number;
+  trim: number;
+  unknown: number;
+  units: number;
+  formatIds: string[];
+  formatLabels: string[];
+  locations: string[];
+  status: string;
+};
+
+const NO_BATCH = "__none__";
+
+/**
+ * Regroupe les lots par batch. Les totaux ne comptent que les lots disponibles.
+ * `gramsOf` permet de retomber sur le poids des contenants quand le lot n'a pas
+ * de `quantity_grams` renseigné.
+ */
+export function groupLotsByBatch(
+  lots: Lot[],
+  batches: Record<string, Batch>,
+  formatName: (id: string | null, fallbackText: string | null) => string | null,
+  gramsOf: (lot: Lot) => number = (l) => Number(l.quantity_grams ?? 0),
+): BatchStockGroup[] {
+  const map = new Map<string, Lot[]>();
+  for (const l of lots) {
+    const k = l.batch_id ?? NO_BATCH;
+    map.set(k, [...(map.get(k) ?? []), l]);
+  }
+  const groups: BatchStockGroup[] = [];
+  for (const [key, rows] of map) {
+    const batch = key === NO_BATCH ? null : (batches[key] ?? null);
+    const available = rows.filter((r) => (r.status ?? "available") === "available");
+    const totals = { flower: 0, trim: 0, unknown: 0 };
+    for (const r of available) {
+      const g = gramsOf(r);
+      const m = materialOf(r);
+      if (m === "flower") totals.flower += g;
+      else if (m === "trim") totals.trim += g;
+      else totals.unknown += g;
+    }
+    const formatIds = Array.from(
+      new Set(available.map((r) => r.format_id).filter((x): x is string => !!x)),
+    );
+    const formatLabels = Array.from(
+      new Set(
+        available
+          .map((r) => formatName(r.format_id, r.format))
+          .filter((x): x is string => !!x),
+      ),
+    ).sort();
+    groups.push({
+      key,
+      batch,
+      batchNumber: batch?.batch_number ?? (key === NO_BATCH ? "Sans batch" : "—"),
+      strain:
+        batch?.strain?.trim() ||
+        rows.map((r) => strainOf(r, batch)).find((s): s is string => !!s) ||
+        null,
+      lots: rows,
+      flower: totals.flower,
+      trim: totals.trim,
+      unknown: totals.unknown,
+      units: available.reduce((s, r) => s + Number(r.units ?? 0), 0),
+      formatIds,
+      formatLabels,
+      locations: Array.from(
+        new Set(available.map((r) => r.location).filter((x): x is string => !!x)),
+      ).sort(),
+      status: available.length > 0 ? "available" : (rows[0]?.status ?? "—"),
+    });
+  }
+  return groups.sort((a, b) => {
+    if (a.key === NO_BATCH) return 1;
+    if (b.key === NO_BATCH) return -1;
+    return a.batchNumber.localeCompare(b.batchNumber, "fr", { numeric: true });
+  });
+}
+
 function InventoryPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const {
-    view,
-    status: statusFilter,
-    type: typeFilter,
-    format: formatFilter,
-    kind: kindFilter,
-    location: locationFilter,
-    batch: batchFilter,
-    material: materialFilter,
-  } = search;
+  const { batch: batchFilter, strain: strainFilter, material: materialFilter, format: formatFilter } = search;
 
   const { roles } = useAuth();
   const { formats } = usePackagingFormats(false);
   const formatsById = indexFormats(formats);
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
+
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
-  const [containers, setContainers] = useState<Record<string, StockContainer[]>>({});
-  const [error, setError] = useState<string | null>(null);
   const [allBatches, setAllBatches] = useState<Batch[]>([]);
-  const [locations, setLocations] = useState<string[]>([]);
+  const [lotGrams, setLotGrams] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<typeof search>) =>
-    navigate({ to: "/inventory", search: { ...search, ...p, view: "all" } });
-  const setStatusFilter = (v: string) => patch({ status: v });
-  const setTypeFilter = (v: string) => patch({ type: v });
-  const setView = (v: string) =>
-    navigate({
-      to: "/inventory",
-      search: {
-        view: v,
-        status: "all",
-        type: "all",
-        format: "all",
-        kind: "all",
-        location: "all",
-        batch: "all",
-        material: "all",
-
-      },
-    });
-
-  useEffect(() => {
-    (async () => {
-      const [{ data: bs }, { data: locs }] = await Promise.all([
-        supabase.from("batches").select("*").order("batch_number", { ascending: true }),
-        supabase.from("inventory_lots").select("location"),
-      ]);
-      setAllBatches(bs ?? []);
-      setLocations(
-        Array.from(
-          new Set((locs ?? []).map((l) => l.location).filter((x): x is string => !!x)),
-        ).sort(),
-      );
-    })();
-  }, []);
-
+    navigate({ to: "/inventory", search: { ...search, ...p } });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setError(null);
-      let query = supabase
-        .from("inventory_lots")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (view === "bulk") {
-        query = (query as any).eq("status", "available").eq("lot_kind", "bulk");
-      } else if (view === "sample") {
-        query = (query as any).eq("lot_kind", "sample");
-      } else if (view === "retention") {
-        query = (query as any).eq("lot_kind", "retention");
-      } else if (view === "packaged") {
-        query = (query as any).eq("status", "available").eq("lot_kind", "packaged");
-      } else {
-        if (statusFilter !== "all") query = query.eq("status", statusFilter);
-        if (typeFilter !== "all") query = query.eq("product_type", typeFilter);
-        if (formatFilter !== "all") query = query.eq("format_id", formatFilter);
-        if (kindFilter !== "all") query = query.eq("lot_kind", kindFilter);
-        if (locationFilter !== "all") query = query.eq("location", locationFilter);
-        if (batchFilter !== "all") query = query.eq("batch_id", batchFilter);
-      }
-
-
-      const { data, error } = await query;
+      const [{ data, error: err }, { data: bs }, { data: cs }] = await Promise.all([
+        supabase.from("inventory_lots").select("*").order("created_at", { ascending: false }),
+        supabase.from("batches").select("*").order("batch_number", { ascending: true }),
+        supabase.from("stock_containers").select("lot_id,net_weight_grams,status"),
+      ]);
       if (cancelled) return;
-      if (error) {
-        setError(error.message);
+      if (err) {
+        setError(err.message);
         return;
       }
-      const rows = data ?? [];
-      setLots(rows);
-      const lotIds = rows.map((r) => r.id);
-      if (lotIds.length > 0) {
-        const { data: cs } = await supabase
-          .from("stock_containers")
-          .select("*")
-          .in("lot_id", lotIds);
-        if (!cancelled) {
-          const grouped: Record<string, StockContainer[]> = {};
-          (cs ?? []).forEach((c) => {
-            grouped[c.lot_id] = [...(grouped[c.lot_id] ?? []), c];
-          });
-          setContainers(grouped);
-        }
-      } else {
-        setContainers({});
-      }
-      const ids = Array.from(
-        new Set(rows.map((r) => r.batch_id).filter((x): x is string => !!x)),
-      );
-      if (ids.length > 0) {
-        const { data: bs } = await supabase
-          .from("batches")
-          .select("*")
-          .in("id", ids);
-        const map: Record<string, Batch> = {};
-        (bs ?? []).forEach((b) => (map[b.id] = b));
-        if (!cancelled) setBatches(map);
-      } else {
-        setBatches({});
-      }
+      const map: Record<string, Batch> = {};
+      (bs ?? []).forEach((b) => (map[b.id] = b));
+      const grams: Record<string, number> = {};
+      (cs ?? []).forEach((c) => {
+        if (!c.lot_id || (c.status ?? "available") !== "available") return;
+        grams[c.lot_id] = (grams[c.lot_id] ?? 0) + Number(c.net_weight_grams ?? 0);
+      });
+      setBatches(map);
+      setAllBatches(bs ?? []);
+      setLotGrams(grams);
+      setLots(data ?? []);
     })();
     return () => {
       cancelled = true;
     };
-  }, [view, statusFilter, typeFilter, formatFilter, kindFilter, locationFilter, batchFilter]);
+  }, []);
 
-  const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
-    arr.find((x) => x.value === v)?.label ?? v ?? "—";
+  const formatName = (id: string | null, fallbackText: string | null) =>
+    (id ? formatsById[id]?.name : null) ?? fallbackText ?? null;
 
-  // Fleur et Trim ne sont jamais fusionnés : filtre client + totaux distincts.
-  const visibleLots =
-    lots === null
-      ? null
-      : materialFilter === "all"
-        ? lots
-        : lots.filter((l) => materialOf(l) === materialFilter);
-  const totals = materialTotals(visibleLots ?? []);
+  const groups = useMemo(() => {
+    if (!lots) return null;
+    // Poids du lot : `quantity_grams` sinon somme des sacs disponibles.
+    const gramsOf = (l: Lot) => Number(l.quantity_grams ?? 0) || (lotGrams[l.id] ?? 0);
+    return groupLotsByBatch(lots, batches, formatName, gramsOf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lots, batches, formats, lotGrams]);
 
+  const visibleGroups = useMemo(() => {
+    if (!groups) return null;
+    return groups.filter((g) => {
+      if (batchFilter !== "all" && g.key !== batchFilter) return false;
+      if (strainFilter !== "all" && (g.strain ?? "—") !== strainFilter) return false;
+      if (materialFilter === "flower" && g.flower <= 0) return false;
+      if (materialFilter === "trim" && g.trim <= 0) return false;
+      if (formatFilter !== "all" && !g.formatIds.includes(formatFilter)) return false;
+      // Batches entièrement expédiées/détruites : masquées sauf filtre batch explicite.
+      if (batchFilter === "all" && g.status !== "available") return false;
+      return true;
+    });
+  }, [groups, batchFilter, strainFilter, materialFilter, formatFilter]);
+
+  const strains = useMemo(
+    () =>
+      Array.from(new Set((groups ?? []).map((g) => g.strain).filter((s): s is string => !!s))).sort(),
+    [groups],
+  );
+
+  const totals = (visibleGroups ?? []).reduce(
+    (acc, g) => ({ flower: acc.flower + g.flower, trim: acc.trim + g.trim, unknown: acc.unknown + g.unknown }),
+    { flower: 0, trim: 0, unknown: 0 },
+  );
 
   return (
     <div className="space-y-6">
@@ -279,35 +285,47 @@ function InventoryPage() {
         <div>
           <h1 className="text-2xl font-semibold">Inventaire</h1>
           <p className="text-sm text-muted-foreground">
-            {VIEW_LABEL[view] ?? "Lots de produit, formats, emplacements et statuts."}
+            Une ligne par batch ayant du stock. Cliquez pour voir tout le détail (lots, sacs, formats).
           </p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            disabled={!visibleLots || visibleLots.length === 0}
+            disabled={!visibleGroups || visibleGroups.length === 0}
             onClick={() => {
-              if (!visibleLots) return;
+              if (!visibleGroups) return;
+              // Export : feuille "Résumé par batch" + feuille "Détail lots".
               exportXlsx("inventaire", [
                 {
-                  name: "Lots",
-                  rows: visibleLots.map((l) => ({
-                    "Numéro lot": l.lot_number,
-                    Batch: l.batch_id ? batches[l.batch_id]?.batch_number ?? "" : "",
-                    Variété: strainOf(l, l.batch_id ? batches[l.batch_id] : null) ?? "",
-                    Matière: materialLabel(materialOf(l)),
-                    Type: labelOf(PRODUCT_TYPES, l.product_type),
-
-                    Format:
-                      (l.format_id ? formatsById[l.format_id]?.name : null) ?? l.format ?? "",
-
-                    Taille: labelOf(FLOWER_SIZES, l.flower_size),
-                    "Quantité (g)": l.quantity_grams ?? "",
-                    Unités: l.units ?? "",
-                    Emplacement: l.location ?? "",
-                    Statut: l.status ?? "",
-                    "Créé le": fmtDate(l.created_at),
+                  name: "Résumé par batch",
+                  rows: visibleGroups.map((g) => ({
+                    Batch: g.batchNumber,
+                    Variété: g.strain ?? "",
+                    "Fleur (g)": g.flower,
+                    "Trim (g)": g.trim,
+                    "Non qualifié (g)": g.unknown,
+                    Unités: g.units,
+                    Formats: g.formatLabels.join(", "),
+                    Emplacements: g.locations.join(", "),
+                    Statut: g.status,
                   })),
+                },
+                {
+                  name: "Détail lots",
+                  rows: visibleGroups.flatMap((g) =>
+                    g.lots.map((l) => ({
+                      Batch: g.batchNumber,
+                      "Numéro lot": l.lot_number,
+                      Variété: strainOf(l, g.batch) ?? "",
+                      Matière: materialOf(l) === "trim" ? "Trim" : materialOf(l) === "flower" ? "Fleur" : "",
+                      Nature: l.lot_kind ?? "",
+                      Format: formatName(l.format_id, l.format) ?? "",
+                      "Quantité (g)": l.quantity_grams ?? "",
+                      Unités: l.units ?? "",
+                      Emplacement: l.location ?? "",
+                      Statut: l.status ?? "",
+                    })),
+                  ),
                 },
               ]);
             }}
@@ -326,171 +344,87 @@ function InventoryPage() {
               Nouveau lot
             </Button>
           )}
-
         </div>
-
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Vue</span>
-          <Select value={view} onValueChange={setView}>
-            <SelectTrigger className="w-64">
+          <span className="text-sm text-muted-foreground">Batch</span>
+          <Select value={batchFilter} onValueChange={(v) => patch({ batch: v })}>
+            <SelectTrigger className="w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les lots</SelectItem>
-              <SelectItem value="bulk">Bulk (flower + trim)</SelectItem>
-              <SelectItem value="packaged">Mastercase avec timbres</SelectItem>
-              <SelectItem value="sample">Échantillons</SelectItem>
-              <SelectItem value="retention">Rétention 🔒</SelectItem>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value={NO_BATCH}>Sans batch</SelectItem>
+              {allBatches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.batch_number}
+                  {b.strain ? ` — ${b.strain}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Variété</span>
+          <Select value={strainFilter} onValueChange={(v) => patch({ strain: v })}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              {strains.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Matière</span>
-          <Select
-            value={materialFilter}
-            onValueChange={(v) => patch({ material: v })}
-          >
-            <SelectTrigger className="w-40">
+          <Select value={materialFilter} onValueChange={(v) => patch({ material: v })}>
+            <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Fleur + Trim</SelectItem>
-              <SelectItem value="flower">Fleur seule</SelectItem>
-              <SelectItem value="trim">Trim seul</SelectItem>
+              <SelectItem value="flower">A de la fleur</SelectItem>
+              <SelectItem value="trim">A de la trim</SelectItem>
             </SelectContent>
           </Select>
         </div>
-
-        {view === "all" && (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Statut</span>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  <SelectItem value="available">Disponible</SelectItem>
-                  <SelectItem value="reserved">Réservé</SelectItem>
-                  <SelectItem value="shipped">Expédié</SelectItem>
-                  <SelectItem value="destroyed">Détruit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Type</span>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  {PRODUCT_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Format</span>
-              <Select value={formatFilter} onValueChange={(v) => patch({ format: v })}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  {formats.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Nature</span>
-              <Select value={kindFilter} onValueChange={(v) => patch({ kind: v })}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes</SelectItem>
-                  {Object.entries(LOT_KIND_VARIANTS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>
-                      {v.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Emplacement</span>
-              <Select value={locationFilter} onValueChange={(v) => patch({ location: v })}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc} value={loc}>
-                      {loc}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Batch</span>
-              <Select value={batchFilter} onValueChange={(v) => patch({ batch: v })}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes</SelectItem>
-                  {allBatches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.batch_number}
-                      {b.strain ? ` — ${b.strain}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
-        )}
-
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Format</span>
+          <Select value={formatFilter} onValueChange={(v) => patch({ format: v })}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              {formats.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Fleur disponible
-          </p>
-          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">
-            {fmtG(totals.flower)} g
-          </p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Fleur disponible</p>
+          <p className="text-2xl font-semibold text-emerald-400 tabular-nums">{fmtG(totals.flower)} g</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Trim disponible
-          </p>
-          <p className="text-2xl font-semibold text-lime-400 tabular-nums">
-            {fmtG(totals.trim)} g
-          </p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Trim disponible</p>
+          <p className="text-2xl font-semibold text-lime-400 tabular-nums">{fmtG(totals.trim)} g</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Matière non qualifiée
-          </p>
-          <p className="text-2xl font-semibold text-muted-foreground tabular-nums">
-            {fmtG(totals.unknown)} g
-          </p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Matière non qualifiée</p>
+          <p className="text-2xl font-semibold text-muted-foreground tabular-nums">{fmtG(totals.unknown)} g</p>
         </Card>
       </div>
 
@@ -499,21 +433,20 @@ function InventoryPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Numéro de lot</TableHead>
+                <TableHead>Batch</TableHead>
                 <TableHead>Variété</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Format</TableHead>
-                <TableHead>Nature</TableHead>
-                <TableHead className="text-right">Quantité (g)</TableHead>
+                <TableHead className="text-right">Fleur (g)</TableHead>
+                <TableHead className="text-right">Trim (g)</TableHead>
                 <TableHead className="text-right">Unités</TableHead>
-                <TableHead>Emplacement</TableHead>
+                <TableHead>Formats</TableHead>
+                <TableHead>Emplacements</TableHead>
                 <TableHead>Statut</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-destructive">
+                  <TableCell colSpan={8} className="text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -522,7 +455,7 @@ function InventoryPage() {
                 <>
                   {[...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(9)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -531,88 +464,82 @@ function InventoryPage() {
                   ))}
                 </>
               )}
-              {visibleLots && visibleLots.length === 0 && (
+              {visibleGroups && visibleGroups.length === 0 && (
                 <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    Aucun lot pour le moment.
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    Aucun stock pour le moment.
                   </TableCell>
                 </TableRow>
               )}
-              {visibleLots?.map((l) => {
-                const s = summarizeContainers(containers[l.id] ?? []);
-                const batch = l.batch_id ? batches[l.batch_id] : null;
-                const strain = strainOf(l, batch);
-                return (
-                  <TableRow
-                    key={l.id}
-                    className="cursor-pointer"
-                    onClick={() =>
-                      navigate({ to: "/inventory/$id", params: { id: l.id } })
-                    }
-                  >
-                    <TableCell className="font-medium">
-                      <Link
-                        to="/inventory/$id"
-                        params={{ id: l.id }}
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {l.lot_number}
-                      </Link>
-                      {batch && (
-                        <span className="block text-xs text-muted-foreground">
-                          {batch.batch_number}
-                        </span>
+              {visibleGroups?.map((g) => (
+                <TableRow
+                  key={g.key}
+                  className="cursor-pointer"
+                  onClick={() =>
+                    navigate({ to: "/inventory/batch/$batchId", params: { batchId: g.key } })
+                  }
+                >
+                  <TableCell className="font-medium">
+                    <Link
+                      to="/inventory/batch/$batchId"
+                      params={{ batchId: g.key }}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {g.batchNumber}
+                    </Link>
+                    <span className="block text-xs text-muted-foreground">
+                      {g.lots.length} lot{g.lots.length > 1 ? "s" : ""}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {g.strain ?? <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-emerald-400">
+                    {fmtG(g.flower)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-lime-400">
+                    {fmtG(g.trim)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{g.units}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {g.formatIds.length === 0 && g.formatLabels.length === 0 && (
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {strain ?? <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell>
-                      <MaterialBadge lot={l} />
-                    </TableCell>
-                    <TableCell>
-                      {l.format_id && formatsById[l.format_id] ? (
-                        <Badge
-                          variant="outline"
-                          className={
-                            FORMAT_TYPE_CLASS[formatsById[l.format_id].format_type] ??
-                            "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {formatsById[l.format_id].name}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">{l.format ?? "—"}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <LotKindBadge kind={l.lot_kind} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtG(Number(l.quantity_grams ?? 0))}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {s.total > 0 ? s.available : (l.units ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {l.location ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <LotStatusBadge status={l.status} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      {g.formatLabels.map((name) => {
+                        const id = g.formatIds.find((fid) => formatsById[fid]?.name === name);
+                        const type = id ? formatsById[id]?.format_type : null;
+                        return (
+                          <Badge
+                            key={name}
+                            variant="outline"
+                            className={
+                              (type && FORMAT_TYPE_CLASS[type]) ?? "bg-muted text-muted-foreground"
+                            }
+                          >
+                            {name}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {g.locations.length === 0
+                      ? "—"
+                      : g.locations.length <= 2
+                        ? g.locations.join(", ")
+                        : `${g.locations.length} emplacements`}
+                  </TableCell>
+                  <TableCell>
+                    <LotStatusBadge status={g.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
       </Card>
-
     </div>
   );
 }
-
