@@ -17,7 +17,14 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import { exportXlsx } from "@/lib/export-xlsx";
 import { fmtG, type StockCarton, type StockContainer } from "@/lib/containers";
-import { MaterialBadge, materialLabel, materialOf, strainOf } from "@/lib/materials";
+import {
+  MaterialTag,
+  containerMaterial,
+  containerMaterialTotals,
+  materialLabel,
+  materialOf,
+  strainOf,
+} from "@/lib/materials";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 import { flowerSizeLabel } from "@/components/inventory/carton-builder";
 import {
