@@ -26,6 +26,7 @@ import {
   containerSizeValue,
 } from "@/components/inventory/containers-section";
 import { FLOWER_SIZES, LotStatusBadge } from "@/routes/_authenticated/inventory";
+import { isSubLot } from "@/lib/lot-display";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
