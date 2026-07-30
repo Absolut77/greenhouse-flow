@@ -248,8 +248,10 @@ export const cartonKindLabel = (c: CartonDraft) =>
   c.bags.some((b) => !isBulkContainerType(b.type)) ? "Mastercase" : "Carton";
 
 /**
- * Règle métier : un Mastercase peut contenir n'importe quel type packagé,
- * mais jamais de Bulk.
+ * Règles métier :
+ * - un Mastercase peut contenir n'importe quel type packagé, mais jamais de Bulk ;
+ * - chaque contenant doit porter un format du catalogue (aucun format libre) ;
+ * - le poids doit être renseigné (poids libre pour bulk / échantillon / rétention).
  */
 export function validateCartons(cartons: CartonDraft[]): string | null {
   for (const c of cartons) {
@@ -258,9 +260,10 @@ export function validateCartons(cartons: CartonDraft[]): string | null {
     if (hasBulk && hasPackaged)
       return `Le Mastercase ${c.code || "?"} ne peut pas contenir de Bulk : séparez le Bulk dans son propre carton.`;
     for (const b of c.bags) {
-      if (isBulkContainerType(b.type)) continue;
+      if (!b.formatId || b.formatId === NO_FORMAT)
+        return `Format catalogue obligatoire pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
       if (bagNet(b) <= 0)
-        return `Poids manquant pour la ligne ${b.code || "?"} du Mastercase ${c.code || "?"}.`;
+        return `Poids manquant pour la ligne ${b.code || "?"} du carton ${c.code || "?"}.`;
     }
   }
   return null;
@@ -271,6 +274,7 @@ export type LotMeta = {
   lot_kind: string;
   product_type: string | null;
   format: string | null;
+  format_id: string | null;
   flower_size: string | null;
 };
 
@@ -278,12 +282,11 @@ export type LotMeta = {
 export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]): LotMeta {
   const bags = cartons.flatMap((c) => c.bags);
   const types = new Set(bags.map((b) => b.type));
-  const formatNames = new Set(
-    bags
-      .map((b) => formats.find((f) => f.id === b.formatId))
-      .filter(Boolean)
-      .map((f) => `${f!.name}`),
-  );
+  const usedFormats = bags
+    .map((b) => formats.find((f) => f.id === b.formatId))
+    .filter(Boolean) as PackagingFormat[];
+  const formatIds = new Set(usedFormats.map((f) => f.id));
+  const formatNames = new Set(usedFormats.map((f) => f.name));
   const sizes = new Set(
     bags.map((b) => b.flowerSize).filter((s) => s && s !== NO_SIZE) as string[],
   );
@@ -314,11 +317,13 @@ export function deriveLotMeta(cartons: CartonDraft[], formats: PackagingFormat[]
       formatNames.size > 0
         ? [...formatNames].join(" + ")
         : lot_kind === "bulk"
-          ? "bulk"
+          ? "Bulk"
           : null,
+    format_id: formatIds.size === 1 ? [...formatIds][0] : null,
     flower_size: sizes.size === 1 ? [...sizes][0] : null,
   };
 }
+
 
 
 export function CartonBuilder({
