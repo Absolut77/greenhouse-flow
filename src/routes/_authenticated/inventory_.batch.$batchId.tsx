@@ -26,6 +26,7 @@ import {
   containerSizeValue,
 } from "@/components/inventory/containers-section";
 import { FLOWER_SIZES, LotStatusBadge } from "@/routes/_authenticated/inventory";
+import { isSubLot } from "@/lib/lot-display";
 
 type Lot = Tables<"inventory_lots">;
 type Batch = Tables<"batches">;
@@ -45,6 +46,8 @@ function BatchStockPage() {
 
   const [batch, setBatch] = useState<Batch | null>(null);
   const [lots, setLots] = useState<Lot[] | null>(null);
+  const [childLots, setChildLots] = useState<Lot[]>([]);
+  const [childBatches, setChildBatches] = useState<Batch[]>([]);
   const [containers, setContainers] = useState<StockContainer[]>([]);
   const [cartons, setCartons] = useState<StockCarton[]>([]);
 
@@ -72,7 +75,26 @@ function BatchStockPage() {
           .eq("id", batchId)
           .maybeSingle();
         if (!cancelled) setBatch(b ?? null);
+
+        // Sous-batches issues d'une transformation (ex. envoi chez Nuance)
+        const { data: kids } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("parent_batch_id", batchId);
+        if (cancelled) return;
+        setChildBatches(kids ?? []);
+        const kidIds = (kids ?? []).map((k) => k.id);
+        if (kidIds.length > 0) {
+          const { data: kl } = await supabase
+            .from("inventory_lots")
+            .select("*")
+            .in("batch_id", kidIds);
+          if (!cancelled) setChildLots(kl ?? []);
+        } else if (!cancelled) {
+          setChildLots([]);
+        }
       }
+
 
       const ids = rows.map((r) => r.id);
       if (ids.length > 0) {
@@ -143,6 +165,12 @@ function BatchStockPage() {
     (lots ?? []).map((l) => strainOf(l, batch)).find((s): s is string => !!s) ||
     null;
   const title = batchId === NO_BATCH ? "Lots sans batch" : (batch?.batch_number ?? "Batch");
+
+  // Sous-lots visibles = transformations (pré-roulés, mastercase, retours…),
+  // qu'ils soient portés par la batch ou par une sous-batch enfant.
+  const childBatchById = Object.fromEntries(childBatches.map((b) => [b.id, b]));
+  const subLots = [...(lots ?? []).filter(isSubLot), ...childLots.filter(isSubLot)];
+
 
   const sizeLabel = (v: string | null) =>
     v ? (FLOWER_SIZES.find((s) => s.value === v)?.label ?? flowerSizeLabel(v)) : "—";
@@ -300,6 +328,68 @@ function BatchStockPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {subLots.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sous-lots ({subLots.length})</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Issus d'une transformation (pré-roulés, mastercase, retours). Le stock bulk de la
+              batch reste porté par les sacs ci-dessus.
+            </p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sous-lot</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Format</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead className="text-right">Quantité (g)</TableHead>
+                  <TableHead className="text-right">Unités</TableHead>
+                  <TableHead>Emplacement</TableHead>
+                  <TableHead>Statut</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subLots.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        to="/inventory/$id"
+                        params={{ id: l.id }}
+                        className="hover:underline text-primary"
+                      >
+                        {l.lot_number}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.product_type ?? l.lot_kind ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <FormatBadge id={l.format_id} text={l.format} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.batch_id && l.batch_id !== batchId
+                        ? (childBatchById[l.batch_id]?.batch_number ?? "—")
+                        : (batch?.batch_number ?? "—")}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtG(gramsOf(l))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{l.units ?? 0}</TableCell>
+                    <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
+                    <TableCell>
+                      <LotStatusBadge status={l.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
