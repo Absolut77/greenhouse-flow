@@ -125,20 +125,59 @@ export function LotKindBadge({ kind }: { kind: string | null }) {
 function InventoryPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { view, status: statusFilter, type: typeFilter } = search;
+  const {
+    view,
+    status: statusFilter,
+    type: typeFilter,
+    format: formatFilter,
+    kind: kindFilter,
+    location: locationFilter,
+    batch: batchFilter,
+  } = search;
   const { roles } = useAuth();
+  const { formats } = usePackagingFormats(false);
+  const formatsById = indexFormats(formats);
   const isViewerOnly = roles.length > 0 && roles.every((r) => r === "viewer");
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [batches, setBatches] = useState<Record<string, Batch>>({});
   const [containers, setContainers] = useState<Record<string, StockContainer[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [allBatches, setAllBatches] = useState<Batch[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
 
-  const setStatusFilter = (v: string) =>
-    navigate({ to: "/inventory", search: { ...search, status: v, view: "all" } });
-  const setTypeFilter = (v: string) =>
-    navigate({ to: "/inventory", search: { ...search, type: v, view: "all" } });
+  const patch = (p: Partial<typeof search>) =>
+    navigate({ to: "/inventory", search: { ...search, ...p, view: "all" } });
+  const setStatusFilter = (v: string) => patch({ status: v });
+  const setTypeFilter = (v: string) => patch({ type: v });
   const setView = (v: string) =>
-    navigate({ to: "/inventory", search: { view: v, status: "all", type: "all" } });
+    navigate({
+      to: "/inventory",
+      search: {
+        view: v,
+        status: "all",
+        type: "all",
+        format: "all",
+        kind: "all",
+        location: "all",
+        batch: "all",
+      },
+    });
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: bs }, { data: locs }] = await Promise.all([
+        supabase.from("batches").select("*").order("batch_number", { ascending: true }),
+        supabase.from("inventory_lots").select("location"),
+      ]);
+      setAllBatches(bs ?? []);
+      setLocations(
+        Array.from(
+          new Set((locs ?? []).map((l) => l.location).filter((x): x is string => !!x)),
+        ).sort(),
+      );
+    })();
+  }, []);
+
 
   useEffect(() => {
     let cancelled = false;
