@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
   ChevronDown,
@@ -25,9 +25,11 @@ import {
   formatNetGrams,
   formatUnitGrams,
   formatsForContainerType,
+  isFreeWeightFormat,
   usePackagingFormats,
   type PackagingFormat,
 } from "@/lib/packaging-formats";
+
 
 
 export const NO_FORMAT = "__no_format__";
