@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { fmtG } from "@/lib/containers";
 import { materialOf, strainOf } from "@/lib/materials";
+import { isSubLot } from "@/lib/lot-display";
 import { FORMAT_TYPE_CLASS, indexFormats, usePackagingFormats } from "@/lib/packaging-formats";
 
 type Lot = Tables<"inventory_lots">;
@@ -285,7 +286,8 @@ function InventoryPage() {
         <div>
           <h1 className="text-2xl font-semibold">Inventaire</h1>
           <p className="text-sm text-muted-foreground">
-            Une ligne par batch ayant du stock. Cliquez pour voir tout le détail (lots, sacs, formats).
+            Une ligne par batch ayant du stock. Cliquez pour voir les sacs / contenants et les
+            sous-lots de transformation.
           </p>
         </div>
         <div className="flex gap-2">
@@ -311,9 +313,9 @@ function InventoryPage() {
                   })),
                 },
                 {
-                  name: "Détail lots",
+                  name: "Sous-lots",
                   rows: visibleGroups.flatMap((g) =>
-                    g.lots.map((l) => ({
+                    g.lots.filter(isSubLot).map((l) => ({
                       Batch: g.batchNumber,
                       "Numéro lot": l.lot_number,
                       Variété: strainOf(l, g.batch) ?? "",
@@ -488,9 +490,12 @@ function InventoryPage() {
                     >
                       {g.batchNumber}
                     </Link>
-                    <span className="block text-xs text-muted-foreground">
-                      {g.lots.length} lot{g.lots.length > 1 ? "s" : ""}
-                    </span>
+                    {g.lots.filter(isSubLot).length > 0 && (
+                      <span className="block text-xs text-muted-foreground">
+                        {g.lots.filter(isSubLot).length} sous-lot
+                        {g.lots.filter(isSubLot).length > 1 ? "s" : ""}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {g.strain ?? <span className="text-muted-foreground">—</span>}
