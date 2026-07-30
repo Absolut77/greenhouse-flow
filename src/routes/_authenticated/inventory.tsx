@@ -250,7 +250,7 @@ function InventoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [view, statusFilter, typeFilter]);
+  }, [view, statusFilter, typeFilter, formatFilter, kindFilter, locationFilter, batchFilter]);
 
   const labelOf = (arr: { value: string; label: string }[], v: string | null) =>
     arr.find((x) => x.value === v)?.label ?? v ?? "—";
