@@ -228,75 +228,6 @@ function BatchStockPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Lots de la batch</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numéro de lot</TableHead>
-                <TableHead>Matière</TableHead>
-                <TableHead>Taille</TableHead>
-                <TableHead>Format</TableHead>
-                <TableHead>Nature</TableHead>
-                <TableHead className="text-right">Poids (g)</TableHead>
-                <TableHead className="text-right">Unités</TableHead>
-                <TableHead>Emplacement</TableHead>
-                <TableHead>Statut</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lots === null &&
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    {[...Array(9)].map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              {lots?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                    Aucun lot pour cette batch.
-                  </TableCell>
-                </TableRow>
-              )}
-              {lots?.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-medium">
-                    <Link to="/inventory/$id" params={{ id: l.id }} className="hover:underline">
-                      {l.lot_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <MaterialBadge lot={l} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{sizeLabel(l.flower_size)}</TableCell>
-                  <TableCell>
-                    <FormatBadge id={l.format_id} text={l.format} />
-                  </TableCell>
-                  <TableCell>
-                    <LotKindBadge kind={l.lot_kind} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {fmtG(gramsOf(l))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{l.units ?? 0}</TableCell>
-                  <TableCell className="text-muted-foreground">{l.location ?? "—"}</TableCell>
-                  <TableCell>
-                    <LotStatusBadge status={l.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="text-base">
             Sacs / contenants ({containers.length})
           </CardTitle>
@@ -305,8 +236,8 @@ function BatchStockPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID sac</TableHead>
-                <TableHead>Lot</TableHead>
+                <TableHead>Contenant / sac</TableHead>
+                <TableHead>Carton / Box</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Matière</TableHead>
                 <TableHead>Taille</TableHead>
@@ -317,6 +248,7 @@ function BatchStockPage() {
                 <TableHead>Statut</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {containers.length === 0 && (
                 <TableRow>
