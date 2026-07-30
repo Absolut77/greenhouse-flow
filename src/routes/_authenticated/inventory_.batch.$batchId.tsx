@@ -75,7 +75,26 @@ function BatchStockPage() {
           .eq("id", batchId)
           .maybeSingle();
         if (!cancelled) setBatch(b ?? null);
+
+        // Sous-batches issues d'une transformation (ex. envoi chez Nuance)
+        const { data: kids } = await supabase
+          .from("batches")
+          .select("*")
+          .eq("parent_batch_id", batchId);
+        if (cancelled) return;
+        setChildBatches(kids ?? []);
+        const kidIds = (kids ?? []).map((k) => k.id);
+        if (kidIds.length > 0) {
+          const { data: kl } = await supabase
+            .from("inventory_lots")
+            .select("*")
+            .in("batch_id", kidIds);
+          if (!cancelled) setChildLots(kl ?? []);
+        } else if (!cancelled) {
+          setChildLots([]);
+        }
       }
+
 
       const ids = rows.map((r) => r.id);
       if (ids.length > 0) {
